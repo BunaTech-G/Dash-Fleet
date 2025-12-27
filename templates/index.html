@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>System Dashboard</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <main class="page">
+    <header>
+      <div>
+        <p class="eyebrow">Live status</p>
+        <h1>System dashboard</h1>
+        <p class="lede">CPU, memory, disk, and uptime updated every few seconds.</p>
+      </div>
+      <div class="badge" id="alert-badge">All clear</div>
+    </header>
+
+    <section class="grid">
+      <article class="card" id="cpu-card">
+        <div class="label">CPU</div>
+        <div class="value" id="cpu-value">--%</div>
+        <div class="meta" id="cpu-meta">Waiting for data</div>
+      </article>
+
+      <article class="card" id="ram-card">
+        <div class="label">RAM</div>
+        <div class="value" id="ram-value">--%</div>
+        <div class="meta" id="ram-meta">Waiting for data</div>
+      </article>
+
+      <article class="card" id="disk-card">
+        <div class="label">Disk</div>
+        <div class="value" id="disk-value">--%</div>
+        <div class="meta" id="disk-meta">Waiting for data</div>
+      </article>
+
+      <article class="card" id="uptime-card">
+        <div class="label">Uptime</div>
+        <div class="value" id="uptime-value">--:--:--</div>
+        <div class="meta" id="uptime-meta">since boot</div>
+      </article>
+    </section>
+
+    <section class="table-wrap">
+      <div class="table-header">
+        <h2>Latest snapshot</h2>
+        <span id="timestamp">--</span>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Metric</th>
+            <th>Value</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>CPU</td><td id="row-cpu">--</td></tr>
+          <tr><td>RAM</td><td id="row-ram">--</td></tr>
+          <tr><td>Disk</td><td id="row-disk">--</td></tr>
+          <tr><td>Uptime</td><td id="row-uptime">--</td></tr>
+        </tbody>
+      </table>
+    </section>
+  </main>
+
+  <script>
+    const alertBadge = document.getElementById('alert-badge');
+
+    function setAlert(active) {
+      if (active) {
+        alertBadge.textContent = 'Alert: high load';
+        alertBadge.classList.add('alert');
+      } else {
+        alertBadge.textContent = 'All clear';
+        alertBadge.classList.remove('alert');
+      }
+    }
+
+    function updateCard(id, valueText, metaText, alert) {
+      const card = document.getElementById(id);
+      card.querySelector('.value').textContent = valueText;
+      card.querySelector('.meta').textContent = metaText;
+      card.classList.toggle('alert', alert);
+    }
+
+    function refresh() {
+      fetch('/api/stats')
+        .then((resp) => resp.json())
+        .then((data) => {
+          const cpuText = `${data.cpu_percent.toFixed(1)}%`;
+          const ramText = `${data.ram_percent.toFixed(1)}%`;
+          const diskText = `${data.disk_percent.toFixed(1)}%`;
+
+          updateCard('cpu-card', cpuText, 'Threshold 80%', data.alerts.cpu);
+          updateCard('ram-card', ramText, `Used ${data.ram_used_gib.toFixed(2)} / ${data.ram_total_gib.toFixed(2)} GiB`, data.alerts.ram);
+          updateCard('disk-card', diskText, `Used ${data.disk_used_gib.toFixed(2)} / ${data.disk_total_gib.toFixed(2)} GiB`, false);
+          updateCard('uptime-card', data.uptime_hms, 'H:M:S since boot', false);
+
+          document.getElementById('timestamp').textContent = data.timestamp;
+          document.getElementById('cpu-value').textContent = cpuText;
+          document.getElementById('ram-value').textContent = ramText;
+          document.getElementById('disk-value').textContent = diskText;
+          document.getElementById('uptime-value').textContent = data.uptime_hms;
+
+          document.getElementById('row-cpu').textContent = cpuText + (data.alerts.cpu ? ' (alert)' : '');
+          document.getElementById('row-ram').textContent = `${ramText} (${data.ram_used_gib.toFixed(2)} / ${data.ram_total_gib.toFixed(2)} GiB)` + (data.alerts.ram ? ' (alert)' : '');
+          document.getElementById('row-disk').textContent = `${diskText} (${data.disk_used_gib.toFixed(2)} / ${data.disk_total_gib.toFixed(2)} GiB)`;
+          document.getElementById('row-uptime').textContent = data.uptime_hms;
+
+          setAlert(data.alert_active);
+        })
+        .catch((err) => {
+          console.error(err);
+          alertBadge.textContent = 'Error fetching data';
+          alertBadge.classList.add('alert');
+        });
+    }
+
+    refresh();
+    setInterval(refresh, 2500);
+  </script>
+</body>
+</html>
