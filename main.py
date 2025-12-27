@@ -7,6 +7,7 @@ import argparse
 import csv
 import datetime as dt
 import json
+import threading
 import time
 from pathlib import Path
 from typing import Dict, Iterable
@@ -203,6 +204,25 @@ def run_cli(interval: float, export_csv_path: Path | None, export_json_path: Pat
         print("\nArrêté.")
 
 
+def start_background_export(interval: float, export_csv_path: Path | None, export_json_path: Path | None) -> None:
+    """Démarre un export en tâche de fond pendant que Flask tourne."""
+
+    def _loop() -> None:
+        while True:
+            stats = collect_stats()
+            if export_csv_path:
+                export_to_csv(export_csv_path, [stats])
+            if export_json_path:
+                export_to_jsonl(export_json_path, [stats])
+            time.sleep(interval)
+
+    if not export_csv_path and not export_json_path:
+        return
+
+    thread = threading.Thread(target=_loop, daemon=True)
+    thread.start()
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Tableau de bord système : CLI et UI Flask")
     parser.add_argument("--web", action="store_true", help="Lancer l’UI web Flask au lieu de la sortie CLI")
@@ -217,6 +237,9 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     if args.web:
+        # Si on fournit un export, on lance l’export en tâche de fond en même temps que Flask.
+        if args.export_csv or args.export_jsonl:
+            start_background_export(args.interval, args.export_csv, args.export_jsonl)
         app.run(host=args.host, port=args.port, debug=False)
     else:
         run_cli(args.interval, args.export_csv, args.export_jsonl)

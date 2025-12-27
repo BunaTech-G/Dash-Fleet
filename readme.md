@@ -8,6 +8,7 @@ Petit projet pédagogique qui surveille CPU, RAM, disque et uptime en mode CLI e
 - [templates/history.html](templates/history.html) — Vue historique (courbes depuis CSV)
 - [static/style.css](static/style.css) — Style du tableau de bord
 - [requirements.txt](requirements.txt) — Dépendances Python
+- Optionnel : placer `static/audio/songi-songi.mp3` pour la musique de fond sur la page temps réel
 
 ## Prérequis
 - Python 3.10+ recommandé
@@ -47,6 +48,8 @@ python main.py --web
 Options :
 - `--host 0.0.0.0` — écouter sur toutes les interfaces
 - `--port 8000` — port personnalisé
+- `--export-csv logs/metrics.csv` — (optionnel) lance un export en tâche de fond en plus de l’UI
+- `--export-jsonl logs/metrics.jsonl` — (optionnel) export JSONL en tâche de fond
 
 La page se met à jour automatiquement toutes les ~2,5 s. Un badge rouge apparaît en cas d’alerte.
 
@@ -57,6 +60,7 @@ La page se met à jour automatiquement toutes les ~2,5 s. Un badge rouge appara�
 - Expose un endpoint JSON `/api/stats` réutilisable ([main.py](main.py))
 - Propose des exports CSV/JSONL pour analyser plus tard ([main.py](main.py))
 - Fournit une vue historique `/history` qui lit `logs/metrics.csv` et trace les courbes CPU/RAM/Disque
+- Permet de lancer l’UI Flask + un export CSV/JSONL en même temps (un seul processus)
 
 ## Notes rapides pour apprendre
 - `psutil.cpu_percent(interval=0.3)` attend un court instant pour éviter de renvoyer 0 au premier appel.
@@ -67,7 +71,8 @@ La page se met à jour automatiquement toutes les ~2,5 s. Un badge rouge appara�
 - CLI : `python main.py --interval 1` puis solliciter CPU/RAM pour voir les alertes s’activer.
 - Web : `python main.py --web`, ouvrir le navigateur et vérifier que les valeurs se rafraîchissent.
 - Exports : `python main.py --export-csv logs/out.csv --export-jsonl logs/out.jsonl`, laisser tourner 5+ échantillons puis ouvrir les fichiers pour vérifier les entêtes/lignes.
-- Historique : après avoir généré `logs/metrics.csv` via `--export-csv`, ouvrir `/history` pour afficher les courbes (max 300 points).
+- Web + export dans un seul process : `python main.py --web --export-csv logs/metrics.csv`
+- Historique : après avoir généré `logs/metrics.csv` via `--export-csv` (en CLI ou avec l’option ci-dessus), ouvrir `/history` pour afficher les courbes (max 300 points).
 
 ## Idées suivantes
 - Ajouter un service Windows ou un unit systemd pour faire tourner l’exporteur en continu.

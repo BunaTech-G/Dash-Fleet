@@ -23,6 +23,20 @@
       <a href="/history">Historique</a>
     </nav>
 
+    <section class="audio-bar">
+      <div>
+        <p class="eyebrow">Musique</p>
+        <p class="lede">"Songi Songi" — Wayne Flory (place le fichier dans static/audio/songi-songi.mp3)</p>
+      </div>
+      <div class="audio-controls">
+        <button id="audio-toggle" type="button">Lire</button>
+        <span class="muted" id="audio-status">En pause</span>
+      </div>
+      <audio id="bg-audio" preload="metadata" loop>
+        <source src="/static/audio/songi-songi.mp3" type="audio/mpeg">
+      </audio>
+    </section>
+
     <section class="grid">
       <article class="card" id="cpu-card">
         <div class="label">CPU</div>
@@ -85,6 +99,32 @@
     const labels = [];
     const cpuSeries = [];
     const ramSeries = [];
+
+    // Audio de fond (lecture sur action utilisateur pour éviter le blocage autoplay)
+    const bgAudio = document.getElementById('bg-audio');
+    const audioToggle = document.getElementById('audio-toggle');
+    const audioStatus = document.getElementById('audio-status');
+    bgAudio.volume = 0.2;
+
+    function updateAudioUI(isPlaying) {
+      audioToggle.textContent = isPlaying ? 'Pause' : 'Lire';
+      audioStatus.textContent = isPlaying ? 'Lecture' : 'En pause';
+    }
+
+    audioToggle.addEventListener('click', async () => {
+      try {
+        if (bgAudio.paused) {
+          await bgAudio.play();
+          updateAudioUI(true);
+        } else {
+          bgAudio.pause();
+          updateAudioUI(false);
+        }
+      } catch (err) {
+        console.error('Audio error', err);
+        audioStatus.textContent = 'Erreur audio';
+      }
+    });
 
     const chartCtx = document.getElementById('trend-chart').getContext('2d');
     const trendChart = new Chart(chartCtx, {
