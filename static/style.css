@@ -30,6 +30,32 @@ body {
   padding: 56px 20px 72px;
 }
 
+.nav-links {
+  display: flex;
+  gap: 12px;
+  margin: 0 0 18px;
+}
+
+.nav-links a {
+  color: var(--text);
+  text-decoration: none;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.02);
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.nav-links a:hover {
+  border-color: var(--accent);
+  background: rgba(56, 189, 248, 0.1);
+}
+
+.nav-links .active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 header {
   display: flex;
   justify-content: space-between;
@@ -112,6 +138,22 @@ h1 {
   border-radius: var(--card-radius);
   box-shadow: var(--shadow);
   padding: 18px;
+}
+
+.empty {
+  margin-top: 24px;
+  padding: 16px;
+  border: 1px dashed var(--border);
+  border-radius: var(--card-radius);
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+code {
+  background: rgba(255, 255, 255, 0.05);
+  padding: 2px 6px;
+  border-radius: 6px;
+  color: var(--text);
 }
 
 .table-header {

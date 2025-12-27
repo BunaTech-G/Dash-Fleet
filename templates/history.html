@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Historique - Tableau de bord système</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <main class="page">
+    <header>
+      <div>
+        <p class="eyebrow">Historique</p>
+        <h1>Courbes CPU / RAM / Disque</h1>
+        <p class="lede">Affiche les points enregistrés dans le CSV (logs/metrics.csv). Lancer l’export pour alimenter les courbes.</p>
+      </div>
+    </header>
+
+    <nav class="nav-links">
+      <a href="/">Temps réel</a>
+      <a href="/history" class="active">Historique</a>
+    </nav>
+
+    <section class="chart-card">
+      <div class="table-header">
+        <h2>Séries temporelles</h2>
+        <span class="muted" id="meta-count">0 points</span>
+      </div>
+      <canvas id="history-chart" height="150"></canvas>
+    </section>
+
+    <section class="table-wrap" id="table-wrap">
+      <div class="table-header">
+        <h2>Dernières entrées</h2>
+        <span class="muted">Heure locale</span>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Timestamp</th>
+            <th>CPU %</th>
+            <th>RAM %</th>
+            <th>Disque %</th>
+            <th>Uptime</th>
+          </tr>
+        </thead>
+        <tbody id="history-body"></tbody>
+      </table>
+    </section>
+
+    <div class="empty" id="empty-state" hidden>
+      <p>Aucun historique trouvé.</p>
+      <p class="muted">Lance d’abord une collecte :<br> <code>python main.py --export-csv logs/metrics.csv</code></p>
+    </div>
+  </main>
+
+  <script>
+    const chartCtx = document.getElementById('history-chart').getContext('2d');
+    const labels = [];
+    const cpuSeries = [];
+    const ramSeries = [];
+    const diskSeries = [];
+
+    const historyChart = new Chart(chartCtx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          { label: 'CPU %', data: cpuSeries, borderColor: '#38bdf8', backgroundColor: 'rgba(56,189,248,0.12)', borderWidth: 2, tension: 0.25 },
+          { label: 'RAM %', data: ramSeries, borderColor: '#f43f5e', backgroundColor: 'rgba(244,63,94,0.12)', borderWidth: 2, tension: 0.25 },
+          { label: 'Disque %', data: diskSeries, borderColor: '#22c55e', backgroundColor: 'rgba(34,197,94,0.12)', borderWidth: 2, tension: 0.25 },
+        ],
+      },
+      options: {
+        plugins: { legend: { labels: { color: '#e5e7eb' } } },
+        scales: {
+          x: { ticks: { color: '#9ca3af' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+          y: { ticks: { color: '#9ca3af' }, grid: { color: 'rgba(255,255,255,0.05)' }, suggestedMin: 0, suggestedMax: 100 },
+        },
+      },
+    });
+
+    function renderTable(rows) {
+      const body = document.getElementById('history-body');
+      body.innerHTML = '';
+      rows.slice(-20).reverse().forEach((row) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${row.timestamp}</td>
+          <td>${row.cpu_percent.toFixed(1)}%</td>
+          <td>${row.ram_percent.toFixed(1)}%</td>
+          <td>${row.disk_percent.toFixed(1)}%</td>
+          <td>${row.uptime_hms || ''}</td>
+        `;
+        body.appendChild(tr);
+      });
+    }
+
+    function updateChart(rows) {
+      labels.length = 0;
+      cpuSeries.length = 0;
+      ramSeries.length = 0;
+      diskSeries.length = 0;
+
+      rows.forEach((row) => {
+        const timeLabel = row.timestamp.split('T')[1]?.slice(0, 8) || row.timestamp;
+        labels.push(timeLabel);
+        cpuSeries.push(row.cpu_percent);
+        ramSeries.push(row.ram_percent);
+        diskSeries.push(row.disk_percent);
+      });
+
+      historyChart.update();
+    }
+
+    function toggleEmpty(show) {
+      document.getElementById('empty-state').hidden = !show;
+      document.getElementById('table-wrap').style.display = show ? 'none' : 'block';
+    }
+
+    function loadHistory() {
+      fetch('/api/history?limit=300')
+        .then((resp) => resp.json())
+        .then((payload) => {
+          const rows = payload.data || [];
+          document.getElementById('meta-count').textContent = `${rows.length} points`;
+
+          if (!rows.length) {
+            toggleEmpty(true);
+            return;
+          }
+
+          toggleEmpty(false);
+          updateChart(rows);
+          renderTable(rows);
+        })
+        .catch((err) => {
+          console.error(err);
+          toggleEmpty(true);
+        });
+    }
+
+    loadHistory();
+  </script>
+</body>
+</html>

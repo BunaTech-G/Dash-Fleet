@@ -12,11 +12,13 @@ from pathlib import Path
 from typing import Dict, Iterable
 
 import psutil
-from flask import Flask, jsonify, render_template
+from flask import Flask, jsonify, render_template, request
 
 # Seuils d’alerte (pourcentage).
 CPU_ALERT = 80.0
 RAM_ALERT = 90.0
+
+DEFAULT_HISTORY_CSV = Path("logs/metrics.csv")
 
 app = Flask(__name__, template_folder="templates", static_folder="static")
 
@@ -120,6 +122,29 @@ def export_to_jsonl(jsonl_path: Path, rows: Iterable[Dict[str, object]]) -> None
             file.write(json.dumps(row) + "\n")
 
 
+def load_history(csv_path: Path, limit: int = 200) -> list[Dict[str, object]]:
+    """Lit les dernières lignes du CSV d’historique (limite 200 par défaut)."""
+    if not csv_path.exists():
+        return []
+
+    records: list[Dict[str, object]] = []
+    with csv_path.open("r", encoding="utf-8") as csvfile:
+        reader = csv.DictReader(csvfile)
+        for row in reader:
+            try:
+                records.append({
+                    "timestamp": row["timestamp"],
+                    "cpu_percent": float(row["cpu_percent"]),
+                    "ram_percent": float(row["ram_percent"]),
+                    "disk_percent": float(row["disk_percent"]),
+                    "uptime_hms": row.get("uptime_hms", ""),
+                })
+            except (KeyError, ValueError):
+                continue
+
+    return records[-limit:]
+
+
 def print_stats(stats: Dict[str, object]) -> None:
     """Affiche joliment les stats dans le terminal."""
     cpu_flag = " !!" if stats["alerts"]["cpu"] else ""
@@ -138,9 +163,27 @@ def dashboard() -> str:
     return render_template("index.html")
 
 
+@app.route("/history")
+def history_page() -> str:
+    return render_template("history.html")
+
+
 @app.route("/api/stats")
 def api_stats():
     return jsonify(collect_stats())
+
+
+@app.route("/api/history")
+def api_history():
+    limit = request.args.get("limit", default="200")
+    try:
+        limit_int = int(limit)
+    except ValueError:
+        limit_int = 200
+
+    limit_int = max(1, min(limit_int, 500))
+    history = load_history(DEFAULT_HISTORY_CSV, limit=limit_int)
+    return jsonify({"count": len(history), "data": history})
 
 
 def run_cli(interval: float, export_csv_path: Path | None, export_json_path: Path | None) -> None:

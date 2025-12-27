@@ -18,6 +18,11 @@
       <div class="badge" id="alert-badge">Tout va bien</div>
     </header>
 
+    <nav class="nav-links">
+      <a href="/" class="active">Temps réel</a>
+      <a href="/history">Historique</a>
+    </nav>
+
     <section class="grid">
       <article class="card" id="cpu-card">
         <div class="label">CPU</div>
@@ -67,7 +72,7 @@
         <tbody>
           <tr><td>CPU</td><td id="row-cpu">--</td></tr>
           <tr><td>RAM</td><td id="row-ram">--</td></tr>
-          <tr><td>Disk</td><td id="row-disk">--</td></tr>
+          <tr><td>Disque</td><td id="row-disk">--</td></tr>
           <tr><td>Uptime</td><td id="row-uptime">--</td></tr>
         </tbody>
       </table>
@@ -118,10 +123,10 @@
 
     function setAlert(active) {
       if (active) {
-        alertBadge.textContent = 'Alert: high load';
+        alertBadge.textContent = 'Alerte : forte charge';
         alertBadge.classList.add('alert');
       } else {
-        alertBadge.textContent = 'All clear';
+        alertBadge.textContent = 'Tout va bien';
         alertBadge.classList.remove('alert');
       }
     }
