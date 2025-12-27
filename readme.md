@@ -1,72 +1,73 @@
-# System Dashboard (Python + Flask)
+pip install -r requirements.txt
+# Tableau de bord système (Python + Flask)
 
-Small learning project that monitors CPU, RAM, disk, and uptime with both CLI output and a minimal Flask web UI. Metrics come from `psutil` and optional alerts fire when CPU >= 80% or RAM >= 90%.
+Petit projet pédagogique qui surveille CPU, RAM, disque et uptime en mode CLI et via une mini interface web Flask. Les mesures viennent de `psutil` et des alertes se déclenchent si CPU >= 80 % ou RAM >= 90 %.
 
-## Contents
-- [main.py](main.py) — CLI runner and Flask app
-- [templates/index.html](templates/index.html) — Web UI
-- [static/style.css](static/style.css) — Styling for the dashboard
-- [requirements.txt](requirements.txt) — Python dependencies
+## Contenu
+- [main.py](main.py) — Lanceur CLI et app Flask
+- [templates/index.html](templates/index.html) — Interface web
+- [static/style.css](static/style.css) — Style du tableau de bord
+- [requirements.txt](requirements.txt) — Dépendances Python
 
-## Prerequisites
-- Python 3.10+ recommended
-- `pip` available
+## Prérequis
+- Python 3.10+ recommandé
+- `pip` disponible
 
-## Setup
-1) Create and activate a virtual env (Windows PowerShell):
+## Installation
+1) Créer et activer un environnement virtuel (PowerShell Windows) :
 ```
 python -m venv .venv
 .venv\Scripts\Activate
 ```
 
-2) Install dependencies:
+2) Installer les dépendances :
 ```
 pip install -r requirements.txt
 ```
 
-## Run (CLI mode)
-Print metrics to the terminal every 2 seconds:
+## Exécution (mode CLI)
+Afficher les métriques dans le terminal toutes les 2 secondes :
 ```
 python main.py
 ```
 
-Options:
-- `--interval 1.5` — change refresh interval (seconds)
-- `--export-csv logs/metrics.csv` — append snapshots to CSV
-- `--export-jsonl logs/metrics.jsonl` — append snapshots as JSON Lines
+Options :
+- `--interval 1.5` — changer l’intervalle de rafraîchissement (secondes)
+- `--export-csv logs/metrics.csv` — ajouter les mesures dans un CSV
+- `--export-jsonl logs/metrics.jsonl` — ajouter les mesures en JSON Lines
 
-Stop anytime with `Ctrl+C`.
+Arrêt : `Ctrl+C`.
 
-## Run (Web dashboard)
-Start the Flask UI on http://127.0.0.1:5000:
+## Exécution (interface web)
+Lancer l’UI Flask sur http://127.0.0.1:5000 :
 ```
 python main.py --web
 ```
 
-Options:
-- `--host 0.0.0.0` — listen on all interfaces
-- `--port 8000` — custom port
+Options :
+- `--host 0.0.0.0` — écouter sur toutes les interfaces
+- `--port 8000` — port personnalisé
 
-The page auto-refreshes every ~2.5 seconds. A red badge appears when alerts trigger.
+La page se met à jour automatiquement toutes les ~2,5 s. Un badge rouge apparaît en cas d’alerte.
 
-## What the code does
-- Collects CPU, RAM, disk, and uptime with `psutil` ([main.py](main.py))
-- Formats uptime as `HH:MM:SS` and converts bytes to GiB for readability
-- Flags alerts for CPU/RAM thresholds and surfaces them in CLI + web
-- Exposes `/api/stats` JSON endpoint for reuse ([main.py](main.py))
-- Optional CSV/JSONL logging helpers for later analysis ([main.py](main.py))
+## Ce que fait le code
+- Récupère CPU, RAM, disque et uptime avec `psutil` ([main.py](main.py))
+- Formate l’uptime en `HH:MM:SS` et convertit les bytes en GiB pour la lisibilité
+- Déclenche des alertes selon les seuils CPU/RAM et les affiche en CLI + web
+- Expose un endpoint JSON `/api/stats` réutilisable ([main.py](main.py))
+- Propose des exports CSV/JSONL pour analyser plus tard ([main.py](main.py))
 
-## Quick learning notes
-- `psutil.cpu_percent(interval=0.3)` waits briefly to return a real sample instead of 0 on the first call.
-- Disk usage targets your OS root (home drive on Windows) so the numbers are stable.
-- JSONL (one JSON object per line) is handy for streaming logs; most tools can read it line by line.
+## Notes rapides pour apprendre
+- `psutil.cpu_percent(interval=0.3)` attend un court instant pour éviter de renvoyer 0 au premier appel.
+- L’usage disque cible la racine de votre OS (lecteur principal sous Windows) pour des valeurs stables.
+- Le format JSONL (un objet JSON par ligne) est pratique pour les logs en continu et lisible par de nombreux outils.
 
-## Testing the project
-- CLI: run `python main.py --interval 1` and verify stats update and alerts toggle when you stress CPU/RAM.
-- Web: start with `python main.py --web`, open the browser, and ensure values refresh every few seconds.
-- Exports: run `python main.py --export-csv logs/out.csv --export-jsonl logs/out.jsonl`, let it run for 5+ samples, then open the files to confirm headers/lines exist.
+## Tester le projet
+- CLI : `python main.py --interval 1` puis solliciter CPU/RAM pour voir les alertes s’activer.
+- Web : `python main.py --web`, ouvrir le navigateur et vérifier que les valeurs se rafraîchissent.
+- Exports : `python main.py --export-csv logs/out.csv --export-jsonl logs/out.jsonl`, laisser tourner 5+ échantillons puis ouvrir les fichiers pour vérifier les entêtes/lignes.
 
-## Next ideas
-- Add a /history view that reads the CSV/JSONL and charts it.
-- Add Windows service or systemd unit to keep the exporter running.
-- Package as a Docker image with health endpoints.
+## Idées suivantes
+- Ajouter une vue /history qui lit le CSV/JSONL et trace des courbes.
+- Ajouter un service Windows ou un unit systemd pour faire tourner l’exporteur en continu.
+- Packager en image Docker avec endpoints de healthcheck.

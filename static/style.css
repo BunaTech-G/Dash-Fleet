@@ -105,6 +105,15 @@ h1 {
   padding: 18px;
 }
 
+.chart-card {
+  margin-top: 24px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--card-radius);
+  box-shadow: var(--shadow);
+  padding: 18px;
+}
+
 .table-header {
   display: flex;
   justify-content: space-between;

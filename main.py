@@ -1,5 +1,5 @@
-"""Simple system dashboard showing CPU, RAM, disk, and uptime.
-Run in CLI mode or start a small Flask web UI.
+"""Tableau de bord système : CPU, RAM, disque et uptime.
+Fonctionne en mode CLI ou via une petite UI web Flask.
 """
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ from typing import Dict, Iterable
 import psutil
 from flask import Flask, jsonify, render_template
 
-# Alert thresholds (percentages).
+# Seuils d’alerte (pourcentage).
 CPU_ALERT = 80.0
 RAM_ALERT = 90.0
 
@@ -22,12 +22,12 @@ app = Flask(__name__, template_folder="templates", static_folder="static")
 
 
 def _format_bytes_to_gib(bytes_value: float) -> float:
-    """Convert bytes to GiB with two decimals."""
+    """Convertit des bytes en Gio avec deux décimales."""
     return round(bytes_value / (1024 ** 3), 2)
 
 
 def _format_uptime(seconds: float) -> str:
-    """Return uptime as H:M:S."""
+    """Renvoie l’uptime au format H:M:S."""
     hours, remainder = divmod(int(seconds), 3600)
     minutes, secs = divmod(remainder, 60)
     return f"{hours:02d}:{minutes:02d}:{secs:02d}"
@@ -41,14 +41,14 @@ def _detect_alerts(cpu_percent: float, ram_percent: float) -> Dict[str, bool]:
 
 
 def _disk_usage_target() -> str:
-    """Choose a disk mount that works on Windows and Unix."""
+    """Choisit un point de montage qui fonctionne sous Windows et Unix."""
     home = Path.home()
     anchor = home.anchor or "/"
     return anchor
 
 
 def collect_stats() -> Dict[str, object]:
-    """Gather the current system metrics."""
+    """Récupère les métriques système courantes."""
     cpu_percent = psutil.cpu_percent(interval=0.3)
     ram = psutil.virtual_memory()
     disk = psutil.disk_usage(_disk_usage_target())
@@ -73,7 +73,7 @@ def collect_stats() -> Dict[str, object]:
 
 
 def export_to_csv(csv_path: Path, rows: Iterable[Dict[str, object]]) -> None:
-    """Append rows to CSV, creating headers when the file is new."""
+    """Ajoute des lignes dans un CSV, crée l’en-tête si le fichier est nouveau."""
     fieldnames = [
         "timestamp",
         "cpu_percent",
@@ -113,7 +113,7 @@ def export_to_csv(csv_path: Path, rows: Iterable[Dict[str, object]]) -> None:
 
 
 def export_to_jsonl(jsonl_path: Path, rows: Iterable[Dict[str, object]]) -> None:
-    """Append one JSON object per line (JSONL format)."""
+    """Ajoute un objet JSON par ligne (format JSONL)."""
     jsonl_path.parent.mkdir(parents=True, exist_ok=True)
     with jsonl_path.open("a", encoding="utf-8") as file:
         for row in rows:
@@ -121,7 +121,7 @@ def export_to_jsonl(jsonl_path: Path, rows: Iterable[Dict[str, object]]) -> None
 
 
 def print_stats(stats: Dict[str, object]) -> None:
-    """Pretty-print stats to the terminal."""
+    """Affiche joliment les stats dans le terminal."""
     cpu_flag = " !!" if stats["alerts"]["cpu"] else ""
     ram_flag = " !!" if stats["alerts"]["ram"] else ""
     print(
@@ -144,7 +144,7 @@ def api_stats():
 
 
 def run_cli(interval: float, export_csv_path: Path | None, export_json_path: Path | None) -> None:
-    print("Monitoring system. Press Ctrl+C to stop. \n")
+    print("Surveillance en cours. Ctrl+C pour arrêter. \n")
     try:
         while True:
             stats = collect_stats()
@@ -157,17 +157,17 @@ def run_cli(interval: float, export_csv_path: Path | None, export_json_path: Pat
 
             time.sleep(interval)
     except KeyboardInterrupt:
-        print("\nStopped.")
+        print("\nArrêté.")
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="System dashboard: CLI and Flask UI")
-    parser.add_argument("--web", action="store_true", help="Start the Flask web dashboard instead of CLI output")
-    parser.add_argument("--host", default="127.0.0.1", help="Host for Flask when using --web")
-    parser.add_argument("--port", type=int, default=5000, help="Port for Flask when using --web")
-    parser.add_argument("--interval", type=float, default=2.0, help="Refresh interval in seconds for CLI mode")
-    parser.add_argument("--export-csv", type=Path, help="Path to CSV file for logging snapshots")
-    parser.add_argument("--export-jsonl", type=Path, help="Path to JSONL file for logging snapshots")
+    parser = argparse.ArgumentParser(description="Tableau de bord système : CLI et UI Flask")
+    parser.add_argument("--web", action="store_true", help="Lancer l’UI web Flask au lieu de la sortie CLI")
+    parser.add_argument("--host", default="127.0.0.1", help="Hôte Flask quand --web est activé")
+    parser.add_argument("--port", type=int, default=5000, help="Port Flask quand --web est activé")
+    parser.add_argument("--interval", type=float, default=2.0, help="Intervalle de rafraîchissement en secondes pour le mode CLI")
+    parser.add_argument("--export-csv", type=Path, help="Chemin CSV pour enregistrer les mesures")
+    parser.add_argument("--export-jsonl", type=Path, help="Chemin JSONL pour enregistrer les mesures")
     return parser.parse_args()
 
 
