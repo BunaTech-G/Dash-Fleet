@@ -7,8 +7,10 @@ import argparse
 import csv
 import datetime as dt
 import json
+import sys
 import threading
 import time
+import webbrowser
 from pathlib import Path
 from typing import Dict, Iterable
 
@@ -20,6 +22,8 @@ CPU_ALERT = 80.0
 RAM_ALERT = 90.0
 
 DEFAULT_HISTORY_CSV = Path("logs/metrics.csv")
+DEFAULT_EXPORT_CSV = Path.home() / "Desktop" / "metrics.csv"
+DEFAULT_EXPORT_JSONL = Path.home() / "Desktop" / "metrics.jsonl"
 
 app = Flask(__name__, template_folder="templates", static_folder="static")
 
@@ -229,17 +233,23 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--host", default="127.0.0.1", help="Hôte Flask quand --web est activé")
     parser.add_argument("--port", type=int, default=5000, help="Port Flask quand --web est activé")
     parser.add_argument("--interval", type=float, default=2.0, help="Intervalle de rafraîchissement en secondes pour le mode CLI")
-    parser.add_argument("--export-csv", type=Path, help="Chemin CSV pour enregistrer les mesures")
-    parser.add_argument("--export-jsonl", type=Path, help="Chemin JSONL pour enregistrer les mesures")
+    parser.add_argument("--export-csv", type=Path, default=DEFAULT_EXPORT_CSV, help="Chemin CSV pour enregistrer les mesures (défaut: Bureau/metrics.csv)")
+    parser.add_argument("--export-jsonl", type=Path, default=DEFAULT_EXPORT_JSONL, help="Chemin JSONL pour enregistrer les mesures (défaut: Bureau/metrics.jsonl)")
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
+    # Si lancé par double-clic sans arguments, on bascule en mode web par défaut.
+    if len(sys.argv) == 1:
+        args.web = True
+
     if args.web:
         # Si on fournit un export, on lance l’export en tâche de fond en même temps que Flask.
         if args.export_csv or args.export_jsonl:
             start_background_export(args.interval, args.export_csv, args.export_jsonl)
+        # Ouvre le navigateur par défaut quelques ms après le démarrage du serveur.
+        threading.Timer(0.5, lambda: webbrowser.open(f"http://{args.host}:{args.port}")).start()
         app.run(host=args.host, port=args.port, debug=False)
     else:
         run_cli(args.interval, args.export_csv, args.export_jsonl)
