@@ -64,6 +64,7 @@ python desktop_app.py
 
 ## API rapide
 - `/api/stats` : métriques courantes (CPU, RAM, disque, uptime, alertes)
+- `/api/status` : métriques + score santé (0-100) et statut (`ok|warn|critical`)
 - `/api/history?limit=200` : dernières lignes du CSV (limité à 500 côté serveur)
 
 ## Exports et historique

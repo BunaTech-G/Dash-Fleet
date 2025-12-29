@@ -36,6 +36,12 @@
     </nav>
 
     <section class="grid">
+      <article class="card" id="health-card">
+        <div class="label" id="label-health">Santé</div>
+        <div class="value" id="health-value">--</div>
+        <div class="meta" id="health-meta">En attente des données</div>
+      </article>
+
       <article class="card" id="cpu-card">
         <div class="label" id="label-cpu">CPU</div>
         <div class="value" id="cpu-value">--%</div>
@@ -150,6 +156,7 @@
       document.getElementById('col-metric').textContent = t.metric;
       document.getElementById('col-value').textContent = t.value;
 
+      document.getElementById('label-health').textContent = t.healthLabel || 'Santé';
       document.getElementById('label-cpu').textContent = t.cpuLabel;
       document.getElementById('label-ram').textContent = t.ramLabel;
       document.getElementById('label-disk').textContent = t.diskLabel;
@@ -201,12 +208,25 @@
     }
 
     function refresh() {
-      fetch('/api/stats')
+      fetch('/api/status')
         .then((resp) => resp.json())
         .then((data) => {
           const cpuText = `${data.cpu_percent.toFixed(1)}%`;
           const ramText = `${data.ram_percent.toFixed(1)}%`;
           const diskText = `${data.disk_percent.toFixed(1)}%`;
+          const health = data.health || { score: 0, status: 'ok', components: {} };
+
+          document.getElementById('health-value').textContent = `${health.score}/100`;
+          const metaByStatus = {
+            ok: t.healthMetaOk || 'Statut OK',
+            warn: t.healthMetaWarn || 'Statut avertissement',
+            critical: t.healthMetaCritical || 'Statut critique',
+          };
+          document.getElementById('health-meta').textContent = metaByStatus[health.status] || metaByStatus.ok;
+
+          const healthCard = document.getElementById('health-card');
+          healthCard.classList.remove('status-ok', 'status-warn', 'status-critical');
+          healthCard.classList.add(`status-${health.status}`);
 
           updateCard('cpu-card', cpuText, t.cpuThreshold, data.alerts.cpu);
           updateCard('ram-card', ramText, t.ramMeta(data.ram_used_gib.toFixed(2), data.ram_total_gib.toFixed(2)), data.alerts.ram);

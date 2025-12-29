@@ -151,6 +151,10 @@ h1 {
 
 .card.alert { border-color: var(--alert); }
 
+.status-ok { border-color: rgba(34, 197, 94, 0.5); box-shadow: 0 15px 40px rgba(34, 197, 94, 0.12); }
+.status-warn { border-color: rgba(250, 204, 21, 0.6); box-shadow: 0 15px 40px rgba(250, 204, 21, 0.12); }
+.status-critical { border-color: rgba(244, 63, 94, 0.6); box-shadow: 0 15px 40px rgba(244, 63, 94, 0.15); }
+
 .label { color: var(--muted); font-size: 13px; text-transform: uppercase; letter-spacing: 1px; }
 
 .value { font-size: 42px; font-weight: 600; margin: 10px 0 4px; }

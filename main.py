@@ -48,6 +48,48 @@ def _detect_alerts(cpu_percent: float, ram_percent: float) -> Dict[str, bool]:
     }
 
 
+def _health_score(stats: Dict[str, object]) -> Dict[str, object]:
+    """Calcule un score simple 0-100 et un statut (ok/warn/critical)."""
+
+    def clamp(x: float) -> float:
+        return max(0.0, min(1.0, x))
+
+    cpu = float(stats["cpu_percent"])
+    ram = float(stats["ram_percent"])
+    disk = float(stats["disk_percent"])
+
+    # Scores par composant (1 = parfait, 0 = mauvais)
+    cpu_score = clamp(1 - max(0.0, (cpu - 50) / 50))  # plein à 50%, tombe à 0 à 100%
+    ram_score = clamp(1 - max(0.0, (ram - 60) / 40))  # plein à 60%, tombe à 0 à 100%
+    disk_score = clamp(1 - max(0.0, (disk - 70) / 30))  # plein à 70%, 0 à 100%
+
+    # Pondérations simples
+    weights = {"cpu": 0.35, "ram": 0.35, "disk": 0.30}
+    overall = (
+        cpu_score * weights["cpu"]
+        + ram_score * weights["ram"]
+        + disk_score * weights["disk"]
+    )
+
+    score = round(overall * 100)
+    if score >= 80:
+        status = "ok"
+    elif score >= 60:
+        status = "warn"
+    else:
+        status = "critical"
+
+    return {
+        "score": score,
+        "status": status,
+        "components": {
+            "cpu": round(cpu_score * 100),
+            "ram": round(ram_score * 100),
+            "disk": round(disk_score * 100),
+        },
+    }
+
+
 def _disk_usage_target() -> str:
     """Choisit un point de montage qui fonctionne sous Windows et Unix."""
     home = Path.home()
@@ -177,6 +219,13 @@ def history_page() -> str:
 @app.route("/api/stats")
 def api_stats():
     return jsonify(collect_stats())
+
+
+@app.route("/api/status")
+def api_status():
+    stats = collect_stats()
+    stats["health"] = _health_score(stats)
+    return jsonify(stats)
 
 
 @app.route("/api/history")
