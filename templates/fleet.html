@@ -83,8 +83,11 @@
       updateThemeButton();
     }
 
-    function statusClass(status) {
+
+    function statusClass(status, lastSeenTs) {
+      const now = Date.now() / 1000;
       if (status === 'critical') return 'status-critical';
+      if (now - lastSeenTs > 600) return 'status-expired';
       if (status === 'warn') return 'status-warn';
       return 'status-ok';
     }
@@ -101,14 +104,16 @@
         const report = entry.report || {};
         const health = report.health || { score: 0, status: 'ok' };
         const lastSeen = new Date(entry.ts * 1000).toISOString();
+        const now = Date.now() / 1000;
+        const expired = (now - entry.ts > 600);
         const card = document.createElement('article');
-        card.className = `card ${statusClass(health.status)}`;
+        card.className = `card ${statusClass(health.status, entry.ts)}`;
         card.innerHTML = `
           <div class="label">${entry.id || 'machine'}</div>
           <div class="value">${health.score || 0}/100</div>
           <div class="meta">${health.status || 'ok'} · ${report.uptime_hms || ''}</div>
           <div class="meta">CPU ${report.cpu_percent?.toFixed?.(1) || '--'}% · RAM ${report.ram_percent?.toFixed?.(1) || '--'}% · Disk ${report.disk_percent?.toFixed?.(1) || '--'}%</div>
-          <div class="meta muted">Last: ${lastSeen} (${entry.client || ''})</div>
+          <div class="meta muted">Last: ${lastSeen} (${entry.client || ''})${expired ? ' ⚠️' : ''}</div>
         `;
         fleetCards.appendChild(card);
       });

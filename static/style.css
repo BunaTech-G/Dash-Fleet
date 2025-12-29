@@ -179,6 +179,12 @@ h1 {
 .status-warn { border-color: rgba(250, 204, 21, 0.6); box-shadow: 0 15px 40px rgba(250, 204, 21, 0.12); }
 .status-critical { border-color: rgba(244, 63, 94, 0.6); box-shadow: 0 15px 40px rgba(244, 63, 94, 0.15); }
 
+.status-expired {
+  border-color: #f59e42;
+  box-shadow: 0 15px 40px rgba(245, 158, 66, 0.18);
+  background: linear-gradient(90deg, #f59e4222 0%, transparent 100%);
+}
+
 .label { color: var(--muted); font-size: 13px; text-transform: uppercase; letter-spacing: 1px; }
 
 .value { font-size: 42px; font-weight: 600; margin: 10px 0 4px; }

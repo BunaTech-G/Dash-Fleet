@@ -37,6 +37,7 @@ WEBHOOK_URL = os.environ.get("WEBHOOK_URL")  # optionnel, webhook si santé crit
 WEBHOOK_MIN_SECONDS = int(os.environ.get("WEBHOOK_MIN_SECONDS", "300"))
 FLEET_TOKEN = os.environ.get("FLEET_TOKEN")  # token obligatoire pour les rapports agents
 FLEET_TTL_SECONDS = int(os.environ.get("FLEET_TTL_SECONDS", "600"))  # expiration des entrées fleet
+FLEET_STATE_PATH = Path("logs/fleet_state.json")
 
 app = Flask(__name__, template_folder="templates", static_folder="static")
 
@@ -104,6 +105,38 @@ def _health_score(stats: Dict[str, object]) -> Dict[str, object]:
 
 _LAST_WEBHOOK_TS = 0.0
 FLEET_STATE: Dict[str, Dict[str, object]] = {}
+
+
+def _load_fleet_state() -> None:
+    """Recharge l'état fleet depuis le disque (best effort)."""
+    global FLEET_STATE
+    if not FLEET_STATE_PATH.exists():
+        return
+    try:
+        data = json.loads(FLEET_STATE_PATH.read_text(encoding="utf-8"))
+        if isinstance(data, dict):
+            FLEET_STATE = {str(k): v for k, v in data.items()}
+            # purge immédiate des entrées expirées si besoin
+            now_ts = time.time()
+            expired = [mid for mid, entry in FLEET_STATE.items() if now_ts - entry.get("ts", 0) > FLEET_TTL_SECONDS]
+            for mid in expired:
+                FLEET_STATE.pop(mid, None)
+            if expired:
+                _save_fleet_state()
+    except (OSError, json.JSONDecodeError):
+        return
+
+
+def _save_fleet_state() -> None:
+    """Sauvegarde l'état fleet sur disque (best effort)."""
+    try:
+        FLEET_STATE_PATH.parent.mkdir(parents=True, exist_ok=True)
+        FLEET_STATE_PATH.write_text(json.dumps(FLEET_STATE), encoding="utf-8")
+    except OSError:
+        return
+
+
+_load_fleet_state()
 
 
 def _disk_usage_target() -> str:
@@ -490,6 +523,8 @@ def api_fleet_report():
         "client": request.remote_addr,
     }
 
+    _save_fleet_state()
+
     return jsonify({"ok": True})
 
 
@@ -502,6 +537,9 @@ def api_fleet():
         if now_ts - entry.get("ts", 0) > FLEET_TTL_SECONDS:
             expired.append(mid)
             FLEET_STATE.pop(mid, None)
+
+    if expired:
+        _save_fleet_state()
 
     data = list(FLEET_STATE.values())
     return jsonify({"count": len(data), "expired": expired, "data": data})
