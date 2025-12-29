@@ -8,8 +8,10 @@ import csv
 import datetime as dt
 import json
 import os
+import subprocess
 import sys
 import threading
+import tempfile
 import time
 import webbrowser
 from pathlib import Path
@@ -25,6 +27,7 @@ RAM_ALERT = 90.0
 DEFAULT_HISTORY_CSV = Path("logs/metrics.csv")
 DEFAULT_EXPORT_CSV = Path.home() / "Desktop" / "metrics.csv"
 DEFAULT_EXPORT_JSONL = Path.home() / "Desktop" / "metrics.jsonl"
+ACTION_TOKEN = os.environ.get("ACTION_TOKEN")  # optionnel, protège les actions si défini
 
 app = Flask(__name__, template_folder="templates", static_folder="static")
 
@@ -95,6 +98,10 @@ def _disk_usage_target() -> str:
     home = Path.home()
     anchor = home.anchor or "/"
     return anchor
+
+
+def _is_windows() -> bool:
+    return os.name == "nt"
 
 
 def collect_stats() -> Dict[str, object]:
@@ -193,6 +200,60 @@ def load_history(csv_path: Path, limit: int = 200) -> list[Dict[str, object]]:
     return records[-limit:]
 
 
+def _run_subprocess(cmd: list[str]) -> Dict[str, object]:
+    """Exécute une commande et retourne ok/stdout/stderr."""
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, check=False)
+        return {
+            "ok": result.returncode == 0,
+            "stdout": (result.stdout or "").strip(),
+            "stderr": (result.stderr or "").strip(),
+            "code": result.returncode,
+        }
+    except Exception as exc:  # pragma: no cover - log brut
+        return {"ok": False, "stdout": "", "stderr": str(exc), "code": -1}
+
+
+def _action_flush_dns() -> Dict[str, object]:
+    if not _is_windows():
+        return {"ok": False, "message": "Action Windows uniquement"}
+    return _run_subprocess(["ipconfig", "/flushdns"])
+
+
+def _action_restart_spooler() -> Dict[str, object]:
+    if not _is_windows():
+        return {"ok": False, "message": "Action Windows uniquement"}
+    return _run_subprocess(["powershell", "-Command", "Restart-Service -Name Spooler"])
+
+
+def _action_cleanup_temp() -> Dict[str, object]:
+    temp_dir = Path(tempfile.gettempdir())
+    deleted = 0
+    for path in temp_dir.glob("*.tmp"):
+        try:
+            path.unlink()
+            deleted += 1
+        except OSError:
+            continue
+    return {"ok": True, "message": f"Fichiers .tmp supprimés : {deleted}"}
+
+
+APPROVED_ACTIONS: Dict[str, object] = {
+    "flush_dns": {
+        "label": "Flush DNS",
+        "runner": _action_flush_dns,
+    },
+    "restart_spooler": {
+        "label": "Redémarrer Spooler",
+        "runner": _action_restart_spooler,
+    },
+    "cleanup_temp": {
+        "label": "Nettoyer Temp (*.tmp)",
+        "runner": _action_cleanup_temp,
+    },
+}
+
+
 def print_stats(stats: Dict[str, object]) -> None:
     """Affiche joliment les stats dans le terminal."""
     cpu_flag = " !!" if stats["alerts"]["cpu"] else ""
@@ -226,6 +287,36 @@ def api_status():
     stats = collect_stats()
     stats["health"] = _health_score(stats)
     return jsonify(stats)
+
+
+def _check_action_token() -> Dict[str, object] | None:
+    if not ACTION_TOKEN:
+        return None
+
+    header = request.headers.get("Authorization", "")
+    token = header.replace("Bearer", "").strip()
+    if not token:
+        payload = request.get_json(silent=True) or {}
+        token = str(payload.get("token", "")).strip()
+    if token != ACTION_TOKEN:
+        return {"error": "Unauthorized"}
+    return None
+
+
+@app.route("/api/action", methods=["POST"])
+def api_action():
+    auth_err = _check_action_token()
+    if auth_err:
+        return jsonify(auth_err), 403
+
+    payload = request.get_json(silent=True) or {}
+    action_name = str(payload.get("action", "")).strip()
+    if action_name not in APPROVED_ACTIONS:
+        return jsonify({"error": "Action inconnue"}), 400
+
+    runner = APPROVED_ACTIONS[action_name]["runner"]
+    result = runner()
+    return jsonify({"action": action_name, **result})
 
 
 @app.route("/api/history")

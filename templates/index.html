@@ -75,6 +75,19 @@
       <canvas id="trend-chart" height="120"></canvas>
     </section>
 
+    <section class="actions-wrap">
+      <div class="table-header">
+        <h2 id="actions-title">Actions approuvées</h2>
+        <span class="muted" id="actions-subtitle">Exécutées localement</span>
+      </div>
+      <div class="actions-grid">
+        <button class="action-btn" data-action="flush_dns" id="action-flush">Flush DNS</button>
+        <button class="action-btn" data-action="restart_spooler" id="action-spooler">Restart Spooler</button>
+        <button class="action-btn" data-action="cleanup_temp" id="action-cleanup">Nettoyer Temp</button>
+      </div>
+      <div class="action-log" id="action-log">Prêt</div>
+    </section>
+
     <section class="table-wrap">
       <div class="table-header">
         <h2 id="table-title">Dernière mesure</h2>
@@ -167,6 +180,13 @@
       document.getElementById('disk-meta').textContent = t.metaWaiting;
       document.getElementById('uptime-meta').textContent = t.uptimeMeta;
 
+      document.getElementById('actions-title').textContent = t.actionsTitle || 'Actions approuvées';
+      document.getElementById('actions-subtitle').textContent = t.actionsSubtitle || 'Exécutées localement';
+      document.getElementById('action-flush').textContent = t.actionFlush || 'Flush DNS';
+      document.getElementById('action-spooler').textContent = t.actionSpooler || 'Restart Spooler';
+      document.getElementById('action-cleanup').textContent = t.actionCleanup || 'Nettoyer Temp';
+      document.getElementById('action-log').textContent = t.actionReady || 'Prêt';
+
       trendChart.data.datasets[0].label = t.seriesCpu || t.cpuLabel;
       trendChart.data.datasets[1].label = t.seriesRam || t.ramLabel;
       trendChart.update();
@@ -205,6 +225,33 @@
       }
 
       trendChart.update();
+    }
+
+    function logAction(message, isError = false) {
+      const logEl = document.getElementById('action-log');
+      logEl.textContent = message;
+      logEl.style.color = isError ? '#f43f5e' : '#9ca3af';
+    }
+
+    function runAction(actionName) {
+      logAction(t.actionRunning || 'Exécution...', false);
+      fetch('/api/action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: actionName }),
+      })
+        .then((resp) => resp.json().then((data) => ({ status: resp.status, data })))
+        .then(({ status, data }) => {
+          if (status >= 400 || data.error || data.ok === false) {
+            logAction(`${t.actionFailure || 'Échec'}: ${data.error || data.message || data.stderr || ''}`, true);
+            return;
+          }
+          logAction(`${t.actionSuccess || 'Succès'}: ${data.message || data.stdout || actionName}`, false);
+        })
+        .catch((err) => {
+          console.error(err);
+          logAction(`${t.actionFailure || 'Échec'}: ${err}`, true);
+        });
     }
 
     function refresh() {
@@ -261,6 +308,13 @@
         langSelect.value = lang;
       }
       applyStaticTexts();
+    });
+
+    document.querySelectorAll('.action-btn').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        const actionName = e.currentTarget.getAttribute('data-action');
+        runAction(actionName);
+      });
     });
 
     refresh();

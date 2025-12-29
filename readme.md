@@ -66,6 +66,7 @@ python desktop_app.py
 - `/api/stats` : métriques courantes (CPU, RAM, disque, uptime, alertes)
 - `/api/status` : métriques + score santé (0-100) et statut (`ok|warn|critical`)
 - `/api/history?limit=200` : dernières lignes du CSV (limité à 500 côté serveur)
+- `/api/action` (POST) : exécute une action approuvée locale (`flush_dns`, `restart_spooler`, `cleanup_temp`). Optionnellement protégée par `ACTION_TOKEN`.
 
 ## Exports et historique
 - `--export-csv` écrit un CSV avec en-têtes (créé s’il n’existe pas).
@@ -107,6 +108,9 @@ dist\main.exe --web --export-csv logs\metrics.csv
 - `psutil.cpu_percent(interval=0.3)` attend un court instant pour un premier échantillon non nul.
 - Le disque cible la racine du système (lecteur principal) pour des valeurs cohérentes.
 - JSONL (un objet par ligne) est pratique pour les ingest pipelines et la lecture en flux.
+
+## Sécurité minimale pour les actions
+- Les actions `/api/action` sont prévues pour un usage local. Si besoin, définir `ACTION_TOKEN` (env) et appeler avec un header `Authorization: Bearer <token>`.
 
 ## Suite (vision courte)
 On vise un “agent santé poste” léger : score de santé, auto-remédiations simples, self-service (scripts approuvés), alertes sobres. Voir [docs/ROADMAP.md](docs/ROADMAP.md) pour le plan à étapes.
