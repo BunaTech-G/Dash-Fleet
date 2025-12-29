@@ -7,6 +7,7 @@ import argparse
 import csv
 import datetime as dt
 import json
+import os
 import sys
 import threading
 import time
@@ -230,8 +231,8 @@ def start_background_export(interval: float, export_csv_path: Path | None, expor
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Tableau de bord système : CLI et UI Flask")
     parser.add_argument("--web", action="store_true", help="Lancer l’UI web Flask au lieu de la sortie CLI")
-    parser.add_argument("--host", default="127.0.0.1", help="Hôte Flask quand --web est activé")
-    parser.add_argument("--port", type=int, default=5000, help="Port Flask quand --web est activé")
+    parser.add_argument("--host", default=os.environ.get("HOST", "0.0.0.0"), help="Hôte Flask quand --web est activé")
+    parser.add_argument("--port", type=int, default=int(os.environ.get("PORT", "5000")), help="Port Flask quand --web est activé")
     parser.add_argument("--interval", type=float, default=2.0, help="Intervalle de rafraîchissement en secondes pour le mode CLI")
     parser.add_argument("--export-csv", type=Path, default=DEFAULT_EXPORT_CSV, help="Chemin CSV pour enregistrer les mesures (défaut: Bureau/metrics.csv)")
     parser.add_argument("--export-jsonl", type=Path, default=DEFAULT_EXPORT_JSONL, help="Chemin JSONL pour enregistrer les mesures (défaut: Bureau/metrics.jsonl)")
