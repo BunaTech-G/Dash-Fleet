@@ -1,0 +1,203 @@
+(function () {
+  const translations = {
+    fr: {
+      name: 'Français',
+      langLabel: 'Langue',
+      navLive: 'Temps réel',
+      navHistory: 'Historique',
+      liveEyebrow: 'Statut en direct',
+      title: 'Tableau de bord système',
+      subtitle: 'CPU, mémoire, disque et uptime mis à jour toutes les quelques secondes.',
+      chartTitle: 'Tendance CPU / RAM',
+      chartSubtitle: '60 derniers points',
+      lastMeasure: 'Dernière mesure',
+      metric: 'Métrique',
+      value: 'Valeur',
+      timestampLabel: 'Horodatage',
+      badgeOk: 'Tout va bien',
+      badgeAlert: 'Alerte : forte charge',
+      cpuLabel: 'CPU',
+      ramLabel: 'RAM',
+      diskLabel: 'Disque',
+      uptimeLabel: 'Uptime',
+      metaWaiting: 'En attente des données',
+      cpuThreshold: 'Seuil 80%',
+      ramMeta: (used, total) => `Utilisé ${used} / ${total} GiB`,
+      diskMeta: (used, total) => `Utilisé ${used} / ${total} GiB`,
+      uptimeMeta: 'depuis le démarrage',
+      alertTag: ' (alerte)',
+      ramDetail: (used, total) => `${used} / ${total} GiB`,
+      diskDetail: (used, total) => `${used} / ${total} GiB`,
+      seriesCpu: 'CPU %',
+      seriesRam: 'RAM %',
+      seriesDisk: 'Disque %',
+      historyEyebrow: 'Historique',
+      historyTitle: 'Courbes CPU / RAM / Disque',
+      historySubtitle: 'Affiche les points enregistrés dans le CSV (logs/metrics.csv). Lancer l’export pour alimenter les courbes.',
+      historyChartTitle: 'Séries temporelles',
+      historyTableTitle: 'Dernières entrées',
+      historyTableSubtitle: 'Heure locale',
+      emptyTitle: 'Aucun historique trouvé.',
+      emptyHint: 'Lance d’abord une collecte :',
+      emptyCode: 'python main.py --export-csv logs/metrics.csv',
+      pointsLabel: (n) => `${n} points`,
+    },
+    en: {
+      name: 'English',
+      langLabel: 'Language',
+      navLive: 'Live',
+      navHistory: 'History',
+      liveEyebrow: 'Live status',
+      title: 'System dashboard',
+      subtitle: 'CPU, memory, disk, and uptime refreshed every few seconds.',
+      chartTitle: 'CPU / RAM trend',
+      chartSubtitle: 'Last 60 points',
+      lastMeasure: 'Latest measurement',
+      metric: 'Metric',
+      value: 'Value',
+      timestampLabel: 'Timestamp',
+      badgeOk: 'All good',
+      badgeAlert: 'Alert: high load',
+      cpuLabel: 'CPU',
+      ramLabel: 'RAM',
+      diskLabel: 'Disk',
+      uptimeLabel: 'Uptime',
+      metaWaiting: 'Waiting for data',
+      cpuThreshold: 'Threshold 80%',
+      ramMeta: (used, total) => `Used ${used} / ${total} GiB`,
+      diskMeta: (used, total) => `Used ${used} / ${total} GiB`,
+      uptimeMeta: 'since boot',
+      alertTag: ' (alert)',
+      ramDetail: (used, total) => `${used} / ${total} GiB`,
+      diskDetail: (used, total) => `${used} / ${total} GiB`,
+      seriesCpu: 'CPU %',
+      seriesRam: 'RAM %',
+      seriesDisk: 'Disk %',
+      historyEyebrow: 'History',
+      historyTitle: 'CPU / RAM / Disk curves',
+      historySubtitle: 'Shows points recorded in CSV (logs/metrics.csv). Start export to feed the curves.',
+      historyChartTitle: 'Time series',
+      historyTableTitle: 'Latest entries',
+      historyTableSubtitle: 'Local time',
+      emptyTitle: 'No history found.',
+      emptyHint: 'Start a capture first:',
+      emptyCode: 'python main.py --export-csv logs/metrics.csv',
+      pointsLabel: (n) => `${n} points`,
+    },
+    es: {
+      name: 'Español',
+      langLabel: 'Idioma',
+      navLive: 'Tiempo real',
+      navHistory: 'Histórico',
+      liveEyebrow: 'Estado en vivo',
+      title: 'Panel del sistema',
+      subtitle: 'CPU, memoria, disco y uptime actualizados cada pocos segundos.',
+      chartTitle: 'Tendencia CPU / RAM',
+      chartSubtitle: 'Últimos 60 puntos',
+      lastMeasure: 'Última medición',
+      metric: 'Métrica',
+      value: 'Valor',
+      timestampLabel: 'Marca de tiempo',
+      badgeOk: 'Todo bien',
+      badgeAlert: 'Alerta: alta carga',
+      cpuLabel: 'CPU',
+      ramLabel: 'RAM',
+      diskLabel: 'Disco',
+      uptimeLabel: 'Uptime',
+      metaWaiting: 'Esperando datos',
+      cpuThreshold: 'Umbral 80%',
+      ramMeta: (used, total) => `Usado ${used} / ${total} GiB`,
+      diskMeta: (used, total) => `Usado ${used} / ${total} GiB`,
+      uptimeMeta: 'desde el arranque',
+      alertTag: ' (alerta)',
+      ramDetail: (used, total) => `${used} / ${total} GiB`,
+      diskDetail: (used, total) => `${used} / ${total} GiB`,
+      seriesCpu: 'CPU %',
+      seriesRam: 'RAM %',
+      seriesDisk: 'Disco %',
+      historyEyebrow: 'Histórico',
+      historyTitle: 'Curvas CPU / RAM / Disco',
+      historySubtitle: 'Muestra los puntos registrados en el CSV (logs/metrics.csv). Inicia la exportación para alimentar las curvas.',
+      historyChartTitle: 'Series temporales',
+      historyTableTitle: 'Últimas entradas',
+      historyTableSubtitle: 'Hora local',
+      emptyTitle: 'No hay histórico.',
+      emptyHint: 'Primero inicia una captura:',
+      emptyCode: 'python main.py --export-csv logs/metrics.csv',
+      pointsLabel: (n) => `${n} puntos`,
+    },
+    ru: {
+      name: 'Русский',
+      langLabel: 'Язык',
+      navLive: 'Онлайн',
+      navHistory: 'История',
+      liveEyebrow: 'Текущий статус',
+      title: 'Системная панель',
+      subtitle: 'CPU, память, диск и аптайм обновляются каждые несколько секунд.',
+      chartTitle: 'График CPU / RAM',
+      chartSubtitle: 'Последние 60 точек',
+      lastMeasure: 'Последнее измерение',
+      metric: 'Метрика',
+      value: 'Значение',
+      timestampLabel: 'Время',
+      badgeOk: 'Все хорошо',
+      badgeAlert: 'Тревога: высокая нагрузка',
+      cpuLabel: 'CPU',
+      ramLabel: 'RAM',
+      diskLabel: 'Диск',
+      uptimeLabel: 'Аптайм',
+      metaWaiting: 'Ожидание данных',
+      cpuThreshold: 'Порог 80%',
+      ramMeta: (used, total) => `Использовано ${used} / ${total} GiB`,
+      diskMeta: (used, total) => `Использовано ${used} / ${total} GiB`,
+      uptimeMeta: 'с момента загрузки',
+      alertTag: ' (тревога)',
+      ramDetail: (used, total) => `${used} / ${total} GiB`,
+      diskDetail: (used, total) => `${used} / ${total} GiB`,
+      seriesCpu: 'CPU %',
+      seriesRam: 'RAM %',
+      seriesDisk: 'Диск %',
+      historyEyebrow: 'История',
+      historyTitle: 'Графики CPU / RAM / Диск',
+      historySubtitle: 'Показывает точки из CSV (logs/metrics.csv). Запустите экспорт, чтобы заполнить графики.',
+      historyChartTitle: 'Временные ряды',
+      historyTableTitle: 'Последние записи',
+      historyTableSubtitle: 'Местное время',
+      emptyTitle: 'Нет данных истории.',
+      emptyHint: 'Сначала запустите сбор:',
+      emptyCode: 'python main.py --export-csv logs/metrics.csv',
+      pointsLabel: (n) => `${n} точек`,
+    },
+  };
+
+  let currentLang = translations[localStorage.getItem('lang')] ? localStorage.getItem('lang') : 'fr';
+  const listeners = [];
+
+  function setLang(lang) {
+    const next = translations[lang] ? lang : 'fr';
+    currentLang = next;
+    localStorage.setItem('lang', next);
+    listeners.forEach((fn) => fn(next, translations[next]));
+  }
+
+  function subscribe(fn) {
+    listeners.push(fn);
+    fn(currentLang, translations[currentLang]);
+  }
+
+  function get() {
+    return translations[currentLang];
+  }
+
+  function getLang() {
+    return currentLang;
+  }
+
+  function bindSelect(selectEl) {
+    if (!selectEl) return;
+    selectEl.value = currentLang;
+    selectEl.addEventListener('change', (event) => setLang(event.target.value));
+  }
+
+  window.dashboardI18n = { translations, setLang, subscribe, get, getLang, bindSelect };
+})();

@@ -6,25 +6,37 @@
   <title>Historique - Tableau de bord système</title>
   <link rel="stylesheet" href="/static/style.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="/static/i18n.js"></script>
 </head>
 <body>
   <main class="page">
     <header>
       <div>
-        <p class="eyebrow">Historique</p>
-        <h1>Courbes CPU / RAM / Disque</h1>
-        <p class="lede">Affiche les points enregistrés dans le CSV (logs/metrics.csv). Lancer l’export pour alimenter les courbes.</p>
+        <p class="eyebrow" id="history-eyebrow">Historique</p>
+        <h1 id="history-title">Courbes CPU / RAM / Disque</h1>
+        <p class="lede" id="history-subtitle">Affiche les points enregistrés dans le CSV (logs/metrics.csv). Lancer l’export pour alimenter les courbes.</p>
+      </div>
+      <div class="header-actions">
+        <div class="lang-switch">
+          <label for="lang-select" id="lang-label">Langue</label>
+          <select id="lang-select" class="lang-select">
+            <option value="fr">FR</option>
+            <option value="en">EN</option>
+            <option value="es">ES</option>
+            <option value="ru">RU</option>
+          </select>
+        </div>
       </div>
     </header>
 
     <nav class="nav-links">
-      <a href="/">Temps réel</a>
-      <a href="/history" class="active">Historique</a>
+      <a href="/" id="nav-live">Temps réel</a>
+      <a href="/history" class="active" id="nav-history">Historique</a>
     </nav>
 
     <section class="chart-card">
       <div class="table-header">
-        <h2>Séries temporelles</h2>
+        <h2 id="history-chart-title">Séries temporelles</h2>
         <span class="muted" id="meta-count">0 points</span>
       </div>
       <canvas id="history-chart" height="150"></canvas>
@@ -32,17 +44,17 @@
 
     <section class="table-wrap" id="table-wrap">
       <div class="table-header">
-        <h2>Dernières entrées</h2>
-        <span class="muted">Heure locale</span>
+        <h2 id="history-table-title">Dernières entrées</h2>
+        <span class="muted" id="history-table-subtitle">Heure locale</span>
       </div>
       <table>
         <thead>
           <tr>
-            <th>Timestamp</th>
-            <th>CPU %</th>
-            <th>RAM %</th>
-            <th>Disque %</th>
-            <th>Uptime</th>
+            <th id="th-ts">Timestamp</th>
+            <th id="th-cpu">CPU %</th>
+            <th id="th-ram">RAM %</th>
+            <th id="th-disk">Disque %</th>
+            <th id="th-uptime">Uptime</th>
           </tr>
         </thead>
         <tbody id="history-body"></tbody>
@@ -50,12 +62,15 @@
     </section>
 
     <div class="empty" id="empty-state" hidden>
-      <p>Aucun historique trouvé.</p>
-      <p class="muted">Lance d’abord une collecte :<br> <code>python main.py --export-csv logs/metrics.csv</code></p>
+      <p id="empty-title">Aucun historique trouvé.</p>
+      <p class="muted" id="empty-hint">Lance d’abord une collecte :<br> <code id="empty-code">python main.py --export-csv logs/metrics.csv</code></p>
     </div>
   </main>
 
   <script>
+    const langSelect = document.getElementById('lang-select');
+    let t = dashboardI18n.get();
+
     const chartCtx = document.getElementById('history-chart').getContext('2d');
     const labels = [];
     const cpuSeries = [];
@@ -80,6 +95,33 @@
         },
       },
     });
+
+    function applyStaticTexts() {
+      document.getElementById('lang-label').textContent = t.langLabel;
+      document.getElementById('nav-live').textContent = t.navLive;
+      document.getElementById('nav-history').textContent = t.navHistory;
+
+      document.getElementById('history-eyebrow').textContent = t.historyEyebrow;
+      document.getElementById('history-title').textContent = t.historyTitle;
+      document.getElementById('history-subtitle').textContent = t.historySubtitle;
+      document.getElementById('history-chart-title').textContent = t.historyChartTitle;
+      document.getElementById('history-table-title').textContent = t.historyTableTitle;
+      document.getElementById('history-table-subtitle').textContent = t.historyTableSubtitle;
+
+      document.getElementById('th-ts').textContent = t.timestampLabel;
+      document.getElementById('th-cpu').textContent = t.seriesCpu;
+      document.getElementById('th-ram').textContent = t.seriesRam;
+      document.getElementById('th-disk').textContent = t.seriesDisk;
+      document.getElementById('th-uptime').textContent = t.uptimeLabel;
+
+      document.getElementById('empty-title').textContent = t.emptyTitle;
+      document.getElementById('empty-hint').innerHTML = `${t.emptyHint}<br> <code id="empty-code">${t.emptyCode}</code>`;
+
+      historyChart.data.datasets[0].label = t.seriesCpu;
+      historyChart.data.datasets[1].label = t.seriesRam;
+      historyChart.data.datasets[2].label = t.seriesDisk;
+      historyChart.update();
+    }
 
     function renderTable(rows) {
       const body = document.getElementById('history-body');
@@ -124,7 +166,7 @@
         .then((resp) => resp.json())
         .then((payload) => {
           const rows = payload.data || [];
-          document.getElementById('meta-count').textContent = `${rows.length} points`;
+          document.getElementById('meta-count').textContent = t.pointsLabel(rows.length);
 
           if (!rows.length) {
             toggleEmpty(true);
@@ -140,8 +182,15 @@
           toggleEmpty(true);
         });
     }
-
-    loadHistory();
+    dashboardI18n.bindSelect(langSelect);
+    dashboardI18n.subscribe((lang, nextT) => {
+      t = nextT;
+      if (langSelect) {
+        langSelect.value = lang;
+      }
+      applyStaticTexts();
+      loadHistory();
+    });
   </script>
 </body>
 </html>

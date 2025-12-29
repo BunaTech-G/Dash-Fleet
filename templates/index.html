@@ -6,44 +6,56 @@
   <title>Tableau de bord système</title>
   <link rel="stylesheet" href="/static/style.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="/static/i18n.js"></script>
 </head>
 <body>
   <main class="page">
     <header>
       <div>
-        <p class="eyebrow">Statut en direct</p>
-        <h1>Tableau de bord système</h1>
-        <p class="lede">CPU, mémoire, disque et uptime mis à jour toutes les quelques secondes.</p>
+        <p class="eyebrow" id="live-eyebrow">Statut en direct</p>
+        <h1 id="title-main">Tableau de bord système</h1>
+        <p class="lede" id="subtitle-main">CPU, mémoire, disque et uptime mis à jour toutes les quelques secondes.</p>
       </div>
-      <div class="badge" id="alert-badge">Tout va bien</div>
+      <div class="header-actions">
+        <div class="lang-switch">
+          <label for="lang-select" id="lang-label">Langue</label>
+          <select id="lang-select" class="lang-select">
+            <option value="fr">FR</option>
+            <option value="en">EN</option>
+            <option value="es">ES</option>
+            <option value="ru">RU</option>
+          </select>
+        </div>
+        <div class="badge" id="alert-badge">Tout va bien</div>
+      </div>
     </header>
 
     <nav class="nav-links">
-      <a href="/" class="active">Temps réel</a>
-      <a href="/history">Historique</a>
+      <a href="/" class="active" id="nav-live">Temps réel</a>
+      <a href="/history" id="nav-history">Historique</a>
     </nav>
 
     <section class="grid">
       <article class="card" id="cpu-card">
-        <div class="label">CPU</div>
+        <div class="label" id="label-cpu">CPU</div>
         <div class="value" id="cpu-value">--%</div>
         <div class="meta" id="cpu-meta">En attente des données</div>
       </article>
 
       <article class="card" id="ram-card">
-        <div class="label">RAM</div>
+        <div class="label" id="label-ram">RAM</div>
         <div class="value" id="ram-value">--%</div>
         <div class="meta" id="ram-meta">En attente des données</div>
       </article>
 
       <article class="card" id="disk-card">
-        <div class="label">Disque</div>
+        <div class="label" id="label-disk">Disque</div>
         <div class="value" id="disk-value">--%</div>
         <div class="meta" id="disk-meta">En attente des données</div>
       </article>
 
       <article class="card" id="uptime-card">
-        <div class="label">Uptime</div>
+        <div class="label" id="label-uptime">Uptime</div>
         <div class="value" id="uptime-value">--:--:--</div>
         <div class="meta" id="uptime-meta">depuis le démarrage</div>
       </article>
@@ -51,22 +63,22 @@
 
     <section class="chart-card">
       <div class="table-header">
-        <h2>Tendance CPU / RAM</h2>
-        <span class="muted">60 derniers points</span>
+        <h2 id="chart-title">Tendance CPU / RAM</h2>
+        <span class="muted" id="chart-subtitle">60 derniers points</span>
       </div>
       <canvas id="trend-chart" height="120"></canvas>
     </section>
 
     <section class="table-wrap">
       <div class="table-header">
-        <h2>Dernière mesure</h2>
+        <h2 id="table-title">Dernière mesure</h2>
         <span id="timestamp">--</span>
       </div>
       <table>
         <thead>
           <tr>
-            <th>Métrique</th>
-            <th>Valeur</th>
+            <th id="col-metric">Métrique</th>
+            <th id="col-value">Valeur</th>
           </tr>
         </thead>
         <tbody>
@@ -81,6 +93,9 @@
 
   <script>
     const alertBadge = document.getElementById('alert-badge');
+    const langSelect = document.getElementById('lang-select');
+    let t = dashboardI18n.get();
+
     const maxPoints = 60;
     const labels = [];
     const cpuSeries = [];
@@ -121,12 +136,44 @@
       },
     });
 
+    function applyStaticTexts() {
+      document.getElementById('live-eyebrow').textContent = t.liveEyebrow;
+      document.getElementById('title-main').textContent = t.title;
+      document.getElementById('subtitle-main').textContent = t.subtitle;
+      document.getElementById('lang-label').textContent = t.langLabel;
+      document.getElementById('nav-live').textContent = t.navLive;
+      document.getElementById('nav-history').textContent = t.navHistory;
+
+      document.getElementById('chart-title').textContent = t.chartTitle;
+      document.getElementById('chart-subtitle').textContent = t.chartSubtitle;
+      document.getElementById('table-title').textContent = t.lastMeasure;
+      document.getElementById('col-metric').textContent = t.metric;
+      document.getElementById('col-value').textContent = t.value;
+
+      document.getElementById('label-cpu').textContent = t.cpuLabel;
+      document.getElementById('label-ram').textContent = t.ramLabel;
+      document.getElementById('label-disk').textContent = t.diskLabel;
+      document.getElementById('label-uptime').textContent = t.uptimeLabel;
+
+      document.getElementById('cpu-meta').textContent = t.metaWaiting;
+      document.getElementById('ram-meta').textContent = t.metaWaiting;
+      document.getElementById('disk-meta').textContent = t.metaWaiting;
+      document.getElementById('uptime-meta').textContent = t.uptimeMeta;
+
+      trendChart.data.datasets[0].label = t.seriesCpu || t.cpuLabel;
+      trendChart.data.datasets[1].label = t.seriesRam || t.ramLabel;
+      trendChart.update();
+
+      const isAlert = alertBadge.classList.contains('alert');
+      setAlert(isAlert);
+    }
+
     function setAlert(active) {
       if (active) {
-        alertBadge.textContent = 'Alerte : forte charge';
+        alertBadge.textContent = t.badgeAlert;
         alertBadge.classList.add('alert');
       } else {
-        alertBadge.textContent = 'Tout va bien';
+        alertBadge.textContent = t.badgeOk;
         alertBadge.classList.remove('alert');
       }
     }
@@ -161,10 +208,10 @@
           const ramText = `${data.ram_percent.toFixed(1)}%`;
           const diskText = `${data.disk_percent.toFixed(1)}%`;
 
-          updateCard('cpu-card', cpuText, 'Seuil 80%', data.alerts.cpu);
-          updateCard('ram-card', ramText, `Utilisé ${data.ram_used_gib.toFixed(2)} / ${data.ram_total_gib.toFixed(2)} GiB`, data.alerts.ram);
-          updateCard('disk-card', diskText, `Utilisé ${data.disk_used_gib.toFixed(2)} / ${data.disk_total_gib.toFixed(2)} GiB`, false);
-          updateCard('uptime-card', data.uptime_hms, 'H:M:S depuis le boot', false);
+          updateCard('cpu-card', cpuText, t.cpuThreshold, data.alerts.cpu);
+          updateCard('ram-card', ramText, t.ramMeta(data.ram_used_gib.toFixed(2), data.ram_total_gib.toFixed(2)), data.alerts.ram);
+          updateCard('disk-card', diskText, t.diskMeta(data.disk_used_gib.toFixed(2), data.disk_total_gib.toFixed(2)), false);
+          updateCard('uptime-card', data.uptime_hms, t.uptimeMeta, false);
 
           document.getElementById('timestamp').textContent = data.timestamp;
           document.getElementById('cpu-value').textContent = cpuText;
@@ -172,9 +219,9 @@
           document.getElementById('disk-value').textContent = diskText;
           document.getElementById('uptime-value').textContent = data.uptime_hms;
 
-          document.getElementById('row-cpu').textContent = cpuText + (data.alerts.cpu ? ' (alerte)' : '');
-          document.getElementById('row-ram').textContent = `${ramText} (${data.ram_used_gib.toFixed(2)} / ${data.ram_total_gib.toFixed(2)} GiB)` + (data.alerts.ram ? ' (alerte)' : '');
-          document.getElementById('row-disk').textContent = `${diskText} (${data.disk_used_gib.toFixed(2)} / ${data.disk_total_gib.toFixed(2)} GiB)`;
+          document.getElementById('row-cpu').textContent = cpuText + (data.alerts.cpu ? t.alertTag : '');
+          document.getElementById('row-ram').textContent = `${ramText} (${t.ramDetail(data.ram_used_gib.toFixed(2), data.ram_total_gib.toFixed(2))})` + (data.alerts.ram ? t.alertTag : '');
+          document.getElementById('row-disk').textContent = `${diskText} (${t.diskDetail(data.disk_used_gib.toFixed(2), data.disk_total_gib.toFixed(2))})`;
           document.getElementById('row-uptime').textContent = data.uptime_hms;
 
           setAlert(data.alert_active);
@@ -182,10 +229,19 @@
         })
         .catch((err) => {
           console.error(err);
-          alertBadge.textContent = 'Erreur de récupération des données';
+          alertBadge.textContent = t.badgeAlert;
           alertBadge.classList.add('alert');
         });
     }
+
+    dashboardI18n.bindSelect(langSelect);
+    dashboardI18n.subscribe((lang, nextT) => {
+      t = nextT;
+      if (langSelect) {
+        langSelect.value = lang;
+      }
+      applyStaticTexts();
+    });
 
     refresh();
     setInterval(refresh, 2500);
