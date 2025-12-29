@@ -112,5 +112,9 @@ dist\main.exe --web --export-csv logs\metrics.csv
 ## Sécurité minimale pour les actions
 - Les actions `/api/action` sont prévues pour un usage local. Si besoin, définir `ACTION_TOKEN` (env) et appeler avec un header `Authorization: Bearer <token>`.
 
+## Alertes webhook (optionnel)
+- Définir `WEBHOOK_URL` pour envoyer une alerte lorsqu’un statut santé devient `critical` (payload JSON simple `{ "text": "..." }` compatible Slack/Teams).
+- Définir `WEBHOOK_MIN_SECONDS` (défaut 300) pour le délai minimal entre deux envois.
+
 ## Suite (vision courte)
 On vise un “agent santé poste” léger : score de santé, auto-remédiations simples, self-service (scripts approuvés), alertes sobres. Voir [docs/ROADMAP.md](docs/ROADMAP.md) pour le plan à étapes.

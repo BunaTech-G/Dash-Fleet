@@ -13,6 +13,8 @@ import sys
 import threading
 import tempfile
 import time
+import urllib.error
+import urllib.request
 import webbrowser
 from pathlib import Path
 from typing import Dict, Iterable
@@ -28,6 +30,8 @@ DEFAULT_HISTORY_CSV = Path("logs/metrics.csv")
 DEFAULT_EXPORT_CSV = Path.home() / "Desktop" / "metrics.csv"
 DEFAULT_EXPORT_JSONL = Path.home() / "Desktop" / "metrics.jsonl"
 ACTION_TOKEN = os.environ.get("ACTION_TOKEN")  # optionnel, protège les actions si défini
+WEBHOOK_URL = os.environ.get("WEBHOOK_URL")  # optionnel, webhook si santé critique
+WEBHOOK_MIN_SECONDS = int(os.environ.get("WEBHOOK_MIN_SECONDS", "300"))
 
 app = Flask(__name__, template_folder="templates", static_folder="static")
 
@@ -93,6 +97,9 @@ def _health_score(stats: Dict[str, object]) -> Dict[str, object]:
     }
 
 
+_LAST_WEBHOOK_TS = 0.0
+
+
 def _disk_usage_target() -> str:
     """Choisit un point de montage qui fonctionne sous Windows et Unix."""
     home = Path.home()
@@ -102,6 +109,23 @@ def _disk_usage_target() -> str:
 
 def _is_windows() -> bool:
     return os.name == "nt"
+
+
+def _post_webhook(message: str) -> bool:
+    if not WEBHOOK_URL:
+        return False
+    data = json.dumps({"text": message}).encode("utf-8")
+    req = urllib.request.Request(
+        WEBHOOK_URL,
+        data=data,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=5) as resp:  # pragma: no cover
+            return 200 <= resp.getcode() < 300
+    except urllib.error.URLError:
+        return False
 
 
 def collect_stats() -> Dict[str, object]:
@@ -238,6 +262,31 @@ def _action_cleanup_temp() -> Dict[str, object]:
     return {"ok": True, "message": f"Fichiers .tmp supprimés : {deleted}"}
 
 
+def _maybe_send_webhook(stats: Dict[str, object]) -> None:
+    global _LAST_WEBHOOK_TS
+    if not WEBHOOK_URL:
+        return
+    health = stats.get("health") or {}
+    status = health.get("status", "ok")
+    score = health.get("score", 100)
+    if status != "critical":
+        return
+
+    now = time.time()
+    if now - _LAST_WEBHOOK_TS < WEBHOOK_MIN_SECONDS:
+        return
+
+    msg = (
+        f"Alerte santé critique: score={score}/100, "
+        f"CPU={stats.get('cpu_percent', '?')}%, "
+        f"RAM={stats.get('ram_percent', '?')}%, "
+        f"Disk={stats.get('disk_percent', '?')}%"
+    )
+    sent = _post_webhook(msg)
+    if sent:
+        _LAST_WEBHOOK_TS = now
+
+
 APPROVED_ACTIONS: Dict[str, object] = {
     "flush_dns": {
         "label": "Flush DNS",
@@ -286,6 +335,7 @@ def api_stats():
 def api_status():
     stats = collect_stats()
     stats["health"] = _health_score(stats)
+    _maybe_send_webhook(stats)
     return jsonify(stats)
 
 
