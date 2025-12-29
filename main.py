@@ -8,6 +8,7 @@ import csv
 import datetime as dt
 import json
 import os
+import shutil
 import subprocess
 import sys
 import threading
@@ -16,6 +17,7 @@ import time
 import urllib.error
 import urllib.request
 import webbrowser
+import zipfile
 from pathlib import Path
 from typing import Dict, Iterable
 
@@ -262,6 +264,69 @@ def _action_cleanup_temp() -> Dict[str, object]:
     return {"ok": True, "message": f"Fichiers .tmp supprimés : {deleted}"}
 
 
+def _action_cleanup_teams() -> Dict[str, object]:
+    if not _is_windows():
+        return {"ok": False, "message": "Action Windows uniquement"}
+    base = Path(os.environ.get("APPDATA", Path.home() / "AppData/Local")) / "Microsoft" / "Teams" / "Cache"
+    if not base.exists():
+        return {"ok": False, "message": "Cache Teams introuvable"}
+
+    deleted = 0
+    for path in base.rglob("*"):
+        if path.is_file():
+            try:
+                path.unlink()
+                deleted += 1
+            except OSError:
+                continue
+    return {"ok": True, "message": f"Cache Teams vidé ({deleted} fichiers)"}
+
+
+def _action_cleanup_outlook() -> Dict[str, object]:
+    if not _is_windows():
+        return {"ok": False, "message": "Action Windows uniquement"}
+    base = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData/Local")) / "Microsoft" / "Outlook"
+    if not base.exists():
+        return {"ok": False, "message": "Dossier Outlook introuvable"}
+
+    deleted = 0
+    for pattern in ("*.tmp", "*.dat"):
+        for path in base.rglob(pattern):
+            if path.is_file():
+                try:
+                    path.unlink()
+                    deleted += 1
+                except OSError:
+                    continue
+    return {"ok": True, "message": f"Caches Outlook nettoyés ({deleted} fichiers)"}
+
+
+def _action_collect_logs() -> Dict[str, object]:
+    temp_dir = Path(tempfile.gettempdir())
+    zip_path = temp_dir / f"diag_logs_{int(time.time())}.zip"
+
+    try:
+        with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+            # Stats courantes
+            stats = collect_stats()
+            zf.writestr("stats.json", json.dumps(stats, indent=2))
+
+            # Historique CSV si présent
+            if DEFAULT_HISTORY_CSV.exists():
+                zf.write(DEFAULT_HISTORY_CSV, arcname="metrics.csv")
+
+            # Réseau/OS minimal
+            if _is_windows():
+                net = _run_subprocess(["ipconfig", "/all"])
+            else:
+                net = _run_subprocess(["ifconfig"])
+            zf.writestr("network.txt", net.get("stdout", ""))
+
+        return {"ok": True, "message": f"Logs collectés : {zip_path}"}
+    except Exception as exc:  # pragma: no cover
+        return {"ok": False, "message": str(exc)}
+
+
 def _maybe_send_webhook(stats: Dict[str, object]) -> None:
     global _LAST_WEBHOOK_TS
     if not WEBHOOK_URL:
@@ -299,6 +364,18 @@ APPROVED_ACTIONS: Dict[str, object] = {
     "cleanup_temp": {
         "label": "Nettoyer Temp (*.tmp)",
         "runner": _action_cleanup_temp,
+    },
+    "cleanup_teams": {
+        "label": "Nettoyer cache Teams",
+        "runner": _action_cleanup_teams,
+    },
+    "cleanup_outlook": {
+        "label": "Nettoyer caches Outlook",
+        "runner": _action_cleanup_outlook,
+    },
+    "collect_logs": {
+        "label": "Collecter logs (zip)",
+        "runner": _action_collect_logs,
     },
 }
 

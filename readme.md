@@ -66,7 +66,7 @@ python desktop_app.py
 - `/api/stats` : métriques courantes (CPU, RAM, disque, uptime, alertes)
 - `/api/status` : métriques + score santé (0-100) et statut (`ok|warn|critical`)
 - `/api/history?limit=200` : dernières lignes du CSV (limité à 500 côté serveur)
-- `/api/action` (POST) : exécute une action approuvée locale (`flush_dns`, `restart_spooler`, `cleanup_temp`). Optionnellement protégée par `ACTION_TOKEN`.
+- `/api/action` (POST) : exécute une action approuvée locale (`flush_dns`, `restart_spooler`, `cleanup_temp`, `cleanup_teams`, `cleanup_outlook`, `collect_logs`). Optionnellement protégée par `ACTION_TOKEN`.
 
 ## Exports et historique
 - `--export-csv` écrit un CSV avec en-têtes (créé s’il n’existe pas).

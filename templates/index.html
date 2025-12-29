@@ -84,6 +84,9 @@
         <button class="action-btn" data-action="flush_dns" id="action-flush">Flush DNS</button>
         <button class="action-btn" data-action="restart_spooler" id="action-spooler">Restart Spooler</button>
         <button class="action-btn" data-action="cleanup_temp" id="action-cleanup">Nettoyer Temp</button>
+        <button class="action-btn" data-action="cleanup_teams" id="action-teams">Cache Teams</button>
+        <button class="action-btn" data-action="cleanup_outlook" id="action-outlook">Caches Outlook</button>
+        <button class="action-btn" data-action="collect_logs" id="action-logs">Collecter logs</button>
       </div>
       <div class="action-log" id="action-log">Prêt</div>
     </section>
@@ -185,6 +188,9 @@
       document.getElementById('action-flush').textContent = t.actionFlush || 'Flush DNS';
       document.getElementById('action-spooler').textContent = t.actionSpooler || 'Restart Spooler';
       document.getElementById('action-cleanup').textContent = t.actionCleanup || 'Nettoyer Temp';
+      document.getElementById('action-teams').textContent = t.actionTeams || 'Cache Teams';
+      document.getElementById('action-outlook').textContent = t.actionOutlook || 'Caches Outlook';
+      document.getElementById('action-logs').textContent = t.actionLogs || 'Collecter logs';
       document.getElementById('action-log').textContent = t.actionReady || 'Prêt';
 
       trendChart.data.datasets[0].label = t.seriesCpu || t.cpuLabel;
