@@ -26,6 +26,7 @@
             <option value="ru">RU</option>
           </select>
         </div>
+        <button class="theme-toggle" id="theme-toggle">Mode sombre</button>
       </div>
     </header>
 
@@ -69,7 +70,9 @@
 
   <script>
     const langSelect = document.getElementById('lang-select');
+    const themeToggle = document.getElementById('theme-toggle');
     let t = dashboardI18n.get();
+    let theme = localStorage.getItem('theme') === 'light' ? 'light' : 'dark';
 
     const chartCtx = document.getElementById('history-chart').getContext('2d');
     const labels = [];
@@ -96,6 +99,18 @@
       },
     });
 
+    function updateChartTheme() {
+      const styles = getComputedStyle(document.body);
+      const muted = styles.getPropertyValue('--muted') || '#9ca3af';
+      const grid = styles.getPropertyValue('--border') || 'rgba(255,255,255,0.05)';
+      historyChart.options.plugins.legend.labels.color = muted.trim();
+      historyChart.options.scales.x.ticks.color = muted.trim();
+      historyChart.options.scales.y.ticks.color = muted.trim();
+      historyChart.options.scales.x.grid.color = grid.trim();
+      historyChart.options.scales.y.grid.color = grid.trim();
+      historyChart.update();
+    }
+
     function applyStaticTexts() {
       document.getElementById('lang-label').textContent = t.langLabel;
       document.getElementById('nav-live').textContent = t.navLive;
@@ -120,7 +135,22 @@
       historyChart.data.datasets[0].label = t.seriesCpu;
       historyChart.data.datasets[1].label = t.seriesRam;
       historyChart.data.datasets[2].label = t.seriesDisk;
-      historyChart.update();
+      updateChartTheme();
+
+      updateThemeButton();
+    }
+
+    function updateThemeButton() {
+      if (!themeToggle) return;
+      themeToggle.textContent = theme === 'dark' ? (t.themeLight || 'Mode clair') : (t.themeDark || 'Mode sombre');
+    }
+
+    function setTheme(nextTheme) {
+      theme = nextTheme === 'light' ? 'light' : 'dark';
+      document.body.classList.toggle('light', theme === 'light');
+      localStorage.setItem('theme', theme);
+      updateThemeButton();
+      updateChartTheme();
     }
 
     function renderTable(rows) {
@@ -191,6 +221,14 @@
       applyStaticTexts();
       loadHistory();
     });
+
+    if (themeToggle) {
+      themeToggle.addEventListener('click', () => {
+        setTheme(theme === 'dark' ? 'light' : 'dark');
+      });
+    }
+
+    setTheme(theme);
   </script>
 </body>
 </html>

@@ -57,6 +57,8 @@
       actionRunning: 'Exécution...',
       actionSuccess: 'Succès',
       actionFailure: 'Échec',
+      themeLight: 'Mode clair',
+      themeDark: 'Mode sombre',
     },
     en: {
       name: 'English',
@@ -115,6 +117,8 @@
       actionRunning: 'Running...',
       actionSuccess: 'Success',
       actionFailure: 'Failed',
+      themeLight: 'Light mode',
+      themeDark: 'Dark mode',
     },
     es: {
       name: 'Español',
@@ -173,6 +177,8 @@
       actionRunning: 'Ejecutando...',
       actionSuccess: 'Éxito',
       actionFailure: 'Fallo',
+      themeLight: 'Modo claro',
+      themeDark: 'Modo oscuro',
     },
     ru: {
       name: 'Русский',
@@ -231,6 +237,8 @@
       actionRunning: 'Выполняется...',
       actionSuccess: 'Успех',
       actionFailure: 'Ошибка',
+      themeLight: 'Светлая тема',
+      themeDark: 'Тёмная тема',
     },
   };
 

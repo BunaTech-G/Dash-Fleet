@@ -26,6 +26,7 @@
             <option value="ru">RU</option>
           </select>
         </div>
+        <button class="theme-toggle" id="theme-toggle">Mode sombre</button>
         <div class="badge" id="alert-badge">Tout va bien</div>
       </div>
     </header>
@@ -116,7 +117,9 @@
   <script>
     const alertBadge = document.getElementById('alert-badge');
     const langSelect = document.getElementById('lang-select');
+    const themeToggle = document.getElementById('theme-toggle');
     let t = dashboardI18n.get();
+    let theme = localStorage.getItem('theme') === 'light' ? 'light' : 'dark';
 
     const maxPoints = 60;
     const labels = [];
@@ -158,6 +161,18 @@
       },
     });
 
+    function updateChartTheme() {
+      const styles = getComputedStyle(document.body);
+      const muted = styles.getPropertyValue('--muted') || '#9ca3af';
+      const grid = styles.getPropertyValue('--border') || 'rgba(255,255,255,0.05)';
+      trendChart.options.plugins.legend.labels.color = muted.trim();
+      trendChart.options.scales.x.ticks.color = muted.trim();
+      trendChart.options.scales.y.ticks.color = muted.trim();
+      trendChart.options.scales.x.grid.color = grid.trim();
+      trendChart.options.scales.y.grid.color = grid.trim();
+      trendChart.update();
+    }
+
     function applyStaticTexts() {
       document.getElementById('live-eyebrow').textContent = t.liveEyebrow;
       document.getElementById('title-main').textContent = t.title;
@@ -193,12 +208,27 @@
       document.getElementById('action-logs').textContent = t.actionLogs || 'Collecter logs';
       document.getElementById('action-log').textContent = t.actionReady || 'Prêt';
 
+      updateThemeButton();
+
       trendChart.data.datasets[0].label = t.seriesCpu || t.cpuLabel;
       trendChart.data.datasets[1].label = t.seriesRam || t.ramLabel;
-      trendChart.update();
+      updateChartTheme();
 
       const isAlert = alertBadge.classList.contains('alert');
       setAlert(isAlert);
+    }
+
+    function updateThemeButton() {
+      if (!themeToggle) return;
+      themeToggle.textContent = theme === 'dark' ? (t.themeLight || 'Mode clair') : (t.themeDark || 'Mode sombre');
+    }
+
+    function setTheme(nextTheme) {
+      theme = nextTheme === 'light' ? 'light' : 'dark';
+      document.body.classList.toggle('light', theme === 'light');
+      localStorage.setItem('theme', theme);
+      updateThemeButton();
+      updateChartTheme();
     }
 
     function setAlert(active) {
@@ -315,6 +345,14 @@
       }
       applyStaticTexts();
     });
+
+    if (themeToggle) {
+      themeToggle.addEventListener('click', () => {
+        setTheme(theme === 'dark' ? 'light' : 'dark');
+      });
+    }
+
+    setTheme(theme);
 
     document.querySelectorAll('.action-btn').forEach((btn) => {
       btn.addEventListener('click', (e) => {

@@ -12,6 +12,17 @@
   --shadow: 0 15px 40px rgba(0, 0, 0, 0.35);
 }
 
+body.light {
+  --bg: #f5f6fb;
+  --panel: #ffffff;
+  --border: #e5e7eb;
+  --text: #0f172a;
+  --muted: #4b5563;
+  --accent: #0ea5e9;
+  --alert: #e11d48;
+  --shadow: 0 12px 30px rgba(0, 0, 0, 0.08);
+}
+
 * { box-sizing: border-box; }
 
 body {
@@ -98,6 +109,19 @@ header {
 .lang-select:focus {
   outline: 1px solid var(--accent);
 }
+
+.theme-toggle {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+}
+
+.theme-toggle:hover { border-color: var(--accent); }
 
 h1 {
   margin: 6px 0 4px;
