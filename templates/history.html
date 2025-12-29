@@ -43,6 +43,20 @@
       <canvas id="history-chart" height="150"></canvas>
     </section>
 
+    <section class="table-wrap">
+      <div class="table-header">
+        <h2 id="health-title">Santé actuelle</h2>
+        <span class="muted" id="health-timestamp">--</span>
+      </div>
+      <div class="grid">
+        <article class="card" id="health-card">
+          <div class="label" id="label-health">Santé</div>
+          <div class="value" id="health-value">--</div>
+          <div class="meta" id="health-meta">En attente des données</div>
+        </article>
+      </div>
+    </section>
+
     <section class="table-wrap" id="table-wrap">
       <div class="table-header">
         <h2 id="history-table-title">Dernières entrées</h2>
@@ -73,6 +87,7 @@
     const themeToggle = document.getElementById('theme-toggle');
     let t = dashboardI18n.get();
     let theme = localStorage.getItem('theme') === 'light' ? 'light' : 'dark';
+    const healthCard = document.getElementById('health-card');
 
     const chartCtx = document.getElementById('history-chart').getContext('2d');
     const labels = [];
@@ -122,6 +137,9 @@
       document.getElementById('history-chart-title').textContent = t.historyChartTitle;
       document.getElementById('history-table-title').textContent = t.historyTableTitle;
       document.getElementById('history-table-subtitle').textContent = t.historyTableSubtitle;
+
+      document.getElementById('health-title').textContent = t.healthLabel || 'Santé';
+      document.getElementById('label-health').textContent = t.healthLabel || 'Santé';
 
       document.getElementById('th-ts').textContent = t.timestampLabel;
       document.getElementById('th-cpu').textContent = t.seriesCpu;
@@ -191,6 +209,26 @@
       document.getElementById('table-wrap').style.display = show ? 'none' : 'block';
     }
 
+    function updateHealth() {
+      fetch('/api/status')
+        .then((resp) => resp.json())
+        .then((data) => {
+          const health = data.health || { score: 0, status: 'ok' };
+          document.getElementById('health-value').textContent = `${health.score}/100`;
+          const metaByStatus = {
+            ok: t.healthMetaOk || 'Statut OK',
+            warn: t.healthMetaWarn || 'Statut avertissement',
+            critical: t.healthMetaCritical || 'Statut critique',
+          };
+          document.getElementById('health-meta').textContent = metaByStatus[health.status] || metaByStatus.ok;
+          document.getElementById('health-timestamp').textContent = data.timestamp || '--';
+
+          healthCard.classList.remove('status-ok', 'status-warn', 'status-critical');
+          healthCard.classList.add(`status-${health.status}`);
+        })
+        .catch((err) => console.error(err));
+    }
+
     function loadHistory() {
       fetch('/api/history?limit=300')
         .then((resp) => resp.json())
@@ -206,6 +244,7 @@
           toggleEmpty(false);
           updateChart(rows);
           renderTable(rows);
+          updateHealth();
         })
         .catch((err) => {
           console.error(err);
@@ -229,6 +268,7 @@
     }
 
     setTheme(theme);
+    updateHealth();
   </script>
 </body>
 </html>

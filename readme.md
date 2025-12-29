@@ -66,7 +66,7 @@ python desktop_app.py
 - `/api/stats` : métriques courantes (CPU, RAM, disque, uptime, alertes)
 - `/api/status` : métriques + score santé (0-100) et statut (`ok|warn|critical`)
 - `/api/history?limit=200` : dernières lignes du CSV (limité à 500 côté serveur)
-- `/api/action` (POST) : exécute une action approuvée locale (`flush_dns`, `restart_spooler`, `cleanup_temp`, `cleanup_teams`, `cleanup_outlook`, `collect_logs`). Optionnellement protégée par `ACTION_TOKEN`.
+- `/api/action` (POST) : exécute une action approuvée locale (`flush_dns`, `restart_spooler`, `cleanup_temp`, `cleanup_teams`, `cleanup_outlook`, `collect_logs`). `ACTION_TOKEN` est obligatoire : envoyer `Authorization: Bearer <token>`.
 
 ## Exports et historique
 - `--export-csv` écrit un CSV avec en-têtes (créé s’il n’existe pas).
@@ -110,7 +110,7 @@ dist\main.exe --web --export-csv logs\metrics.csv
 - JSONL (un objet par ligne) est pratique pour les ingest pipelines et la lecture en flux.
 
 ## Sécurité minimale pour les actions
-- Les actions `/api/action` sont prévues pour un usage local. Si besoin, définir `ACTION_TOKEN` (env) et appeler avec un header `Authorization: Bearer <token>`.
+- Les actions `/api/action` sont prévues pour un usage local. `ACTION_TOKEN` (env) est obligatoire. Appelez avec un header `Authorization: Bearer <token>` ou un champ JSON `token`.
 
 ## Alertes webhook (optionnel)
 - Définir `WEBHOOK_URL` pour envoyer une alerte lorsqu’un statut santé devient `critical` (payload JSON simple `{ "text": "..." }` compatible Slack/Teams).

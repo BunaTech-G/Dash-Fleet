@@ -418,7 +418,7 @@ def api_status():
 
 def _check_action_token() -> Dict[str, object] | None:
     if not ACTION_TOKEN:
-        return None
+        return {"error": "Token requis (définir ACTION_TOKEN)"}
 
     header = request.headers.get("Authorization", "")
     token = header.replace("Bearer", "").strip()
