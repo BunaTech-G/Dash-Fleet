@@ -41,6 +41,10 @@
       emptyHint: 'Lance d’abord une collecte :',
       emptyCode: 'python main.py --export-csv logs/metrics.csv',
       pointsLabel: (n) => `${n} points`,
+       healthLabel: 'Santé',
+       healthMetaOk: 'Statut OK',
+       healthMetaWarn: 'Statut avertissement',
+       healthMetaCritical: 'Statut critique',
     },
     en: {
       name: 'English',
@@ -83,6 +87,10 @@
       emptyHint: 'Start a capture first:',
       emptyCode: 'python main.py --export-csv logs/metrics.csv',
       pointsLabel: (n) => `${n} points`,
+       healthLabel: 'Health',
+       healthMetaOk: 'Status OK',
+       healthMetaWarn: 'Status warning',
+       healthMetaCritical: 'Status critical',
     },
     es: {
       name: 'Español',
@@ -125,6 +133,10 @@
       emptyHint: 'Primero inicia una captura:',
       emptyCode: 'python main.py --export-csv logs/metrics.csv',
       pointsLabel: (n) => `${n} puntos`,
+       healthLabel: 'Salud',
+       healthMetaOk: 'Estado OK',
+       healthMetaWarn: 'Estado advertencia',
+       healthMetaCritical: 'Estado crítico',
     },
     ru: {
       name: 'Русский',
@@ -167,6 +179,10 @@
       emptyHint: 'Сначала запустите сбор:',
       emptyCode: 'python main.py --export-csv logs/metrics.csv',
       pointsLabel: (n) => `${n} точек`,
+       healthLabel: 'Состояние',
+       healthMetaOk: 'Статус OK',
+       healthMetaWarn: 'Статус предупреждение',
+       healthMetaCritical: 'Статус критический',
     },
   };
 
