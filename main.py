@@ -18,6 +18,7 @@ import urllib.error
 import urllib.request
 import webbrowser
 import zipfile
+import uuid
 from pathlib import Path
 from typing import Dict, Iterable
 
@@ -34,6 +35,8 @@ DEFAULT_EXPORT_JSONL = Path.home() / "Desktop" / "metrics.jsonl"
 ACTION_TOKEN = os.environ.get("ACTION_TOKEN")  # optionnel, protège les actions si défini
 WEBHOOK_URL = os.environ.get("WEBHOOK_URL")  # optionnel, webhook si santé critique
 WEBHOOK_MIN_SECONDS = int(os.environ.get("WEBHOOK_MIN_SECONDS", "300"))
+FLEET_TOKEN = os.environ.get("FLEET_TOKEN")  # token obligatoire pour les rapports agents
+FLEET_TTL_SECONDS = int(os.environ.get("FLEET_TTL_SECONDS", "600"))  # expiration des entrées fleet
 
 app = Flask(__name__, template_folder="templates", static_folder="static")
 
@@ -100,6 +103,7 @@ def _health_score(stats: Dict[str, object]) -> Dict[str, object]:
 
 
 _LAST_WEBHOOK_TS = 0.0
+FLEET_STATE: Dict[str, Dict[str, object]] = {}
 
 
 def _disk_usage_target() -> str:
@@ -403,6 +407,11 @@ def history_page() -> str:
     return render_template("history.html")
 
 
+@app.route("/fleet")
+def fleet_page() -> str:
+    return render_template("fleet.html")
+
+
 @app.route("/api/stats")
 def api_stats():
     return jsonify(collect_stats())
@@ -430,6 +439,20 @@ def _check_action_token() -> Dict[str, object] | None:
     return None
 
 
+def _check_fleet_token() -> Dict[str, object] | None:
+    if not FLEET_TOKEN:
+        return {"error": "Token requis (définir FLEET_TOKEN)"}
+
+    header = request.headers.get("Authorization", "")
+    token = header.replace("Bearer", "").strip()
+    if not token:
+        payload = request.get_json(silent=True) or {}
+        token = str(payload.get("token", "")).strip()
+    if token != FLEET_TOKEN:
+        return {"error": "Unauthorized"}
+    return None
+
+
 @app.route("/api/action", methods=["POST"])
 def api_action():
     auth_err = _check_action_token()
@@ -444,6 +467,44 @@ def api_action():
     runner = APPROVED_ACTIONS[action_name]["runner"]
     result = runner()
     return jsonify({"action": action_name, **result})
+
+
+@app.route("/api/fleet/report", methods=["POST"])
+def api_fleet_report():
+    auth_err = _check_fleet_token()
+    if auth_err:
+        return jsonify(auth_err), 403
+
+    payload = request.get_json(silent=True) or {}
+    machine_id = str(payload.get("machine_id") or payload.get("id") or uuid.uuid4())
+    if not machine_id:
+        return jsonify({"error": "machine_id manquant"}), 400
+
+    report = payload.get("report") or {}
+    now_ts = time.time()
+
+    FLEET_STATE[machine_id] = {
+        "id": machine_id,
+        "report": report,
+        "ts": now_ts,
+        "client": request.remote_addr,
+    }
+
+    return jsonify({"ok": True})
+
+
+@app.route("/api/fleet")
+def api_fleet():
+    # purge les entrées expirées
+    now_ts = time.time()
+    expired = []
+    for mid, entry in list(FLEET_STATE.items()):
+        if now_ts - entry.get("ts", 0) > FLEET_TTL_SECONDS:
+            expired.append(mid)
+            FLEET_STATE.pop(mid, None)
+
+    data = list(FLEET_STATE.values())
+    return jsonify({"count": len(data), "expired": expired, "data": data})
 
 
 @app.route("/api/history")

@@ -33,6 +33,7 @@
     <nav class="nav-links">
       <a href="/" id="nav-live">Temps réel</a>
       <a href="/history" class="active" id="nav-history">Historique</a>
+      <a href="/fleet" id="nav-fleet">Fleet</a>
     </nav>
 
     <section class="chart-card">
@@ -130,6 +131,7 @@
       document.getElementById('lang-label').textContent = t.langLabel;
       document.getElementById('nav-live').textContent = t.navLive;
       document.getElementById('nav-history').textContent = t.navHistory;
+      document.getElementById('nav-fleet').textContent = t.navFleet || 'Fleet';
 
       document.getElementById('history-eyebrow').textContent = t.historyEyebrow;
       document.getElementById('history-title').textContent = t.historyTitle;

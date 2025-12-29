@@ -34,6 +34,7 @@
     <nav class="nav-links">
       <a href="/" class="active" id="nav-live">Temps réel</a>
       <a href="/history" id="nav-history">Historique</a>
+      <a href="/fleet" id="nav-fleet">Fleet</a>
     </nav>
 
     <section class="grid">
@@ -180,6 +181,7 @@
       document.getElementById('lang-label').textContent = t.langLabel;
       document.getElementById('nav-live').textContent = t.navLive;
       document.getElementById('nav-history').textContent = t.navHistory;
+      document.getElementById('nav-fleet').textContent = t.navFleet || 'Fleet';
 
       document.getElementById('chart-title').textContent = t.chartTitle;
       document.getElementById('chart-subtitle').textContent = t.chartSubtitle;

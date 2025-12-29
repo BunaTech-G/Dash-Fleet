@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fleet - Tableau de bord système</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/i18n.js"></script>
+</head>
+<body>
+  <main class="page">
+    <header>
+      <div>
+        <p class="eyebrow" id="fleet-eyebrow">Fleet</p>
+        <h1 id="fleet-title">Santé des postes</h1>
+        <p class="lede" id="fleet-subtitle">Vue centrale des machines reportées par les agents.</p>
+      </div>
+      <div class="header-actions">
+        <div class="lang-switch">
+          <label for="lang-select" id="lang-label">Langue</label>
+          <select id="lang-select" class="lang-select">
+            <option value="fr">FR</option>
+            <option value="en">EN</option>
+            <option value="es">ES</option>
+            <option value="ru">RU</option>
+          </select>
+        </div>
+        <button class="theme-toggle" id="theme-toggle">Mode sombre</button>
+      </div>
+    </header>
+
+    <nav class="nav-links">
+      <a href="/" id="nav-live">Temps réel</a>
+      <a href="/history" id="nav-history">Historique</a>
+      <a href="/fleet" class="active" id="nav-fleet">Fleet</a>
+    </nav>
+
+    <section class="table-wrap">
+      <div class="table-header">
+        <h2 id="fleet-table-title">Machines</h2>
+        <span class="muted" id="fleet-meta">--</span>
+      </div>
+      <div class="table-fleet" id="fleet-cards"></div>
+    </section>
+
+    <div class="empty" id="empty-state" hidden>
+      <p id="empty-title">Aucune machine reportée.</p>
+      <p class="muted" id="empty-hint">Déployer un agent qui POST sur /api/fleet/report avec FLEET_TOKEN.</p>
+    </div>
+  </main>
+
+  <script>
+    const langSelect = document.getElementById('lang-select');
+    const themeToggle = document.getElementById('theme-toggle');
+    const fleetCards = document.getElementById('fleet-cards');
+    let t = dashboardI18n.get();
+    let theme = localStorage.getItem('theme') === 'light' ? 'light' : 'dark';
+
+    function updateThemeButton() {
+      if (!themeToggle) return;
+      themeToggle.textContent = theme === 'dark' ? (t.themeLight || 'Mode clair') : (t.themeDark || 'Mode sombre');
+    }
+
+    function setTheme(nextTheme) {
+      theme = nextTheme === 'light' ? 'light' : 'dark';
+      document.body.classList.toggle('light', theme === 'light');
+      localStorage.setItem('theme', theme);
+      updateThemeButton();
+    }
+
+    function applyStaticTexts() {
+      document.getElementById('lang-label').textContent = t.langLabel;
+      document.getElementById('nav-live').textContent = t.navLive;
+      document.getElementById('nav-history').textContent = t.navHistory;
+      document.getElementById('nav-fleet').textContent = t.navFleet || 'Fleet';
+
+      document.getElementById('fleet-eyebrow').textContent = t.fleetEyebrow || 'Fleet';
+      document.getElementById('fleet-title').textContent = t.fleetTitle || 'Santé des postes';
+      document.getElementById('fleet-subtitle').textContent = t.fleetSubtitle || 'Vue centrale des machines reportées par les agents.';
+      document.getElementById('fleet-table-title').textContent = t.fleetTableTitle || 'Machines';
+      document.getElementById('empty-title').textContent = t.fleetEmptyTitle || 'Aucune machine reportée.';
+      document.getElementById('empty-hint').textContent = t.fleetEmptyHint || 'Déployer un agent qui POST sur /api/fleet/report avec FLEET_TOKEN.';
+      updateThemeButton();
+    }
+
+    function statusClass(status) {
+      if (status === 'critical') return 'status-critical';
+      if (status === 'warn') return 'status-warn';
+      return 'status-ok';
+    }
+
+    function renderFleet(data) {
+      fleetCards.innerHTML = '';
+      if (!data.length) {
+        document.getElementById('empty-state').hidden = false;
+        return;
+      }
+      document.getElementById('empty-state').hidden = true;
+
+      data.forEach((entry) => {
+        const report = entry.report || {};
+        const health = report.health || { score: 0, status: 'ok' };
+        const lastSeen = new Date(entry.ts * 1000).toISOString();
+        const card = document.createElement('article');
+        card.className = `card ${statusClass(health.status)}`;
+        card.innerHTML = `
+          <div class="label">${entry.id || 'machine'}</div>
+          <div class="value">${health.score || 0}/100</div>
+          <div class="meta">${health.status || 'ok'} · ${report.uptime_hms || ''}</div>
+          <div class="meta">CPU ${report.cpu_percent?.toFixed?.(1) || '--'}% · RAM ${report.ram_percent?.toFixed?.(1) || '--'}% · Disk ${report.disk_percent?.toFixed?.(1) || '--'}%</div>
+          <div class="meta muted">Last: ${lastSeen} (${entry.client || ''})</div>
+        `;
+        fleetCards.appendChild(card);
+      });
+    }
+
+    function refreshFleet() {
+      fetch('/api/fleet')
+        .then((resp) => resp.json())
+        .then((data) => {
+          document.getElementById('fleet-meta').textContent = `${data.count || 0} machines`;
+          renderFleet(data.data || []);
+        })
+        .catch((err) => console.error(err));
+    }
+
+    dashboardI18n.bindSelect(langSelect);
+    dashboardI18n.subscribe((lang, nextT) => {
+      t = nextT;
+      if (langSelect) {
+        langSelect.value = lang;
+      }
+      applyStaticTexts();
+      refreshFleet();
+    });
+
+    if (themeToggle) {
+      themeToggle.addEventListener('click', () => {
+        setTheme(theme === 'dark' ? 'light' : 'dark');
+      });
+    }
+
+    setTheme(theme);
+    refreshFleet();
+    setInterval(refreshFleet, 5000);
+  </script>
+</body>
+</html>
