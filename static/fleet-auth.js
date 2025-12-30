@@ -32,11 +32,49 @@ document.addEventListener('DOMContentLoaded', () => {
   const logoutBtn = document.getElementById('logoutApiKeyBtn');
   if (loginBtn) loginBtn.addEventListener('click', () => {
     const k = prompt('Entrez la clé API :');
-    if (k) setApiKey(k.trim());
+    if (!k) return;
+    const key = k.trim();
+    // Ask whether to store server-side session (safer) or keep in sessionStorage
+    try {
+      if (confirm('Souhaitez-vous échanger la clé côté serveur pour une session (recommandé) ?')) {
+        serverLogin(key);
+        return;
+      }
+    } catch (e) {
+      // confirm may not be available in some contexts
+    }
+    setApiKey(key);
   });
   if (logoutBtn) logoutBtn.addEventListener('click', () => clearApiKey());
   updateAuthUI();
 });
+
+
+function serverLogin(key) {
+  fetch('/api/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ api_key: key }),
+  })
+    .then((r) => {
+      if (!r.ok) throw r;
+      return r.json();
+    })
+    .then(() => {
+      // on success, remove client-stored key and reload to use cookie
+      clearApiKey();
+      showAuthError('Connexion réussie (session serveur active)');
+      setTimeout(() => window.location.reload(), 700);
+    })
+    .catch(async (err) => {
+      let msg = 'Erreur de connexion';
+      try {
+        const j = await err.json();
+        msg = j.error || msg;
+      } catch (_) {}
+      showAuthError(msg);
+    });
+}
 
 function showAuthError(message) {
   const existing = document.getElementById('auth-error-banner');

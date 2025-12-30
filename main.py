@@ -41,6 +41,7 @@ FLEET_TOKEN = os.environ.get("FLEET_TOKEN")  # token obligatoire pour les rappor
 FLEET_TTL_SECONDS = int(os.environ.get("FLEET_TTL_SECONDS", "600"))  # expiration des entrées fleet
 FLEET_STATE_PATH = Path("logs/fleet_state.json")
 FLEET_DB_PATH = Path("data/fleet.db")
+SESSION_TTL_SECONDS = int(os.environ.get("SESSION_TTL_SECONDS", str(60 * 60 * 8)))
 
 # DB schema notes:
 # - organizations(id TEXT PRIMARY KEY, name TEXT)
@@ -528,6 +529,10 @@ def _ensure_db_schema() -> None:
         cur.execute(
             'CREATE TABLE IF NOT EXISTS fleet (id TEXT PRIMARY KEY, report TEXT, ts REAL, client TEXT, org_id TEXT)'
         )
+        # sessions table for server-side session exchange (sid -> org_id)
+        cur.execute(
+            'CREATE TABLE IF NOT EXISTS sessions (id TEXT PRIMARY KEY, org_id TEXT, created_at REAL, expires_at REAL)'
+        )
         # attempt to add org_id column if missing (sqlite ignores if exists on many versions, so safe)
         try:
             cur.execute('ALTER TABLE fleet ADD COLUMN org_id TEXT')
@@ -575,6 +580,32 @@ def _get_org_for_key(key: str) -> str | None:
         return None
 
 
+def _get_org_for_session(sid: str) -> str | None:
+    try:
+        conn = sqlite3.connect(str(FLEET_DB_PATH))
+        cur = conn.cursor()
+        cur.execute('SELECT org_id, expires_at FROM sessions WHERE id = ?', (sid,))
+        row = cur.fetchone()
+        conn.close()
+        if not row:
+            return None
+        org_id, expires_at = row
+        if expires_at and time.time() > (expires_at or 0):
+            # expired
+            try:
+                conn = sqlite3.connect(str(FLEET_DB_PATH))
+                cur = conn.cursor()
+                cur.execute('DELETE FROM sessions WHERE id = ?', (sid,))
+                conn.commit()
+                conn.close()
+            except Exception:
+                pass
+            return None
+        return org_id
+    except Exception:
+        return None
+
+
 def _check_org_key() -> tuple[bool, str | None]:
     """Returns (ok, org_id) where ok False means unauthorized.
     Accepts Authorization header or token in JSON payload (backwards-compatible).
@@ -585,6 +616,12 @@ def _check_org_key() -> tuple[bool, str | None]:
         payload = request.get_json(silent=True) or {}
         token = str(payload.get("token", "")).strip()
     if not token:
+        # fallback: check for server-side session cookie
+        sid = request.cookies.get('dashfleet_sid')
+        if sid:
+            org = _get_org_for_session(sid)
+            if org:
+                return True, org
         return False, None
     org_id = _get_org_for_key(token)
     if org_id:
@@ -703,6 +740,51 @@ def api_create_org():
         return jsonify({"error": "db error"}), 500
 
     return jsonify({"org_id": org_id, "api_key": key, "name": name})
+
+
+@app.route("/api/login", methods=["POST"])
+def api_login():
+    """Exchange an API key for a short-lived server-side session cookie."""
+    payload = request.get_json(silent=True) or {}
+    key = str(payload.get("api_key") or payload.get("key") or "").strip()
+    if not key:
+        return jsonify({"error": "api_key requis"}), 400
+    org = _get_org_for_key(key)
+    if not org:
+        return jsonify({"error": "Unauthorized"}), 403
+
+    sid = secrets.token_urlsafe(24)
+    now = time.time()
+    expires = now + SESSION_TTL_SECONDS
+    try:
+        conn = sqlite3.connect(str(FLEET_DB_PATH))
+        cur = conn.cursor()
+        cur.execute('INSERT INTO sessions (id, org_id, created_at, expires_at) VALUES (?, ?, ?, ?)', (sid, org, now, expires))
+        conn.commit()
+        conn.close()
+    except Exception:
+        return jsonify({"error": "db error"}), 500
+
+    resp = jsonify({"ok": True, "expires_in": SESSION_TTL_SECONDS})
+    resp.set_cookie('dashfleet_sid', sid, max_age=SESSION_TTL_SECONDS, httponly=True, samesite='Lax', path='/')
+    return resp
+
+
+@app.route("/api/logout", methods=["POST"])
+def api_logout():
+    sid = request.cookies.get('dashfleet_sid')
+    if sid:
+        try:
+            conn = sqlite3.connect(str(FLEET_DB_PATH))
+            cur = conn.cursor()
+            cur.execute('DELETE FROM sessions WHERE id = ?', (sid,))
+            conn.commit()
+            conn.close()
+        except Exception:
+            pass
+    resp = jsonify({"ok": True})
+    resp.set_cookie('dashfleet_sid', '', expires=0, path='/')
+    return resp
 
 
 @app.route("/api/orgs", methods=["GET"])
