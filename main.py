@@ -24,6 +24,7 @@ from typing import Dict, Iterable
 
 import psutil
 from flask import Flask, jsonify, render_template, request
+import sqlite3
 
 # Seuils d’alerte (pourcentage).
 CPU_ALERT = 80.0
@@ -38,6 +39,7 @@ WEBHOOK_MIN_SECONDS = int(os.environ.get("WEBHOOK_MIN_SECONDS", "300"))
 FLEET_TOKEN = os.environ.get("FLEET_TOKEN")  # token obligatoire pour les rapports agents
 FLEET_TTL_SECONDS = int(os.environ.get("FLEET_TTL_SECONDS", "600"))  # expiration des entrées fleet
 FLEET_STATE_PATH = Path("logs/fleet_state.json")
+FLEET_DB_PATH = Path("data/fleet.db")
 
 app = Flask(__name__, template_folder="templates", static_folder="static")
 
@@ -108,15 +110,42 @@ FLEET_STATE: Dict[str, Dict[str, object]] = {}
 
 
 def _load_fleet_state() -> None:
-    """Recharge l'état fleet depuis le disque (best effort)."""
+    """Recharge l'état fleet depuis la base SQLite si présente, sinon depuis le JSON (best effort)."""
     global FLEET_STATE
+    # prefer DB if present
+    try:
+        if FLEET_DB_PATH.exists():
+            conn = sqlite3.connect(str(FLEET_DB_PATH))
+            cur = conn.cursor()
+            cur.execute("SELECT id, report, ts, client FROM fleet")
+            rows = cur.fetchall()
+            conn.close()
+            FLEET_STATE = {}
+            for rid, report_json, ts, client in rows:
+                try:
+                    report = json.loads(report_json) if report_json else {}
+                except Exception:
+                    report = {}
+                FLEET_STATE[str(rid)] = {"id": str(rid), "report": report, "ts": ts or 0, "client": client}
+            # purge expirés
+            now_ts = time.time()
+            expired = [mid for mid, entry in FLEET_STATE.items() if now_ts - entry.get("ts", 0) > FLEET_TTL_SECONDS]
+            for mid in expired:
+                FLEET_STATE.pop(mid, None)
+            if expired:
+                _save_fleet_state()
+            return
+    except Exception:
+        # fall back to JSON
+        pass
+
+    # fallback JSON file
     if not FLEET_STATE_PATH.exists():
         return
     try:
         data = json.loads(FLEET_STATE_PATH.read_text(encoding="utf-8"))
         if isinstance(data, dict):
             FLEET_STATE = {str(k): v for k, v in data.items()}
-            # purge immédiate des entrées expirées si besoin
             now_ts = time.time()
             expired = [mid for mid, entry in FLEET_STATE.items() if now_ts - entry.get("ts", 0) > FLEET_TTL_SECONDS]
             for mid in expired:
@@ -128,11 +157,39 @@ def _load_fleet_state() -> None:
 
 
 def _save_fleet_state() -> None:
-    """Sauvegarde l'état fleet sur disque (best effort)."""
+    """Sauvegarde l'état fleet en base SQLite (préféré) et en JSON backup (best effort)."""
     try:
+        # ensure folder for json backup
         FLEET_STATE_PATH.parent.mkdir(parents=True, exist_ok=True)
-        FLEET_STATE_PATH.write_text(json.dumps(FLEET_STATE), encoding="utf-8")
-    except OSError:
+        # write JSON backup
+        try:
+            FLEET_STATE_PATH.write_text(json.dumps(FLEET_STATE), encoding="utf-8")
+        except OSError:
+            pass
+
+        # ensure db dir and table
+        try:
+            FLEET_DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+            conn = sqlite3.connect(str(FLEET_DB_PATH))
+            cur = conn.cursor()
+            cur.execute(
+                'CREATE TABLE IF NOT EXISTS fleet (id TEXT PRIMARY KEY, report TEXT, ts REAL, client TEXT)'
+            )
+            # upsert all entries
+            for mid, entry in FLEET_STATE.items():
+                report_json = json.dumps(entry.get('report', {}), ensure_ascii=False)
+                ts = entry.get('ts', time.time())
+                client = entry.get('client')
+                cur.execute(
+                    'INSERT OR REPLACE INTO fleet (id, report, ts, client) VALUES (?, ?, ?, ?)',
+                    (str(mid), report_json, ts, client),
+                )
+            conn.commit()
+            conn.close()
+        except Exception:
+            # if DB fails, ignore — JSON backup already attempted
+            pass
+    except Exception:
         return
 
 
