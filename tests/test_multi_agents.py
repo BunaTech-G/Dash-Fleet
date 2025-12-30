@@ -54,9 +54,9 @@ def test_multi_agents_report():
     # allow server to persist
     time.sleep(0.5)
 
-    # query fleet via admin token
+    # query fleet using the org api_key
     get_url = SERVER.rstrip('/') + '/api/fleet'
-    hdr = {'Authorization': f'Bearer {ACTION_TOKEN}'}
+    hdr = {'Authorization': f'Bearer {api_key}'}
     code, raw = _req(get_url, None, hdr, method='GET')
     assert code == 200
     body = json.loads(raw.decode('utf-8'))

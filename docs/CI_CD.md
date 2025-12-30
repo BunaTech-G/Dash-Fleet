@@ -4,6 +4,10 @@ Ce dépôt contient un workflow (/.github/workflows/ci-deploy.yml) qui :
 - exécute les tests (`pytest`) sur `push` vers `main`;
 - construit un package (`python -m build`) et publie l'artefact `dist/*`;
 - permet un déploiement manuel (`workflow_dispatch`) qui SCP les artefacts vers un serveur et redémarre le service `dashfleet`.
+- exécute les tests unitaires (`pytest`) sur `push` vers `main`;
+- lance un test d'intégration (`tests/test_multi_agents.py`) qui démarre brièvement le serveur et simule plusieurs agents (nécessite le secret `ACTION_TOKEN`);
+- construit un package (`python -m build`) et publie l'artefact `dist/*`;
+- construit l'agent Windows via PyInstaller sur un runner `windows-latest` et publie l'artefact `windows-agent`.
 
 Secrets GitHub (à configurer dans Settings → Secrets):
 - `SSH_PRIVATE_KEY` : clé privée SSH (PEM) utilisée pour se connecter au serveur.
