@@ -546,6 +546,20 @@ def api_fleet():
     return jsonify({"count": len(data), "expired": expired, "data": data})
 
 
+@app.route("/api/fleet/reload", methods=["POST"])
+def api_fleet_reload():
+    """Forcer le rechargement de `logs/fleet_state.json` en mémoire.
+
+    Protégé par `FLEET_TOKEN` pour éviter les usages non autorisés.
+    """
+    auth_err = _check_fleet_token()
+    if auth_err:
+        return jsonify(auth_err), 403
+
+    _load_fleet_state()
+    return jsonify({"ok": True, "count": len(FLEET_STATE)})
+
+
 @app.route("/api/history")
 def api_history():
     limit = request.args.get("limit", default="200")
