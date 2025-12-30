@@ -23,3 +23,8 @@ Instructions rapides
 
 Remerciements
 - Travail préparatoire et corrections diverses pour linting, packaging et UX.
+ 
+Assets publiés
+- Wheel: https://github.com/BunaTech-G/Dashboard/releases/download/v0.0.1/dashfleet-0.0.1-py3-none-any.whl
+- Source (tar.gz): https://github.com/BunaTech-G/Dashboard/releases/download/v0.0.1/dashfleet-0.0.1.tar.gz
+- Agent Windows: https://github.com/BunaTech-G/Dashboard/releases/download/v0.0.1/fleet_agent.exe
