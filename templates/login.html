@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Connexion - DashFleet</title>
+  <style>
+    body { font-family: Arial, sans-serif; background:#0f1724; color:#e6eef8; display:flex; align-items:center; justify-content:center; height:100vh; margin:0 }
+    .card { background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); padding:24px; border-radius:8px; width:360px; box-shadow:0 6px 20px rgba(0,0,0,0.6) }
+    label{display:block;margin-bottom:8px;font-size:14px}
+    input[type=text]{width:100%;padding:10px;border-radius:6px;border:1px solid #264055;background:#071424;color:#e6eef8}
+    button{margin-top:12px;width:100%;padding:10px;border-radius:6px;border:none;background:#0ea5e9;color:#04263a;font-weight:600}
+    .hint{margin-top:8px;font-size:13px;color:#9fb6c9}
+    .error{color:#ffb4b4;margin-top:8px}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>Connexion</h2>
+    <p class="hint">Entrez la clé API pour accéder au tableau de bord.</p>
+    <label for="api_key">Clé API</label>
+    <input id="api_key" type="text" placeholder="xxxx..." autocomplete="off" />
+    <button id="login">Se connecter</button>
+    <div id="msg" class="error" aria-live="polite"></div>
+    <div class="hint">Vous pouvez également demander une clé via l'admin (ACTION_TOKEN requis).</div>
+  </div>
+
+  <script>
+    async function doLogin() {
+      const key = document.getElementById('api_key').value.trim();
+      const msg = document.getElementById('msg');
+      msg.textContent = '';
+      if (!key) { msg.textContent = 'La clé API est requise.'; return }
+      try {
+        const resp = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ api_key: key })
+        });
+        const data = await resp.json();
+        if (!resp.ok) {
+          msg.textContent = data.error || 'Impossible de se connecter';
+          return
+        }
+        // session cookie set by server; redirige vers la page principale
+        window.location.replace('/');
+      } catch (err) {
+        msg.textContent = 'Erreur réseau.';
+      }
+    }
+    document.getElementById('login').addEventListener('click', doLogin);
+    document.getElementById('api_key').addEventListener('keydown', (e)=>{ if(e.key==='Enter') doLogin() });
+  </script>
+</body>
+</html>

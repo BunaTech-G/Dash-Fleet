@@ -679,7 +679,12 @@ def print_stats(stats: Dict[str, object]) -> None:
 
 @app.route("/")
 def dashboard() -> str:
-    return render_template("index.html")
+    # Si l'utilisateur a une session serveur (cookie `dashfleet_sid`) valide,
+    # afficher le tableau de bord. Sinon afficher la page de connexion.
+    sid = request.cookies.get('dashfleet_sid')
+    if sid and _get_org_for_session(sid):
+        return render_template("index.html")
+    return render_template("login.html")
 
 
 @app.route("/history")
