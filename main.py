@@ -52,7 +52,6 @@ SESSION_TTL_SECONDS = int(os.environ.get("SESSION_TTL_SECONDS", str(60 * 60 * 8)
 app = Flask(__name__, template_folder="templates", static_folder="static")
 
 # Force la migration de la base au démarrage
-_ensure_db_schema()
 
 
 def _format_bytes_to_gib(bytes_value: float) -> float:
