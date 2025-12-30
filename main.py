@@ -221,9 +221,13 @@ def _save_fleet_state() -> None:
     try:
         # ensure folder for json backup
         FLEET_STATE_PATH.parent.mkdir(parents=True, exist_ok=True)
-        # write JSON backup
+        # write JSON backup (legacy flat mapping by machine_id for compatibility)
         try:
-            FLEET_STATE_PATH.write_text(json.dumps(FLEET_STATE), encoding="utf-8")
+            flat: dict = {}
+            for k, v in FLEET_STATE.items():
+                mid = v.get('id') or k
+                flat[str(mid)] = v
+            FLEET_STATE_PATH.write_text(json.dumps(flat), encoding="utf-8")
         except OSError:
             pass
 
@@ -254,7 +258,7 @@ def _save_fleet_state() -> None:
         return
 
 
-_load_fleet_state()
+# DB/backup loading will be initialized when the application starts (see main())
 
 
 def _disk_usage_target() -> str:
@@ -507,6 +511,87 @@ def _maybe_send_webhook(stats: Dict[str, object]) -> None:
         _LAST_WEBHOOK_TS = now
 
 
+def _ensure_db_schema() -> None:
+    try:
+        FLEET_DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+        conn = sqlite3.connect(str(FLEET_DB_PATH))
+        cur = conn.cursor()
+        # organizations table
+        cur.execute(
+            'CREATE TABLE IF NOT EXISTS organizations (id TEXT PRIMARY KEY, name TEXT)'
+        )
+        # api_keys table
+        cur.execute(
+            'CREATE TABLE IF NOT EXISTS api_keys (key TEXT PRIMARY KEY, org_id TEXT, created_at REAL, revoked INTEGER DEFAULT 0)'
+        )
+        # fleet table (may already exist without org_id)
+        cur.execute(
+            'CREATE TABLE IF NOT EXISTS fleet (id TEXT PRIMARY KEY, report TEXT, ts REAL, client TEXT, org_id TEXT)'
+        )
+        # attempt to add org_id column if missing (sqlite ignores if exists on many versions, so safe)
+        try:
+            cur.execute('ALTER TABLE fleet ADD COLUMN org_id TEXT')
+        except Exception:
+            pass
+        conn.commit()
+        conn.close()
+    except Exception:
+        return
+
+
+def _create_default_org_from_env() -> None:
+    """If FLEET_TOKEN env is present, ensure a default organization exists mapped to that key."""
+    if not FLEET_TOKEN:
+        return
+    try:
+        conn = sqlite3.connect(str(FLEET_DB_PATH))
+        cur = conn.cursor()
+        # create a deterministic org id for legacy token
+        org_id = f"org_default"
+        cur.execute('INSERT OR IGNORE INTO organizations (id, name) VALUES (?, ?)', (org_id, 'default'))
+        # insert api_key mapping
+        cur.execute('INSERT OR IGNORE INTO api_keys (key, org_id, created_at, revoked) VALUES (?, ?, ?, 0)',
+                    (FLEET_TOKEN, org_id, time.time()))
+        conn.commit()
+        conn.close()
+    except Exception:
+        return
+
+
+def _get_org_for_key(key: str) -> str | None:
+    try:
+        conn = sqlite3.connect(str(FLEET_DB_PATH))
+        cur = conn.cursor()
+        cur.execute('SELECT org_id, revoked FROM api_keys WHERE key = ?', (key,))
+        row = cur.fetchone()
+        conn.close()
+        if not row:
+            return None
+        org_id, revoked = row
+        if revoked:
+            return None
+        return org_id
+    except Exception:
+        return None
+
+
+def _check_org_key() -> tuple[bool, str | None]:
+    """Returns (ok, org_id) where ok False means unauthorized.
+    Accepts Authorization header or token in JSON payload (backwards-compatible).
+    """
+    header = request.headers.get("Authorization", "")
+    token = header.replace("Bearer", "").strip()
+    if not token:
+        payload = request.get_json(silent=True) or {}
+        token = str(payload.get("token", "")).strip()
+    if not token:
+        return False, None
+    org_id = _get_org_for_key(token)
+    if org_id:
+        return True, org_id
+    return False, None
+
+
 APPROVED_ACTIONS: Dict[str, object] = {
     "flush_dns": {
         "label": "Flush DNS",
@@ -591,6 +676,89 @@ def _check_action_token() -> Dict[str, object] | None:
     return None
 
 
+@app.route("/api/orgs", methods=["POST"])
+def api_create_org():
+    """Créer une organization + api_key. Protégé par ACTION_TOKEN."""
+    auth_err = _check_action_token()
+    if auth_err:
+        return jsonify(auth_err), 403
+
+    payload = request.get_json(silent=True) or {}
+    name = str(payload.get("name") or "").strip()
+    if not name:
+        return jsonify({"error": "name requis"}), 400
+
+    # create org id and key
+    org_id = f"org_{secrets.token_hex(6)}"
+    key = secrets.token_hex(16)
+
+    try:
+        conn = sqlite3.connect(str(FLEET_DB_PATH))
+        cur = conn.cursor()
+        cur.execute('INSERT INTO organizations (id, name) VALUES (?, ?)', (org_id, name))
+        cur.execute('INSERT INTO api_keys (key, org_id, created_at, revoked) VALUES (?, ?, ?, 0)', (key, org_id, time.time()))
+        conn.commit()
+        conn.close()
+    except Exception as exc:
+        return jsonify({"error": "db error"}), 500
+
+    return jsonify({"org_id": org_id, "api_key": key, "name": name})
+
+
+@app.route("/api/orgs", methods=["GET"])
+def api_list_orgs():
+    """Liste des organisations et clés (protégé par ACTION_TOKEN)."""
+    auth_err = _check_action_token()
+    if auth_err:
+        return jsonify(auth_err), 403
+
+    try:
+        conn = sqlite3.connect(str(FLEET_DB_PATH))
+        cur = conn.cursor()
+        cur.execute('SELECT id, name FROM organizations')
+        orgs = cur.fetchall()
+        result = []
+        for oid, name in orgs:
+            cur.execute('SELECT key, created_at, revoked FROM api_keys WHERE org_id = ?', (oid,))
+            keys = cur.fetchall()
+            key_list = []
+            for k, created_at, revoked in keys:
+                masked = (k[:6] + '...' + k[-4:]) if k else None
+                key_list.append({"key_masked": masked, "created_at": created_at, "revoked": bool(revoked)})
+            result.append({"org_id": oid, "name": name, "keys": key_list})
+        conn.close()
+        return jsonify({"count": len(result), "orgs": result})
+    except Exception:
+        return jsonify({"error": "db error"}), 500
+
+
+@app.route("/api/keys/revoke", methods=["POST"])
+def api_revoke_key():
+    """Révoque ou restaure une clé API (protégé par ACTION_TOKEN)."""
+    auth_err = _check_action_token()
+    if auth_err:
+        return jsonify(auth_err), 403
+
+    payload = request.get_json(silent=True) or {}
+    key = str(payload.get("key") or "").strip()
+    revoke = bool(payload.get("revoke", True))
+    if not key:
+        return jsonify({"error": "key requis"}), 400
+
+    try:
+        conn = sqlite3.connect(str(FLEET_DB_PATH))
+        cur = conn.cursor()
+        cur.execute('UPDATE api_keys SET revoked = ? WHERE key = ?', (1 if revoke else 0, key))
+        conn.commit()
+        changed = cur.rowcount
+        conn.close()
+        if changed:
+            return jsonify({"ok": True, "revoked": revoke})
+        return jsonify({"ok": False, "message": "clé inconnue"}), 404
+    except Exception:
+        return jsonify({"error": "db error"}), 500
+
+
 def _check_fleet_token() -> Dict[str, object] | None:
     if not FLEET_TOKEN:
         return {"error": "Token requis (définir FLEET_TOKEN)"}
@@ -623,9 +791,10 @@ def api_action():
 
 @app.route("/api/fleet/report", methods=["POST"])
 def api_fleet_report():
-    auth_err = _check_fleet_token()
-    if auth_err:
-        return jsonify(auth_err), 403
+    # validate org key (returns org_id)
+    ok, org_id = _check_org_key()
+    if not ok or not org_id:
+        return jsonify({"error": "Unauthorized"}), 403
 
     payload = request.get_json(silent=True) or {}
     machine_id = str(payload.get("machine_id") or payload.get("id") or uuid.uuid4())
@@ -635,11 +804,15 @@ def api_fleet_report():
     report = payload.get("report") or {}
     now_ts = time.time()
 
-    FLEET_STATE[machine_id] = {
+    # key entries by org:machine to avoid collisions
+    store_key = f"{org_id}:{machine_id}"
+
+    FLEET_STATE[store_key] = {
         "id": machine_id,
         "report": report,
         "ts": now_ts,
         "client": request.remote_addr,
+        "org_id": org_id,
     }
 
     _save_fleet_state()
@@ -649,18 +822,25 @@ def api_fleet_report():
 
 @app.route("/api/fleet")
 def api_fleet():
-    # purge les entrées expirées
+    # require org-key to list fleet (multi-tenant)
+    ok, org_id = _check_org_key()
+    if not ok or not org_id:
+        return jsonify({"error": "Unauthorized"}), 403
+
+    # purge entries expired for this org
     now_ts = time.time()
     expired = []
     for mid, entry in list(FLEET_STATE.items()):
+        if entry.get("org_id") != org_id:
+            continue
         if now_ts - entry.get("ts", 0) > FLEET_TTL_SECONDS:
-            expired.append(mid)
+            expired.append(entry.get("id") or mid)
             FLEET_STATE.pop(mid, None)
 
     if expired:
         _save_fleet_state()
 
-    data = list(FLEET_STATE.values())
+    data = [v for v in FLEET_STATE.values() if v.get("org_id") == org_id]
     return jsonify({"count": len(data), "expired": expired, "data": data})
 
 
@@ -670,12 +850,14 @@ def api_fleet_reload():
 
     Protégé par `FLEET_TOKEN` pour éviter les usages non autorisés.
     """
-    auth_err = _check_fleet_token()
-    if auth_err:
-        return jsonify(auth_err), 403
+    ok, org_id = _check_org_key()
+    if not ok or not org_id:
+        return jsonify({"error": "Unauthorized"}), 403
 
+    # reload global state from DB/JSON, but report back filtered count
     _load_fleet_state()
-    return jsonify({"ok": True, "count": len(FLEET_STATE)})
+    count = sum(1 for v in FLEET_STATE.values() if v.get("org_id") == org_id)
+    return jsonify({"ok": True, "count": count})
 
 
 @app.route("/api/history")
@@ -740,6 +922,10 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
+    # Ensure DB schema and migrate JSON backup -> SQLite if needed before running
+    _ensure_db_schema()
+    _create_default_org_from_env()
+    _load_fleet_state()
     # Si lancé par double-clic sans arguments, on bascule en mode web par défaut.
     if len(sys.argv) == 1:
         args.web = True
