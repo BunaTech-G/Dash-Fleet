@@ -112,6 +112,53 @@ FLEET_STATE: Dict[str, Dict[str, object]] = {}
 def _load_fleet_state() -> None:
     """Recharge l'état fleet depuis la base SQLite si présente, sinon depuis le JSON (best effort)."""
     global FLEET_STATE
+    # Automatic migration/merge: if JSON backup exists, import or merge into SQLite
+    try:
+        if FLEET_STATE_PATH.exists():
+            try:
+                if not FLEET_DB_PATH.exists():
+                    # create DB and import JSON entries
+                    conn = sqlite3.connect(str(FLEET_DB_PATH))
+                    cur = conn.cursor()
+                    cur.execute('CREATE TABLE IF NOT EXISTS fleet (id TEXT PRIMARY KEY, report TEXT, ts REAL, client TEXT)')
+                    raw = FLEET_STATE_PATH.read_text(encoding='utf-8') or '{}'
+                    data = json.loads(raw)
+                    if isinstance(data, dict):
+                        for mid, entry in data.items():
+                            report_json = json.dumps(entry.get('report', {}), ensure_ascii=False)
+                            ts = entry.get('ts', time.time())
+                            client = entry.get('client')
+                            cur.execute('INSERT OR REPLACE INTO fleet (id, report, ts, client) VALUES (?, ?, ?, ?)',
+                                        (str(mid), report_json, ts, client))
+                    conn.commit()
+                    conn.close()
+                else:
+                    # merge newer entries from JSON into existing DB
+                    try:
+                        raw = FLEET_STATE_PATH.read_text(encoding='utf-8') or '{}'
+                        data = json.loads(raw)
+                        if isinstance(data, dict):
+                            conn = sqlite3.connect(str(FLEET_DB_PATH))
+                            cur = conn.cursor()
+                            for mid, entry in data.items():
+                                ts = entry.get('ts', 0)
+                                cur.execute('SELECT ts FROM fleet WHERE id = ?', (mid,))
+                                row = cur.fetchone()
+                                if not row or ts > (row[0] or 0):
+                                    report_json = json.dumps(entry.get('report', {}), ensure_ascii=False)
+                                    client = entry.get('client')
+                                    cur.execute('INSERT OR REPLACE INTO fleet (id, report, ts, client) VALUES (?, ?, ?, ?)',
+                                                (str(mid), report_json, ts, client))
+                            conn.commit()
+                            conn.close()
+                    except Exception:
+                        pass
+            except Exception:
+                # migration attempt failed, continue with fallback logic
+                pass
+    except Exception:
+        pass
+
     # prefer DB if present
     try:
         if FLEET_DB_PATH.exists():
