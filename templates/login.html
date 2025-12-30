@@ -4,25 +4,38 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Connexion - DashFleet</title>
+  <link rel="stylesheet" href="/static/style.css">
   <style>
-    body { font-family: Arial, sans-serif; background:#0f1724; color:#e6eef8; display:flex; align-items:center; justify-content:center; height:100vh; margin:0 }
-    .card { background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); padding:24px; border-radius:8px; width:360px; box-shadow:0 6px 20px rgba(0,0,0,0.6) }
-    label{display:block;margin-bottom:8px;font-size:14px}
-    input[type=text]{width:100%;padding:10px;border-radius:6px;border:1px solid #264055;background:#071424;color:#e6eef8}
-    button{margin-top:12px;width:100%;padding:10px;border-radius:6px;border:none;background:#0ea5e9;color:#04263a;font-weight:600}
-    .hint{margin-top:8px;font-size:13px;color:#9fb6c9}
-    .error{color:#ffb4b4;margin-top:8px}
+    /* Small overrides to centre the auth card */
+    .auth-wrap { min-height: 100vh; display:flex; align-items:center; justify-content:center; padding:40px; }
+    .auth-card { width:420px; max-width:96%; padding:28px; border-radius:12px; background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border:1px solid var(--border); box-shadow:var(--shadow); }
+    .auth-card h2 { margin:0 0 8px; font-size:22px }
+    .auth-hint { color:var(--muted); margin-bottom:14px }
+    .auth-field { margin-bottom:12px }
+    .auth-input { width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--border); background: rgba(255,255,255,0.02); color:var(--text); }
+    .auth-btn { margin-top:8px; width:100%; padding:10px; border-radius:10px; border:none; background:var(--accent); color:#04263a; font-weight:700; cursor:pointer }
+    .auth-error { margin-top:10px; color:#ffb4b4; font-weight:600 }
+    .small { font-size:13px; color:var(--muted); margin-top:8px }
   </style>
 </head>
-<body>
-  <div class="card">
-    <h2>Connexion</h2>
-    <p class="hint">Entrez la clé API pour accéder au tableau de bord.</p>
-    <label for="api_key">Clé API</label>
-    <input id="api_key" type="text" placeholder="xxxx..." autocomplete="off" />
-    <button id="login">Se connecter</button>
-    <div id="msg" class="error" aria-live="polite"></div>
-    <div class="hint">Vous pouvez également demander une clé via l'admin (ACTION_TOKEN requis).</div>
+<body class="">
+  <div class="page auth-wrap">
+    <div class="auth-card">
+      <div class="header">
+        <div class="eyebrow">Tableau de bord système</div>
+        <h2>Connexion</h2>
+      </div>
+      <p class="auth-hint">Entrez une clé API valide pour afficher le tableau de bord.</p>
+
+      <div class="auth-field">
+        <label for="api_key" class="label">Clé API</label>
+        <input id="api_key" class="auth-input" type="text" placeholder="xxxx..." autocomplete="off" />
+      </div>
+
+      <button id="login" class="auth-btn">Se connecter</button>
+      <div id="msg" class="auth-error" aria-live="polite"></div>
+      <div class="small">Vous pouvez créer une clé via l'admin si vous disposez d'un `ACTION_TOKEN`.</div>
+    </div>
   </div>
 
   <script>
@@ -42,7 +55,7 @@
           msg.textContent = data.error || 'Impossible de se connecter';
           return
         }
-        // session cookie set by server; redirige vers la page principale
+        // session cookie set by server; redirect to root
         window.location.replace('/');
       } catch (err) {
         msg.textContent = 'Erreur réseau.';
