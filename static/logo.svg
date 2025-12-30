@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="160" height="40" viewBox="0 0 160 40">
+  <defs>
+    <linearGradient id="g" x1="0" x2="1">
+      <stop offset="0" stop-color="#38bdf8"/>
+      <stop offset="1" stop-color="#f43f5e"/>
+    </linearGradient>
+  </defs>
+  <rect rx="8" width="160" height="40" fill="#071428"/>
+  <g transform="translate(10,6)">
+    <circle cx="12" cy="12" r="12" fill="url(#g)" />
+    <text x="36" y="18" font-family="Space Grotesk, Arial, sans-serif" font-size="14" fill="#e6eef8">DashFleet</text>
+  </g>
+</svg>

@@ -540,6 +540,10 @@ def _ensure_db_schema() -> None:
         cur.execute(
             'CREATE TABLE IF NOT EXISTS sessions (id TEXT PRIMARY KEY, org_id TEXT, created_at REAL, expires_at REAL)'
         )
+        # download tokens for agent installer links (token -> path/expires/used)
+        cur.execute(
+            'CREATE TABLE IF NOT EXISTS download_tokens (token TEXT PRIMARY KEY, path TEXT, created_at REAL, expires_at REAL, used INTEGER DEFAULT 0)'
+        )
         # attempt to add org_id column if missing (sqlite ignores if exists on many versions, so safe)
         try:
             cur.execute('ALTER TABLE fleet ADD COLUMN org_id TEXT')
@@ -730,6 +734,56 @@ def _check_action_token() -> Dict[str, object] | None:
     return None
 
 
+def _create_download_token(file_path: str, ttl_seconds: int = 3600) -> str | None:
+    try:
+        token = secrets.token_urlsafe(24)
+        now = time.time()
+        expires = now + int(ttl_seconds)
+        conn = sqlite3.connect(str(FLEET_DB_PATH))
+        cur = conn.cursor()
+        cur.execute('INSERT INTO download_tokens (token, path, created_at, expires_at, used) VALUES (?, ?, ?, ?, 0)',
+                    (token, str(file_path), now, expires))
+        conn.commit()
+        conn.close()
+        return token
+    except Exception:
+        return None
+
+
+def _consume_download_token(token: str) -> str | None:
+    try:
+        conn = sqlite3.connect(str(FLEET_DB_PATH))
+        cur = conn.cursor()
+        cur.execute('SELECT path, expires_at, used FROM download_tokens WHERE token = ?', (token,))
+        row = cur.fetchone()
+        if not row:
+            conn.close()
+            return None
+        path, expires_at, used = row
+        if used:
+            conn.close()
+            return None
+        if expires_at and time.time() > (expires_at or 0):
+            # expired
+            try:
+                cur.execute('DELETE FROM download_tokens WHERE token = ?', (token,))
+                conn.commit()
+            except Exception:
+                pass
+            conn.close()
+            return None
+        # mark used
+        try:
+            cur.execute('UPDATE download_tokens SET used = 1 WHERE token = ?', (token,))
+            conn.commit()
+        except Exception:
+            pass
+        conn.close()
+        return path
+    except Exception:
+        return None
+
+
 @app.route("/api/orgs", methods=["POST"])
 def api_create_org():
     """Créer une organization + api_key. Protégé par ACTION_TOKEN."""
@@ -908,6 +962,56 @@ def api_action():
     runner = APPROVED_ACTIONS[action_name]["runner"]
     result = runner()
     return jsonify({"action": action_name, **result})
+
+
+@app.route("/api/agent/link", methods=["POST"])
+def api_create_agent_link():
+    """Create a one-time download token for the agent executable. Protected by ACTION_TOKEN."""
+    auth_err = _check_action_token()
+    if auth_err:
+        return jsonify(auth_err), 403
+
+    payload = request.get_json(silent=True) or {}
+    ttl = int(payload.get('ttl', 3600))
+    # default to dist/fleet_agent.exe
+    agent_path = payload.get('path') or str(Path('dist') / 'fleet_agent.exe')
+    if not Path(agent_path).exists():
+        return jsonify({'error': 'Agent file not found', 'path': agent_path}), 404
+
+    token = _create_download_token(agent_path, ttl_seconds=ttl)
+    if not token:
+        return jsonify({'error': 'could not create token'}), 500
+
+    link = f"/download/agent/{token}"
+    return jsonify({'ok': True, 'link': link, 'expires_in': ttl})
+
+
+@app.route('/download/agent/<token>')
+def download_agent(token: str):
+    # allow either ACTION_TOKEN in header or a one-time token path
+    # first attempt to consume the token
+    path = _consume_download_token(token)
+    if path:
+        try:
+            return app.send_static_file(os.path.relpath(path, start='static') )
+        except Exception:
+            # fallback: use flask send_file
+            from flask import send_file
+            try:
+                return send_file(path, as_attachment=True)
+            except Exception:
+                return jsonify({'error': 'file not available'}), 404
+
+    # else check ACTION_TOKEN header and allow direct download if provided
+    header = request.headers.get('Authorization', '')
+    token_hdr = header.replace('Bearer', '').strip()
+    if token_hdr and token_hdr == ACTION_TOKEN:
+        # serve default dist file
+        agent = Path('dist') / 'fleet_agent.exe'
+        if agent.exists():
+            from flask import send_file
+            return send_file(str(agent), as_attachment=True)
+    return jsonify({'error': 'Unauthorized or invalid token'}), 403
 
 
 @app.route("/api/fleet/report", methods=["POST"])

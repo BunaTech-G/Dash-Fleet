@@ -21,11 +21,20 @@
 <body class="">
   <div class="page auth-wrap">
     <div class="auth-card">
-      <div class="header">
-        <div class="eyebrow">Tableau de bord système</div>
-        <h2>Connexion</h2>
+      <div class="header" style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+        <img src="/static/logo.svg" alt="DashFleet" style="height:40px;" />
+        <div>
+          <div class="eyebrow">Tableau de bord système</div>
+          <h2 id="login-title">Connexion</h2>
+        </div>
       </div>
-      <p class="auth-hint">Entrez une clé API valide pour afficher le tableau de bord.</p>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <p id="login-hint" class="auth-hint">Entrez une clé API valide pour afficher le tableau de bord.</p>
+        <select id="lang" class="lang-select" aria-label="Langue">
+          <option value="fr">FR</option>
+          <option value="en">EN</option>
+        </select>
+      </div>
 
       <div class="auth-field">
         <label for="api_key" class="label">Clé API</label>
@@ -34,16 +43,45 @@
 
       <button id="login" class="auth-btn">Se connecter</button>
       <div id="msg" class="auth-error" aria-live="polite"></div>
-      <div class="small">Vous pouvez créer une clé via l'admin si vous disposez d'un `ACTION_TOKEN`.</div>
+      <div class="small" id="login-footer">Vous pouvez créer une clé via l'admin si vous disposez d'un `ACTION_TOKEN`.</div>
     </div>
   </div>
 
   <script>
+    const i18n = {
+      fr: {
+        title: 'Connexion', hint: 'Entrez une clé API valide pour afficher le tableau de bord.',
+        api_required: 'La clé API est requise.', network: 'Erreur réseau.', create_hint: "Vous pouvez créer une clé via l'admin si vous disposez d'un ACTION_TOKEN.", login_btn: 'Se connecter'
+      },
+      en: {
+        title: 'Sign in', hint: 'Enter a valid API key to view the dashboard.',
+        api_required: 'API key is required.', network: 'Network error.', create_hint: 'You can create a key via admin if you have an ACTION_TOKEN.', login_btn: 'Sign in'
+      }
+    };
+
+    function applyLang(code){
+      const t = i18n[code]||i18n.fr;
+      document.getElementById('login-title').textContent = t.title;
+      document.getElementById('login-hint').textContent = t.hint;
+      document.getElementById('login-footer').textContent = t.create_hint;
+      document.getElementById('login').textContent = t.login_btn;
+      document.getElementById('msg').textContent = '';
+      document.getElementById('api_key').placeholder = '';
+      // store selected
+      try{ localStorage.setItem('dash_lang', code) }catch(e){}
+    }
+
+    (function(){ const stored = localStorage.getItem('dash_lang')||'fr'; document.getElementById('lang').value=stored; applyLang(stored); })();
+
+    document.getElementById('lang').addEventListener('change', (e)=> applyLang(e.target.value));
+
     async function doLogin() {
       const key = document.getElementById('api_key').value.trim();
       const msg = document.getElementById('msg');
       msg.textContent = '';
-      if (!key) { msg.textContent = 'La clé API est requise.'; return }
+      const lang = document.getElementById('lang').value || 'fr';
+      const t = i18n[lang] || i18n.fr;
+      if (!key) { msg.textContent = t.api_required; return }
       try {
         const resp = await fetch('/api/login', {
           method: 'POST',
@@ -52,13 +90,13 @@
         });
         const data = await resp.json();
         if (!resp.ok) {
-          msg.textContent = data.error || 'Impossible de se connecter';
+          msg.textContent = data.error || t.network;
           return
         }
         // session cookie set by server; redirect to root
         window.location.replace('/');
       } catch (err) {
-        msg.textContent = 'Erreur réseau.';
+        msg.textContent = t.network;
       }
     }
     document.getElementById('login').addEventListener('click', doLogin);
