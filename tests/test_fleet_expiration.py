@@ -91,20 +91,22 @@ def test_fleet_expiration_flow():
     # allow a short retry window
     for _ in range(5):
         try:
-            with urllib.request.urlopen(get_url, timeout=5) as resp:
-                body = json.loads(resp.read().decode('utf-8'))
+            code, raw = _req(get_url, None, headers, method='GET')
+            if code == 200:
+                body = json.loads(raw.decode('utf-8'))
                 expired = body.get('expired', [])
                 data_ids = [d.get('id') for d in body.get('data', [])]
                 if MACHINE_ID in expired or MACHINE_ID not in data_ids:
                     return
-                # otherwise wait and retry
-        except urllib.error.URLError:
+            # otherwise wait and retry
+        except Exception:
             pass
         time.sleep(0.5)
 
     # final check: ensure the machine was purged (either listed as expired or absent from data)
-    with urllib.request.urlopen(get_url, timeout=5) as resp:
-        body = json.loads(resp.read().decode('utf-8'))
-        expired = body.get('expired', [])
-        data_ids = [d.get('id') for d in body.get('data', [])]
-        assert MACHINE_ID in expired or MACHINE_ID not in data_ids, f"Machine {MACHINE_ID} not expired/removed, response: {body}"
+    code, raw = _req(get_url, None, headers, method='GET')
+    assert code == 200, f"Unexpected status code {code} when querying fleet"
+    body = json.loads(raw.decode('utf-8'))
+    expired = body.get('expired', [])
+    data_ids = [d.get('id') for d in body.get('data', [])]
+    assert MACHINE_ID in expired or MACHINE_ID not in data_ids, f"Machine {MACHINE_ID} not expired/removed, response: {body}"
