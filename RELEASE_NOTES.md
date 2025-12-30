@@ -28,3 +28,17 @@ Assets publiés
 - Wheel: https://github.com/BunaTech-G/Dashboard/releases/download/v0.0.1/dashfleet-0.0.1-py3-none-any.whl
 - Source (tar.gz): https://github.com/BunaTech-G/Dashboard/releases/download/v0.0.1/dashfleet-0.0.1.tar.gz
 - Agent Windows: https://github.com/BunaTech-G/Dashboard/releases/download/v0.0.1/fleet_agent.exe
+ - Agent Windows: https://github.com/BunaTech-G/Dashboard/releases/download/v0.0.1/fleet_agent.exe
+
+# Release v0.0.2
+
+Date: 2025-12-30
+
+Résumé
+- Ajout d'un workflow GitHub Actions CI (`.github/workflows/ci.yml`) qui exécute lint, tests et build.
+- Correction : affichage de la page de login avant la page principale lorsque l'utilisateur n'a pas de session.
+- Ajout d'un thread de nettoyage des sessions expirées et option `PUBLIC_READ` (variable d'environnement) pour affichage public en lecture seule.
+- Publication de la release v0.0.2 (artefacts `dist/*`).
+
+Assets publiés v0.0.2
+- Release page: https://github.com/BunaTech-G/Dashboard/releases/tag/v0.0.2

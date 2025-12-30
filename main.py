@@ -679,6 +679,11 @@ def print_stats(stats: Dict[str, object]) -> None:
 
 @app.route("/")
 def dashboard() -> str:
+    # If PUBLIC_READ is enabled, show dashboard without session.
+    public_read = os.environ.get("PUBLIC_READ", "false").lower() in ("1", "true", "yes")
+    if public_read:
+        return render_template("index.html")
+
     # Si l'utilisateur a une session serveur (cookie `dashfleet_sid`) valide,
     # afficher le tableau de bord. Sinon afficher la page de connexion.
     sid = request.cookies.get('dashfleet_sid')
@@ -1025,6 +1030,26 @@ def start_background_export(interval: float, export_csv_path: Path | None, expor
     thread.start()
 
 
+def start_session_cleaner(interval: int = 60) -> None:
+    """Démarre un thread qui purge régulièrement les sessions expirées de la DB."""
+
+    def _loop() -> None:
+        while True:
+            try:
+                conn = sqlite3.connect(str(FLEET_DB_PATH))
+                cur = conn.cursor()
+                now = time.time()
+                cur.execute('DELETE FROM sessions WHERE expires_at IS NOT NULL AND expires_at < ?', (now,))
+                conn.commit()
+                conn.close()
+            except Exception:
+                pass
+            time.sleep(interval)
+
+    thread = threading.Thread(target=_loop, daemon=True)
+    thread.start()
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Tableau de bord système : CLI et UI Flask")
     parser.add_argument("--web", action="store_true", help="Lancer l’UI web Flask au lieu de la sortie CLI")
@@ -1066,6 +1091,13 @@ def main() -> None:
         # Si on fournit un export, on lance l’export en tâche de fond en même temps que Flask.
         if args.export_csv or args.export_jsonl:
             start_background_export(args.interval, args.export_csv, args.export_jsonl)
+        # Start background session cleaner
+        try:
+            # allow disabling public read mode via env
+            PUBLIC_READ = os.environ.get("PUBLIC_READ", "false").lower() in ("1", "true", "yes")
+            start_session_cleaner(interval=60)
+        except Exception:
+            pass
         # Ouvre le navigateur par défaut quelques ms après le démarrage du serveur.
         threading.Timer(0.5, lambda: webbrowser.open(f"http://{args.host}:{args.port}")).start()
         app.run(host=args.host, port=args.port, debug=False)
