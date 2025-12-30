@@ -200,6 +200,24 @@ h1 {
   padding: 18px;
 }
 
+.fleet-controls {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin: 12px 0 18px;
+}
+
+.fleet-controls label { color: var(--muted); font-size: 13px; }
+
+.control-select {
+  margin-left: 8px;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 6px 10px;
+  border-radius: 8px;
+}
+
 .chart-card {
   margin-top: 24px;
   background: var(--panel);

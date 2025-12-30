@@ -442,7 +442,8 @@ def history_page() -> str:
 
 @app.route("/fleet")
 def fleet_page() -> str:
-    return render_template("fleet.html")
+    # expose le TTL côté client pour cohérence (secondes)
+    return render_template("fleet.html", fleet_ttl_seconds=FLEET_TTL_SECONDS)
 
 
 @app.route("/api/stats")
