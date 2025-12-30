@@ -1,1 +1,1 @@
-{}
+{"poste-final": {"id": "poste-final", "report": {"timestamp": "2025-12-30T13:01:01", "cpu_percent": 2.6, "ram_percent": 74.4, "ram_used_gib": 11.44, "ram_total_gib": 15.37, "disk_percent": 90.7, "disk_used_gib": 420.15, "disk_total_gib": 463.25, "uptime_seconds": 40078.0053961277, "uptime_hms": "11:07:58", "health": {"score": 67, "status": "warn", "components": {"cpu": 100, "ram": 64, "disk": 31}}}, "ts": 1767096061.2276783, "client": "127.0.0.1"}}
