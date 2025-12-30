@@ -7,54 +7,44 @@ import json
 import os
 import time
 import urllib.request
-import urllib.error
+import pytest
 
 SERVER = os.environ.get("TEST_SERVER", "http://localhost:5000")
 TOKEN = os.environ.get("FLEET_TOKEN")
 MACHINE_ID = "test-persistence-001"
 
-if not TOKEN:
-    print("FLEET_TOKEN not set in environment for test")
-    raise SystemExit(1)
 
-url = SERVER.rstrip('/') + '/api/fleet/report'
-headers = {'Content-Type': 'application/json', 'Authorization': f'Bearer {TOKEN}'}
+def test_fleet_persistence():
+    if not TOKEN:
+        pytest.skip("FLEET_TOKEN not set in environment for test")
 
-payload = {
-    'machine_id': MACHINE_ID,
-    'report': {
-        'timestamp': time.strftime('%Y-%m-%dT%H:%M:%S'),
-        'cpu_percent': 1.0,
-        'ram_percent': 2.0,
-        'disk_percent': 3.0,
-        'uptime_hms': '00:00:10',
-        'health': {'score': 100, 'status': 'ok'},
+    url = SERVER.rstrip('/') + '/api/fleet/report'
+    headers = {'Content-Type': 'application/json', 'Authorization': f'Bearer {TOKEN}'}
+
+    payload = {
+        'machine_id': MACHINE_ID,
+        'report': {
+            'timestamp': time.strftime('%Y-%m-%dT%H:%M:%S'),
+            'cpu_percent': 1.0,
+            'ram_percent': 2.0,
+            'disk_percent': 3.0,
+            'uptime_hms': '00:00:10',
+            'health': {'score': 100, 'status': 'ok'},
+        }
     }
-}
 
-data = json.dumps(payload).encode('utf-8')
-req = urllib.request.Request(url, data=data, headers=headers, method='POST')
-try:
+    data = json.dumps(payload).encode('utf-8')
+    req = urllib.request.Request(url, data=data, headers=headers, method='POST')
     with urllib.request.urlopen(req, timeout=5) as resp:
-        print('POST', resp.getcode())
-except Exception as exc:
-    print('POST failed', exc)
-    raise
+        assert resp.getcode() == 200
 
-# give server small time to write file
-time.sleep(0.5)
+    # give server small time to write file
+    time.sleep(0.5)
 
-state_path = os.path.join('logs', 'fleet_state.json')
-if not os.path.exists(state_path):
-    print('fleet_state.json not found')
-    raise SystemExit(2)
+    state_path = os.path.join('logs', 'fleet_state.json')
+    assert os.path.exists(state_path), 'fleet_state.json not found'
 
-with open(state_path, 'r', encoding='utf-8') as fh:
-    data = json.load(fh)
+    with open(state_path, 'r', encoding='utf-8') as fh:
+        data = json.load(fh)
 
-if MACHINE_ID in data:
-    print('PERSISTENCE OK')
-    raise SystemExit(0)
-else:
-    print('MACHINE ID not found in fleet_state.json')
-    raise SystemExit(3)
+    assert MACHINE_ID in data, 'Machine id not present in persistent state after POST'
