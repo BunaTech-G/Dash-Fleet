@@ -25,6 +25,7 @@ from typing import Dict, Iterable
 import psutil
 from flask import Flask, jsonify, render_template, request
 import sqlite3
+import secrets
 
 # Seuils d’alerte (pourcentage).
 CPU_ALERT = 80.0
@@ -40,6 +41,11 @@ FLEET_TOKEN = os.environ.get("FLEET_TOKEN")  # token obligatoire pour les rappor
 FLEET_TTL_SECONDS = int(os.environ.get("FLEET_TTL_SECONDS", "600"))  # expiration des entrées fleet
 FLEET_STATE_PATH = Path("logs/fleet_state.json")
 FLEET_DB_PATH = Path("data/fleet.db")
+
+# DB schema notes:
+# - organizations(id TEXT PRIMARY KEY, name TEXT)
+# - api_keys(key TEXT PRIMARY KEY, org_id TEXT, created_at REAL, revoked INTEGER)
+# - fleet(id TEXT PRIMARY KEY, report TEXT, ts REAL, client TEXT, org_id TEXT)
 
 app = Flask(__name__, template_folder="templates", static_folder="static")
 
@@ -164,16 +170,23 @@ def _load_fleet_state() -> None:
         if FLEET_DB_PATH.exists():
             conn = sqlite3.connect(str(FLEET_DB_PATH))
             cur = conn.cursor()
-            cur.execute("SELECT id, report, ts, client FROM fleet")
+            cur.execute("SELECT id, report, ts, client, org_id FROM fleet")
             rows = cur.fetchall()
             conn.close()
             FLEET_STATE = {}
-            for rid, report_json, ts, client in rows:
+            for rid, report_json, ts, client, org_id in rows:
                 try:
                     report = json.loads(report_json) if report_json else {}
                 except Exception:
                     report = {}
-                FLEET_STATE[str(rid)] = {"id": str(rid), "report": report, "ts": ts or 0, "client": client}
+                # keep org_id per entry for filtering
+                FLEET_STATE[str(rid)] = {
+                    "id": str(rid),
+                    "report": report,
+                    "ts": ts or 0,
+                    "client": client,
+                    "org_id": org_id,
+                }
             # purge expirés
             now_ts = time.time()
             expired = [mid for mid, entry in FLEET_STATE.items() if now_ts - entry.get("ts", 0) > FLEET_TTL_SECONDS]
@@ -220,16 +233,17 @@ def _save_fleet_state() -> None:
             conn = sqlite3.connect(str(FLEET_DB_PATH))
             cur = conn.cursor()
             cur.execute(
-                'CREATE TABLE IF NOT EXISTS fleet (id TEXT PRIMARY KEY, report TEXT, ts REAL, client TEXT)'
+                'CREATE TABLE IF NOT EXISTS fleet (id TEXT PRIMARY KEY, report TEXT, ts REAL, client TEXT, org_id TEXT)'
             )
-            # upsert all entries
+            # upsert all entries (id stored must be unique, include org if needed)
             for mid, entry in FLEET_STATE.items():
                 report_json = json.dumps(entry.get('report', {}), ensure_ascii=False)
                 ts = entry.get('ts', time.time())
                 client = entry.get('client')
+                org_id = entry.get('org_id')
                 cur.execute(
-                    'INSERT OR REPLACE INTO fleet (id, report, ts, client) VALUES (?, ?, ?, ?)',
-                    (str(mid), report_json, ts, client),
+                    'INSERT OR REPLACE INTO fleet (id, report, ts, client, org_id) VALUES (?, ?, ?, ?, ?)',
+                    (str(mid), report_json, ts, client, org_id),
                 )
             conn.commit()
             conn.close()
