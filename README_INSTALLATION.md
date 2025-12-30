@@ -69,6 +69,12 @@ Fichiers utiles dans le dépôt :
 - deploy/install_agent_windows.ps1
 - deploy/install_agent_linux.sh
 - deploy/dashfleet.service (exemple systemd)
+ 
+8) Interface d'administration (web)
+- URL : `/admin/orgs` (ex. `http://localhost:5000/admin/orgs`).
+- L'accès requiert `ACTION_TOKEN` : saisissez la valeur dans le champ "Token admin" sur la page.
+- Fonctions : lister les organisations, créer une organisation (retourne une `api_key`), révoquer/restaurer une clé (la page demande la clé complète pour confirmer).
+- Pour l'automatisation, utilisez `scripts/create_org.sh` ou `scripts/create_org.ps1`.
 
 ---
 8) Valeurs à remplacer (résumé rapide)
