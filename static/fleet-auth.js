@@ -41,31 +41,21 @@ document.addEventListener('DOMContentLoaded', () => {
 function showAuthError(message) {
   const existing = document.getElementById('auth-error-banner');
   if (existing) {
-    existing.textContent = message;
+    const msg = existing.querySelector('.message');
+    if (msg) msg.textContent = message;
+    existing.classList.remove('hide');
+    clearTimeout(existing._hideTimer);
+    existing._hideTimer = setTimeout(() => existing.classList.add('hide'), 6000);
     return;
   }
   const banner = document.createElement('div');
   banner.id = 'auth-error-banner';
-  banner.style.position = 'fixed';
-  banner.style.top = '0';
-  banner.style.left = '0';
-  banner.style.right = '0';
-  banner.style.background = '#f87171';
-  banner.style.color = 'white';
-  banner.style.padding = '8px 12px';
-  banner.style.zIndex = '9999';
-  banner.style.fontWeight = '600';
-  banner.textContent = message;
-  const btn = document.createElement('button');
-  btn.textContent = '×';
-  btn.style.float = 'right';
-  btn.style.marginRight = '8px';
-  btn.style.background = 'transparent';
-  btn.style.color = 'white';
-  btn.style.border = 'none';
-  btn.style.fontSize = '18px';
-  btn.style.cursor = 'pointer';
+  banner.className = 'auth-error-banner';
+  banner.innerHTML = `<div class="message">${message}</div><button class="close" aria-label="Close">×</button>`;
+  const btn = banner.querySelector('.close');
   btn.addEventListener('click', () => banner.remove());
-  banner.appendChild(btn);
   document.body.appendChild(banner);
+  // trigger entrance animation
+  requestAnimationFrame(() => banner.classList.add('show'));
+  banner._hideTimer = setTimeout(() => banner.classList.add('hide'), 6000);
 }

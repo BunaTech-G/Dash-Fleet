@@ -312,3 +312,28 @@ tbody tr:nth-child(odd) { background: rgba(255, 255, 255, 0.02); }
   header { flex-direction: column; align-items: flex-start; }
   h1 { font-size: 32px; }
 }
+
+/* Auth error banner (toast) */
+.auth-error-banner {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-120%);
+  background: var(--alert);
+  color: #fff;
+  padding: 10px 14px;
+  border-radius: 10px;
+  z-index: 9999;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 260px;
+  max-width: 92%;
+  opacity: 0;
+  transition: transform 300ms ease, opacity 300ms ease;
+}
+.auth-error-banner.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+.auth-error-banner.hide { transform: translateX(-50%) translateY(-120%); opacity: 0; }
+.auth-error-banner .message { flex: 1; font-weight: 600; }
+.auth-error-banner .close { background: transparent; border: none; color: white; font-size: 18px; cursor: pointer; }
