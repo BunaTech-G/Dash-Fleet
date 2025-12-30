@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page">
+  <header>
+    <div>
+      <h1>Admin - Tokens de téléchargement</h1>
+      <p class="lede">Gérer les liens de téléchargement de l'agent (usage unique).</p>
+    </div>
+  </header>
+
+  <div class="card table-wrap">
+    <div style="display:flex;gap:12px;align-items:center;margin-bottom:12px;">
+      <input id="token-path" class="control-select" style="flex:1" value="dist/fleet_agent.exe" />
+      <input id="token-ttl" class="control-select" style="width:140px" value="3600" />
+      <button id="create" class="action-btn">Créer lien</button>
+    </div>
+
+    <div id="list"></div>
+  </div>
+</div>
+
+<script>
+async function fetchTokens(){
+  const resp = await fetch('/api/tokens', { headers: { 'Accept': 'application/json' } });
+  const data = await resp.json();
+  const container = document.getElementById('list');
+  if (!resp.ok) { container.textContent = JSON.stringify(data); return }
+  if (!data.items || !data.items.length) { container.innerHTML = '<div class="empty">Aucun token</div>'; return }
+  let html = '<table><thead><tr><th>Token</th><th>Path</th><th>Created</th><th>Expires</th><th>Used</th><th></th></tr></thead><tbody>';
+  for (const it of data.items){
+    html += `<tr><td>${it.token_masked}</td><td>${it.path}</td><td>${new Date(it.created_at*1000).toLocaleString()}</td><td>${it.expires_at?new Date(it.expires_at*1000).toLocaleString():'never'}</td><td>${it.used}</td><td><button data-token="${it.token}" class="action-btn small del">Supprimer</button></td></tr>`;
+  }
+  html += '</tbody></table>';
+  container.innerHTML = html;
+  document.querySelectorAll('.del').forEach(b=> b.addEventListener('click', async (e)=>{
+    const token = e.target.getAttribute('data-token');
+    const r = await fetch('/api/tokens/delete', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ token }) });
+    if (r.ok) fetchTokens(); else alert('Delete failed');
+  }));
+}
+
+document.getElementById('create').addEventListener('click', async ()=>{
+  const path = document.getElementById('token-path').value;
+  const ttl = parseInt(document.getElementById('token-ttl').value) || 3600;
+  const resp = await fetch('/api/tokens/create', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ path, ttl }) });
+  const data = await resp.json();
+  if (!resp.ok) { alert(JSON.stringify(data)); return }
+  alert('Link: ' + data.link + '\nExpires in: ' + data.expires_in + 's');
+  fetchTokens();
+});
+
+fetchTokens();
+</script>
+
+{% endblock %}

@@ -934,6 +934,77 @@ def admin_orgs():
     return render_template("admin_orgs.html")
 
 
+@app.route("/admin/tokens")
+def admin_tokens():
+    """Admin UI to manage agent download tokens."""
+    return render_template("admin_tokens.html")
+
+
+@app.route('/api/tokens', methods=['GET'])
+def api_list_tokens():
+    auth_err = _check_action_token()
+    if auth_err:
+        return jsonify(auth_err), 403
+    try:
+        conn = sqlite3.connect(str(FLEET_DB_PATH))
+        cur = conn.cursor()
+        cur.execute('SELECT token, path, created_at, expires_at, used FROM download_tokens ORDER BY created_at DESC')
+        rows = cur.fetchall()
+        conn.close()
+        items = []
+        for token, path, created_at, expires_at, used in rows:
+            items.append({
+                'token_masked': token[:6] + '...' + token[-4:],
+                'token': token,
+                'path': path,
+                'created_at': created_at,
+                'expires_at': expires_at,
+                'used': bool(used),
+            })
+        return jsonify({'count': len(items), 'items': items})
+    except Exception:
+        return jsonify({'error': 'db error'}), 500
+
+
+@app.route('/api/tokens/create', methods=['POST'])
+def api_create_token():
+    auth_err = _check_action_token()
+    if auth_err:
+        return jsonify(auth_err), 403
+    payload = request.get_json(silent=True) or {}
+    path = payload.get('path') or str(Path('dist') / 'fleet_agent.exe')
+    ttl = int(payload.get('ttl', 3600))
+    if not Path(path).exists():
+        return jsonify({'error': 'file not found', 'path': path}), 404
+    token = _create_download_token(path, ttl_seconds=ttl)
+    if not token:
+        return jsonify({'error': 'could not create token'}), 500
+    return jsonify({'ok': True, 'token': token, 'link': f'/download/agent/{token}', 'expires_in': ttl})
+
+
+@app.route('/api/tokens/delete', methods=['POST'])
+def api_delete_token():
+    auth_err = _check_action_token()
+    if auth_err:
+        return jsonify(auth_err), 403
+    payload = request.get_json(silent=True) or {}
+    token = str(payload.get('token') or '').strip()
+    if not token:
+        return jsonify({'error': 'token required'}), 400
+    try:
+        conn = sqlite3.connect(str(FLEET_DB_PATH))
+        cur = conn.cursor()
+        cur.execute('DELETE FROM download_tokens WHERE token = ?', (token,))
+        changed = cur.rowcount
+        conn.commit()
+        conn.close()
+        if changed:
+            return jsonify({'ok': True})
+        return jsonify({'ok': False, 'message': 'token not found'}), 404
+    except Exception:
+        return jsonify({'error': 'db error'}), 500
+
+
 def _check_fleet_token() -> Dict[str, object] | None:
     if not FLEET_TOKEN:
         return {"error": "Token requis (définir FLEET_TOKEN)"}
