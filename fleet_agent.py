@@ -112,13 +112,15 @@ def main() -> None:
         raise SystemExit(1)
 
     url = args.server.rstrip("/") + args.path
-    print(f"Agent démarré -> {url} (id={args.machine_id}, intervalle={args.interval}s)")
+    print(f"Agent démarré -> {url}")
+    print(f"id={args.machine_id}, intervalle={args.interval}s")
 
     while True:
         report = collect_agent_stats()
         ok, msg = post_report(url, args.token, args.machine_id, report)
         status = "OK" if ok else "KO"
-        print(f"[{time.strftime('%H:%M:%S')}] {status} {msg} | CPU {report['cpu_percent']:.1f}% RAM {report['ram_percent']:.1f}% Disk {report['disk_percent']:.1f}% Score {report['health']['score']}/100")
+        short = f"CPU {report['cpu_percent']:.1f}% RAM {report['ram_percent']:.1f}% Disk {report['disk_percent']:.1f}%"
+        print(f"[{time.strftime('%H:%M:%S')}] {status} {msg} | {short} | Score {report['health']['score']}/100")
         time.sleep(max(1.0, args.interval))
 
 

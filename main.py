@@ -8,7 +8,6 @@ import csv
 import datetime as dt
 import json
 import os
-import shutil
 import subprocess
 import sys
 import threading
@@ -552,7 +551,7 @@ def _create_default_org_from_env() -> None:
         conn = sqlite3.connect(str(FLEET_DB_PATH))
         cur = conn.cursor()
         # create a deterministic org id for legacy token
-        org_id = f"org_default"
+        org_id = "org_default"
         cur.execute('INSERT OR IGNORE INTO organizations (id, name) VALUES (?, ?)', (org_id, 'default'))
         # insert api_key mapping
         cur.execute('INSERT OR IGNORE INTO api_keys (key, org_id, created_at, revoked) VALUES (?, ?, ?, 0)',
@@ -736,7 +735,7 @@ def api_create_org():
         cur.execute('INSERT INTO api_keys (key, org_id, created_at, revoked) VALUES (?, ?, ?, 0)', (key, org_id, time.time()))
         conn.commit()
         conn.close()
-    except Exception as exc:
+    except Exception:
         return jsonify({"error": "db error"}), 500
 
     return jsonify({"org_id": org_id, "api_key": key, "name": name})
