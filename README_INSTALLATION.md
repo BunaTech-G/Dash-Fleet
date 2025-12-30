@@ -3,7 +3,11 @@ README d'installation et d'usage — DashFleet
 But : expliquer comment créer une organisation / générer une clé API et comment installer l'agent (Windows et Linux).
 
 1) Pré-requis
-- Avoir le serveur DashFleet en fonctionnement (python main.py) sur le serveur (ex: http://mon-serveur:5000)
+- Avoir le serveur DashFleet en fonctionnement (python main.py) sur le serveur — exemples :
+  - Développement local : http://localhost:5000
+  - Réseau local (LAN) : http://192.168.0.97:5000
+  - Production (domaine + TLS) : https://dashfleet.example.com
+  - VPS via IP publique : http://203.0.113.45:5000
 - Disposer de la variable d'environnement `ACTION_TOKEN` définie sur le serveur (clé admin utilisée par l'API d'administration)
 
 2) Créer une organisation et récupérer une clé API
@@ -67,6 +71,16 @@ Fichiers utiles dans le dépôt :
 - deploy/dashfleet.service (exemple systemd)
 
 ---
+8) Valeurs à remplacer (résumé rapide)
+- `(ex: http://mon-serveur:5000)` : remplacez par l'URL où votre instance sera accessible (ex. `http://localhost:5000` ou `https://dashfleet.example.com`).
+- `<HOST>` : même URL que ci‑dessus, sans slash final (ex. `http://localhost:5000`).
+- `$ACTION_TOKEN` / `<ACTION_TOKEN>` : la valeur exacte de votre jeton admin (variable d'environnement `ACTION_TOKEN`).
+- `<API_KEY>` : la clé API retournée par `POST /api/orgs` pour une organisation.
+
+Règles rapides :
+- Utilisez HTTPS en production (ex. `https://dashfleet.example.com`).
+- N'ajoutez pas de slash final dans `<HOST>`.
+- Ne publiez jamais `ACTION_TOKEN` ou `API_KEY` dans un README public — stockez-les en variable d'environnement ou dans un gestionnaire de secrets.
 Si vous voulez, je peux :
 - ajuster ce README (ajouter exemples concrets),
 - générer un petit script `create_org.sh` qui fait automatiquement les appels curl,
