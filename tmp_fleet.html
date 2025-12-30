@@ -78,7 +78,7 @@
     const fleetCards = document.getElementById('fleet-cards');
     const filterStatus = document.getElementById('filter-status');
     const sortBy = document.getElementById('sort-by');
-    const fleetTTL = parseInt('{{ fleet_ttl_seconds }}', 10) || 600;
+    const fleetTTL = parseInt('600', 10) || 600;
     let fleetRawData = [];
     let t = dashboardI18n.get();
     let theme = localStorage.getItem('theme') === 'light' ? 'light' : 'dark';
