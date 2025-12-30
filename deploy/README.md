@@ -38,6 +38,20 @@ Notes:
 - Définit `FLEET_TOKEN` dans l'environnement systemd (ou utilise un fichier `.env` sécurisé).
 - Pour sécurité, active TLS via certbot et reverse-proxy.
 
+### Exemple `.env` et systemd
+Vous pouvez stocker vos secrets dans un fichier `/var/www/dashfleet/.env` (mode `640`) créé à partir de `deploy/secrets.env.example`.
+Le service systemd d'exemple (`deploy/dashfleet.service`) référence `EnvironmentFile=/var/www/dashfleet/.env` pour charger `FLEET_TOKEN`, `ACTION_TOKEN`, etc.
+
+Exemple de création et activation :
+```bash
+sudo cp deploy/secrets.env.example /var/www/dashfleet/.env
+sudo chown root:www-data /var/www/dashfleet/.env
+sudo chmod 640 /var/www/dashfleet/.env
+sudo systemctl daemon-reload
+sudo systemctl enable --now dashfleet
+sudo journalctl -u dashfleet -f
+```
+
 ## Valeurs à remplacer (rapide)
 - `<HOST>` / `(ex: http://mon-serveur:5000)` : URL publique ou locale où DashFleet sera accessible (ex. `http://localhost:5000` ou `https://dashfleet.example.com`).
 - `FLEET_TOKEN` / `ACTION_TOKEN` : tokens secrets — stockez-les hors du dépôt et référez-les via `EnvironmentFile` ou variables systemd.

@@ -6,8 +6,10 @@ After=network.target
 User=www-data
 Group=www-data
 WorkingDirectory=/var/www/dashfleet  # Remplace par le chemin du projet sur le serveur
+# Use an EnvironmentFile for secrets (create /var/www/dashfleet/.env from deploy/secrets.env.example)
+EnvironmentFile=/var/www/dashfleet/.env
+# Ensure PATH from the venv is used
 Environment="PATH=/var/www/dashfleet/.venv/bin"
-Environment="FLEET_TOKEN=change_this_secret"
 ExecStart=/var/www/dashfleet/.venv/bin/gunicorn -w 3 -b 127.0.0.1:8000 main:app
 
 Restart=on-failure
