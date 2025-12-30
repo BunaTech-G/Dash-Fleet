@@ -8,7 +8,13 @@ function authFetch(url, opts = {}) {
   opts.headers = opts.headers || {};
   const key = getApiKey();
   if (key) opts.headers['Authorization'] = 'Bearer ' + key;
-  return fetch(url, opts);
+  return fetch(url, opts).then((resp) => {
+    if (resp.status === 401 || resp.status === 403) {
+      showAuthError(resp.status === 401 ? 'Unauthorized (401) — clé invalide ou manquante' : 'Forbidden (403) — accès refusé');
+      return Promise.reject(resp);
+    }
+    return resp;
+  });
 }
 
 function updateAuthUI() {
@@ -31,3 +37,35 @@ document.addEventListener('DOMContentLoaded', () => {
   if (logoutBtn) logoutBtn.addEventListener('click', () => clearApiKey());
   updateAuthUI();
 });
+
+function showAuthError(message) {
+  const existing = document.getElementById('auth-error-banner');
+  if (existing) {
+    existing.textContent = message;
+    return;
+  }
+  const banner = document.createElement('div');
+  banner.id = 'auth-error-banner';
+  banner.style.position = 'fixed';
+  banner.style.top = '0';
+  banner.style.left = '0';
+  banner.style.right = '0';
+  banner.style.background = '#f87171';
+  banner.style.color = 'white';
+  banner.style.padding = '8px 12px';
+  banner.style.zIndex = '9999';
+  banner.style.fontWeight = '600';
+  banner.textContent = message;
+  const btn = document.createElement('button');
+  btn.textContent = '×';
+  btn.style.float = 'right';
+  btn.style.marginRight = '8px';
+  btn.style.background = 'transparent';
+  btn.style.color = 'white';
+  btn.style.border = 'none';
+  btn.style.fontSize = '18px';
+  btn.style.cursor = 'pointer';
+  btn.addEventListener('click', () => banner.remove());
+  banner.appendChild(btn);
+  document.body.appendChild(banner);
+}
