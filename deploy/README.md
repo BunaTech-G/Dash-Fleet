@@ -37,3 +37,8 @@ Notes:
 - Adapte `WorkingDirectory` et `Environment` dans `dashfleet.service`.
 - Définit `FLEET_TOKEN` dans l'environnement systemd (ou utilise un fichier `.env` sécurisé).
 - Pour sécurité, active TLS via certbot et reverse-proxy.
+
+## Valeurs à remplacer (rapide)
+- `<HOST>` / `(ex: http://mon-serveur:5000)` : URL publique ou locale où DashFleet sera accessible (ex. `http://localhost:5000` ou `https://dashfleet.example.com`).
+- `FLEET_TOKEN` / `ACTION_TOKEN` : tokens secrets — stockez-les hors du dépôt et référez-les via `EnvironmentFile` ou variables systemd.
+- `<API_KEY>` : clé API générée par l'endpoint `POST /api/orgs` pour une organisation.

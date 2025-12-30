@@ -86,3 +86,8 @@ sudo certbot --nginx -d example.com -d www.example.com
 
 ---
 Garde ce document vivant : coche les étapes à mesure que tu les valides.
+
+## Valeurs à remplacer (rapide)
+- `<HOST>` / `(ex: http://mon-serveur:5000)` : URL où DashFleet sera exposé (local ou public).
+- `FLEET_TOKEN` / `ACTION_TOKEN` : tokens secrets à fournir via `.env` ou `EnvironmentFile` pour systemd.
+- `<API_KEY>` : clé API pour les agents, fournie par `POST /api/orgs`.

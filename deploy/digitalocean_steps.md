@@ -37,3 +37,8 @@ apt install -y git python3 python3-venv python3-pip nginx certbot python3-certbo
 6) DO tips
 - Utilise les snapshots DO avant les changements majeurs.
 - Pour backups automatisés, active l'option Backups dans le panneau (coût en plus).
+
+## Valeurs à remplacer (rapide)
+- `<IP>` / `example.com` / `<repo-url>` : remplacez ces placeholders par les valeurs réelles de votre Droplet, domaine ou dépôt.
+- `<HOST>` / `(ex: http://mon-serveur:5000)` : URL d'accès à DashFleet (ex. `http://localhost:5000` ou `https://dashfleet.example.com`).
+- `FLEET_TOKEN` / `ACTION_TOKEN` : tokens secrets à définir dans l'environnement ou un `EnvironmentFile` systemd.

@@ -13,7 +13,7 @@ But : expliquer comment créer une organisation / générer une clé API et comm
 2) Créer une organisation et récupérer une clé API
 - Créer une organisation (admin) :
 
-  curl -X POST "http://<HOST>:5000/api/orgs" \
+  curl -X POST "http://localhost:5000/api/orgs" \
     -H "Content-Type: application/json" \
     -H "Authorization: Bearer $ACTION_TOKEN" \
     -d '{"name": "MaEntreprise"}'
@@ -22,11 +22,11 @@ But : expliquer comment créer une organisation / générer une clé API et comm
 
 - Lister les organisations :
 
-  curl -H "Authorization: Bearer $ACTION_TOKEN" "http://<HOST>:5000/api/orgs"
+  curl -H "Authorization: Bearer $ACTION_TOKEN" "http://localhost:5000/api/orgs"
 
 - Révoquer une clé API (admin) :
 
-  curl -X POST "http://<HOST>:5000/api/keys/revoke" \
+  curl -X POST "http://localhost:5000/api/keys/revoke" \
     -H "Content-Type: application/json" \
     -H "Authorization: Bearer $ACTION_TOKEN" \
     -d '{"key": "<API_KEY_TO_REVOKE>"}'
@@ -39,13 +39,13 @@ But : expliquer comment créer une organisation / générer une clé API et comm
 
 - Commande manuelle minimale pour tester l'agent :
 
-  .\\venv\\Scripts\\python.exe fleet_agent.py --server http://<HOST>:5000 --key <API_KEY>
+  .\\venv\\Scripts\\python.exe fleet_agent.py --server http://localhost:5000 --key <API_KEY>
 
 4) Installer l'agent (Linux / systemd)
 - Script fourni : deploy/install_agent_linux.sh
 - One-liner (exécuter en root ou via sudo) :
 
-  bash -c "$(curl -fsSL https://<votre-hébergement>/deploy/install_agent_linux.sh)" -- --server http://<HOST>:5000 --key <API_KEY>
+  bash -c "$(curl -fsSL https://<votre-hébergement>/deploy/install_agent_linux.sh)" -- --server http://localhost:5000 --key <API_KEY>
 
 - Le script installe un service systemd nommé `dashfleet-agent@<machine-id>` et démarre le service.
 

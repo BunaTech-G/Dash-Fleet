@@ -86,3 +86,8 @@ sudo certbot --nginx -d example.com -d www.example.com
 Notes Hetzner spécifiques
 - Snapshots et backups disponibles dans le panel — prendre snapshot avant bascule DNS.
 - Pour coûts et types, CX11 est suffisant pour staging. Pour production avec +agents, privilégier 2GB+.
+
+## Valeurs à remplacer (rapide)
+- `<IP>` / `<repo-url>` / `example.com` : remplacez ces placeholders par l'IP publique, l'URL du dépôt ou le domaine réel de votre instance.
+- `<HOST>` / `(ex: http://mon-serveur:5000)` : l'URL publique ou locale d'accès à DashFleet (ex. `http://localhost:5000` ou `https://dashfleet.example.com`).
+- `FLEET_TOKEN` / `ACTION_TOKEN` : tokens secrets à définir via `.env` ou variables d'environnement.

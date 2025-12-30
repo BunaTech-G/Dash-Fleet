@@ -45,3 +45,8 @@ Objectif : un agent léger pour postes (Windows d’abord) qui mesure la santé,
 2) Étendre l’UI actuelle pour afficher ce score et un panneau d’actions approuvées (self-service).
 3) Coder 2-3 auto-remédiations sûres (cleanup temp, restart spooler, flush DNS) avec journalisation.
 4) Ajouter un webhook Teams/Slack simple pour les alertes rouge.
+
+## Valeurs à remplacer (rapide)
+- `(ex: http://mon-serveur:5000)` / `<HOST>` : URL où DashFleet sera accessible. Exemples : `http://localhost:5000` (local), `http://192.168.0.97:5000` (LAN) ou `https://dashfleet.example.com` (production).
+- `FLEET_TOKEN` / `ACTION_TOKEN` : tokens secrets, à définir en variables d'environnement ou via un fichier `.env` sécurisé. Ne pas les committer.
+- `<API_KEY>` : clé API fournie par `POST /api/orgs` pour une organisation.

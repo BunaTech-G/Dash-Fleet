@@ -219,6 +219,14 @@ dist\main.exe --web --export-csv logs\metrics.csv
 - Le disque cible la racine du système (lecteur principal) pour des valeurs cohérentes.
 - JSONL (un objet par ligne) est pratique pour les ingest pipelines et la lecture en flux.
 
+## Valeurs à remplacer (exemples rapides)
+- `(ex: http://mon-serveur:5000)` : URL où votre instance DashFleet sera accessible. Exemples : `http://localhost:5000`, `http://192.168.0.97:5000`, ou `https://dashfleet.example.com`.
+- `<HOST>` : même URL que ci‑dessus, sans slash final (ex. `http://localhost:5000`).
+- `FLEET_TOKEN` / `ACTION_TOKEN` : tokens secrets à définir dans les variables d'environnement sur le serveur (ne pas les versionner).
+- `<API_KEY>` : clé API retournée par `POST /api/orgs` pour une organisation.
+
+Règles rapides : utilisez HTTPS en production et ne publiez jamais vos tokens dans un README public.
+
 ## Sécurité minimale pour les actions
 - Les actions `/api/action` sont prévues pour un usage local. `ACTION_TOKEN` (env) est obligatoire. Appelez avec un header `Authorization: Bearer <token>` ou un champ JSON `token`.
 
