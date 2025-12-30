@@ -60,6 +60,25 @@ sudo certbot --nginx -d example.com -d www.example.com
 - [ ] Lancer un agent de test externe pour s'assurer que `logs/fleet_state.json` se met à jour.
 - [ ] Examiner les logs (`journalctl -u dashfleet`, `/var/log/nginx/dashfleet.*`).
 
+## Production quick-run (commands)
+- Copier unit systemd et activer :
+
+```bash
+sudo cp deploy/dashfleet.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now dashfleet
+sudo journalctl -u dashfleet -f
+```
+
+- Configurer nginx and certbot :
+
+```bash
+sudo cp deploy/nginx_dashfleet.conf /etc/nginx/sites-available/dashfleet.conf
+sudo ln -sfn /etc/nginx/sites-available/dashfleet.conf /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
+sudo certbot --nginx -d example.com -d www.example.com
+```
+
 ## Sécurité & opérations
 - [ ] Ne pas exposer le port interne WSGI (8000) directement au public — nginx reverse-proxy uniquement.
 - [ ] Stocker `FLEET_TOKEN` et `ACTION_TOKEN` hors du dépôt, avec permissions restreintes.
