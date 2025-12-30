@@ -1170,11 +1170,29 @@ def api_history():
 
 
 def run_cli(interval: float, export_csv_path: Path | None, export_json_path: Path | None) -> None:
+    import requests
     print("Surveillance en cours. Ctrl+C pour arrêter. \n")
+    args = parse_args()
+    server_url = getattr(args, 'server', "http://127.0.0.1:5000")
+    api_key = os.environ.get("FLEET_API_KEY")
     try:
         while True:
             stats = collect_stats()
             print_stats(stats)
+
+            # Envoi au serveur distant si api_key et server_url sont définis
+            if api_key and server_url:
+                try:
+                    resp = requests.post(
+                        f"{server_url.rstrip('/')}/api/fleet/report",
+                        json={"report": stats},
+                        headers={"Authorization": f"Bearer {api_key}"},
+                        timeout=10
+                    )
+                    if resp.status_code != 200:
+                        print(f"[WARN] Report POST failed: {resp.status_code} {resp.text}")
+                except Exception as e:
+                    print(f"[ERROR] Report POST exception: {e}")
 
             if export_csv_path:
                 export_to_csv(export_csv_path, [stats])
@@ -1184,7 +1202,6 @@ def run_cli(interval: float, export_csv_path: Path | None, export_json_path: Pat
             time.sleep(interval)
     except KeyboardInterrupt:
         print("\nArrêté.")
-
 
 def start_background_export(interval: float, export_csv_path: Path | None, export_json_path: Path | None) -> None:
     """Démarre un export en tâche de fond pendant que Flask tourne."""
@@ -1227,6 +1244,12 @@ def start_session_cleaner(interval: int = 60) -> None:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Tableau de bord système : CLI et UI Flask")
+    parser.add_argument(
+        "--server",
+        type=str,
+        default=os.environ.get("FLEET_SERVER", "http://127.0.0.1:5000"),
+        help="URL du serveur DashFleet pour l'agent (ex: https://www.dash-fleet.com)"
+    )
     parser.add_argument("--web", action="store_true", help="Lancer l’UI web Flask au lieu de la sortie CLI")
     parser.add_argument("--host", default=os.environ.get("HOST", "0.0.0.0"), help="Hôte Flask quand --web est activé")
     parser.add_argument("--port", type=int, default=int(os.environ.get("PORT", "5000")), help="Port Flask quand --web est activé")

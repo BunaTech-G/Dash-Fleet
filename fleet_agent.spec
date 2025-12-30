@@ -2,7 +2,7 @@
 
 
 a = Analysis(
-    ['C:\\Users\\SIDIBE\\OneDrive\\Bureau\\Dashboard système\\fleet_agent.py'],
+    ['main.py'],
     pathex=[],
     binaries=[],
     datas=[],
