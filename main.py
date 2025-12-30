@@ -759,6 +759,12 @@ def api_revoke_key():
         return jsonify({"error": "db error"}), 500
 
 
+@app.route("/admin/orgs")
+def admin_orgs():
+    """Simple admin UI for organizations and API keys."""
+    return render_template("admin_orgs.html")
+
+
 def _check_fleet_token() -> Dict[str, object] | None:
     if not FLEET_TOKEN:
         return {"error": "Token requis (définir FLEET_TOKEN)"}

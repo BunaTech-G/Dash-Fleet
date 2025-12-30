@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Admin Organizations - DashFleet</title>
+  <style>
+    body{font-family:Segoe UI,Roboto,Arial;margin:20px}
+    input,button{padding:6px;margin:4px}
+    .org{border:1px solid #ddd;padding:8px;margin:8px 0}
+    .key{font-family:monospace;background:#f6f6f6;padding:4px;margin:2px;display:inline-block}
+  </style>
+</head>
+<body>
+  <h1>Administration - Organisations et clés</h1>
+
+  <div>
+    <label>Token admin (ACTION_TOKEN) : <input id="adminToken" type="password" size="48"></label>
+    <button id="btnList">Lister</button>
+  </div>
+
+  <h2>Créer nouvelle organisation</h2>
+  <div>
+    <input id="orgName" placeholder="Nom de l'organisation" size="36">
+    <button id="btnCreate">Créer</button>
+  </div>
+
+  <h2>Organisations</h2>
+  <div id="orgs"></div>
+
+  <script>
+    const elOrgs = document.getElementById('orgs')
+    const getToken = ()=>document.getElementById('adminToken').value.trim()
+
+    async function listOrgs(){
+      const token = getToken()
+      if(!token){ alert('Entrez ACTION_TOKEN'); return }
+      const res = await fetch('/api/orgs',{headers:{'Authorization':'Bearer '+token}})
+      const j = await res.json()
+      if(res.status!==200){ alert(JSON.stringify(j)); return }
+      renderOrgs(j.orgs||[])
+    }
+
+    function renderOrgs(orgs){
+      elOrgs.innerHTML=''
+      if(!orgs.length){ elOrgs.textContent='Aucune organisation.'; return }
+      orgs.forEach(o=>{
+        const d = document.createElement('div'); d.className='org'
+        const h = document.createElement('div'); h.innerHTML=`<strong>${o.name}</strong> <code>${o.org_id}</code>`
+        d.appendChild(h)
+        if(o.keys && o.keys.length){
+          o.keys.forEach(k=>{
+            const kdiv = document.createElement('div')
+            kdiv.innerHTML = `<span class='key'>${k.key_masked}</span> - créé: ${new Date(k.created_at*1000).toLocaleString()} - revoked: ${k.revoked}`
+            const btn = document.createElement('button')
+            btn.textContent = k.revoked ? 'Restaurer' : 'Révoquer'
+            btn.onclick = ()=>toggleKey(k, !k.revoked)
+            kdiv.appendChild(btn)
+            d.appendChild(kdiv)
+          })
+        } else {
+          const p = document.createElement('div'); p.textContent='Aucune clé.'; d.appendChild(p)
+        }
+        elOrgs.appendChild(d)
+      })
+    }
+
+    async function toggleKey(k, revoke){
+      const token = getToken();
+      if(!token){ alert('Entrez ACTION_TOKEN'); return }
+      const payload = { key: k.key_masked ? k.key_masked.replace(/\.\.\./, '') : '' , revoke: revoke }
+      // The masked key isn't the real key; instead we ask admin to paste the full key in a prompt:
+      const full = prompt('Collez la clé complète à (ré)voquer (sera masquée dans l\'UI)')
+      if(!full) return
+      const body = { key: full, revoke: revoke }
+      const res = await fetch('/api/keys/revoke',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify(body)})
+      const j = await res.json()
+      if(res.status===200){ alert('OK'); listOrgs() } else { alert(JSON.stringify(j)) }
+    }
+
+    document.getElementById('btnList').addEventListener('click', listOrgs)
+    document.getElementById('btnCreate').addEventListener('click', async ()=>{
+      const token = getToken(); if(!token){ alert('Entrez ACTION_TOKEN'); return }
+      const name = document.getElementById('orgName').value.trim(); if(!name){ alert('Nom requis'); return }
+      const res = await fetch('/api/orgs',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({name:name})})
+      const j = await res.json()
+      if(res.status===200){ alert('Organisation créée. Clé API:\n'+j.api_key); listOrgs() } else { alert(JSON.stringify(j)) }
+    })
+  </script>
+</body>
+</html>
