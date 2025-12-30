@@ -25,6 +25,7 @@ import psutil
 from flask import Flask, jsonify, render_template, request
 import sqlite3
 import secrets
+import requests
 
 # Seuils d’alerte (pourcentage).
 CPU_ALERT = 80.0
