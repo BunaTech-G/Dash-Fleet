@@ -14,3 +14,17 @@ dependencies = [
   "gunicorn>=20.0",
   "pytest>=7.0"
 ]
+
+[tool.setuptools.packages.find]
+exclude = [
+  "logs",
+  "logs.*",
+  "data",
+  "data.*",
+  "static",
+  "static.*",
+  "deploy",
+  "deploy.*",
+  "templates",
+  "templates.*"
+]
