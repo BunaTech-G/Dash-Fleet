@@ -134,8 +134,12 @@ def _load_fleet_state() -> None:
                             report_json = json.dumps(entry.get('report', {}), ensure_ascii=False)
                             ts = entry.get('ts', time.time())
                             client = entry.get('client')
-                            cur.execute('INSERT OR REPLACE INTO fleet (id, report, ts, client) VALUES (?, ?, ?, ?)',
-                                        (str(mid), report_json, ts, client))
+                            sql = (
+                                'INSERT OR REPLACE INTO fleet (id, report, ts, client) '
+                                'VALUES (?, ?, ?, ?)'
+                            )
+                            params = (str(mid), report_json, ts, client)
+                            cur.execute(sql, params)
                     conn.commit()
                     conn.close()
                 else:
@@ -153,8 +157,12 @@ def _load_fleet_state() -> None:
                                 if not row or ts > (row[0] or 0):
                                     report_json = json.dumps(entry.get('report', {}), ensure_ascii=False)
                                     client = entry.get('client')
-                                    cur.execute('INSERT OR REPLACE INTO fleet (id, report, ts, client) VALUES (?, ?, ?, ?)',
-                                                (str(mid), report_json, ts, client))
+                                    sql = (
+                                        'INSERT OR REPLACE INTO fleet (id, report, ts, client) '
+                                        'VALUES (?, ?, ?, ?)'
+                                    )
+                                    params = (str(mid), report_json, ts, client)
+                                    cur.execute(sql, params)
                             conn.commit()
                             conn.close()
                     except Exception:
@@ -731,8 +739,13 @@ def api_create_org():
     try:
         conn = sqlite3.connect(str(FLEET_DB_PATH))
         cur = conn.cursor()
-        cur.execute('INSERT INTO organizations (id, name) VALUES (?, ?)', (org_id, name))
-        cur.execute('INSERT INTO api_keys (key, org_id, created_at, revoked) VALUES (?, ?, ?, 0)', (key, org_id, time.time()))
+        sql_org = 'INSERT INTO organizations (id, name) VALUES (?, ?)'
+        cur.execute(sql_org, (org_id, name))
+        sql_key = (
+            'INSERT INTO api_keys (key, org_id, created_at, revoked) '
+            'VALUES (?, ?, ?, 0)'
+        )
+        cur.execute(sql_key, (key, org_id, time.time()))
         conn.commit()
         conn.close()
     except Exception:
@@ -758,14 +771,25 @@ def api_login():
     try:
         conn = sqlite3.connect(str(FLEET_DB_PATH))
         cur = conn.cursor()
-        cur.execute('INSERT INTO sessions (id, org_id, created_at, expires_at) VALUES (?, ?, ?, ?)', (sid, org, now, expires))
+        sql = (
+            'INSERT INTO sessions (id, org_id, created_at, expires_at) '
+            'VALUES (?, ?, ?, ?)'
+        )
+        cur.execute(sql, (sid, org, now, expires))
         conn.commit()
         conn.close()
     except Exception:
         return jsonify({"error": "db error"}), 500
 
     resp = jsonify({"ok": True, "expires_in": SESSION_TTL_SECONDS})
-    resp.set_cookie('dashfleet_sid', sid, max_age=SESSION_TTL_SECONDS, httponly=True, samesite='Lax', path='/')
+    resp.set_cookie(
+        'dashfleet_sid',
+        sid,
+        max_age=SESSION_TTL_SECONDS,
+        httponly=True,
+        samesite='Lax',
+        path='/'
+    )
     return resp
 
 
@@ -1002,8 +1026,24 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--host", default=os.environ.get("HOST", "0.0.0.0"), help="Hôte Flask quand --web est activé")
     parser.add_argument("--port", type=int, default=int(os.environ.get("PORT", "5000")), help="Port Flask quand --web est activé")
     parser.add_argument("--interval", type=float, default=2.0, help="Intervalle de rafraîchissement en secondes pour le mode CLI")
-    parser.add_argument("--export-csv", type=Path, default=DEFAULT_EXPORT_CSV, help="Chemin CSV pour enregistrer les mesures (défaut: Bureau/metrics.csv)")
-    parser.add_argument("--export-jsonl", type=Path, default=DEFAULT_EXPORT_JSONL, help="Chemin JSONL pour enregistrer les mesures (défaut: Bureau/metrics.jsonl)")
+    parser.add_argument(
+        "--export-csv",
+        type=Path,
+        default=DEFAULT_EXPORT_CSV,
+        help=(
+            "Chemin CSV pour enregistrer les mesures (défaut: "
+            "Bureau/metrics.csv)"
+        ),
+    )
+    parser.add_argument(
+        "--export-jsonl",
+        type=Path,
+        default=DEFAULT_EXPORT_JSONL,
+        help=(
+            "Chemin JSONL pour enregistrer les mesures (défaut: "
+            "Bureau/metrics.jsonl)"
+        ),
+    )
     return parser.parse_args()
 
 
