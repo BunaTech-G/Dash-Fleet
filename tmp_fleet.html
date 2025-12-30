@@ -179,7 +179,7 @@
     }
 
     function refreshFleet() {
-      fetch('/api/fleet')
+      authFetch('/api/fleet')
         .then((resp) => resp.json())
         .then((data) => {
           fleetRawData = data.data || [];
