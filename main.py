@@ -118,8 +118,11 @@ def _health_score(stats: Dict[str, object]) -> Dict[str, object]:
 
 _LAST_WEBHOOK_TS = 0.0
 FLEET_STATE: Dict[str, Dict[str, object]] = {}
+        _ensure_db_schema()
 
 
+        # Force la migration de la base au démarrage
+        _ensure_db_schema()
 def _load_fleet_state() -> None:
     """Recharge l'état fleet depuis la base SQLite si présente, sinon depuis le JSON (best effort)."""
     global FLEET_STATE
