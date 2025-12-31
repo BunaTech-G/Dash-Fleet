@@ -1,3 +1,13 @@
+# --- Route temporaire de debug pour lister les templates ---
+@app.route('/debug-templates')
+def debug_templates():
+    import os
+    template_dir = app.template_folder or 'templates'
+    try:
+        files = os.listdir(template_dir)
+        return '<br>'.join(files)
+    except Exception as e:
+        return f"Erreur accès dossier templates : {e}", 500
 from __future__ import annotations
 # --- Route de setup admin ---
 import os
