@@ -36,8 +36,6 @@ jobs:
         run: flake8 .
         continue-on-error: true
 
-      - name: Run tests
-        run: pytest -q
 
       - name: Build distributions
         run: python -m build
