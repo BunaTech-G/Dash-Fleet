@@ -26,7 +26,9 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from marshmallow import Schema, fields, ValidationError
 from functools import wraps
+
 from pathlib import Path
+from typing import Dict, Iterable
 
 app = Flask(__name__, template_folder="templates", static_folder="static")
 
@@ -904,13 +906,25 @@ def print_stats(stats: Dict[str, object]) -> None:
 
 @app.route("/")
 def dashboard() -> str:
-    # If PUBLIC_READ is enabled, show dashboard without session.
+    # Si PUBLIC_READ est activé, accès libre au dashboard
     public_read = os.environ.get("PUBLIC_READ", "false").lower() in ("1", "true", "yes")
     if public_read:
         return render_template("index.html")
 
-    # Si l'utilisateur a une session serveur (cookie `dashfleet_sid`) valide,
-    # afficher le tableau de bord. Sinon afficher la page de connexion.
+    # Permettre l'accès libre si aucune organisation n'existe (premier démarrage)
+    try:
+        conn = sqlite3.connect(str(FLEET_DB_PATH))
+        cur = conn.cursor()
+        cur.execute('SELECT COUNT(*) FROM organizations')
+        count = cur.fetchone()[0]
+        conn.close()
+    except Exception as e:
+        logging.error(f"Erreur accès DB pour dashboard: {e}")
+        count = 0
+    if count == 0:
+        return render_template("index.html")
+
+    # Sinon, session requise
     sid = request.cookies.get('dashfleet_sid')
     if sid and _get_org_for_session(sid):
         return render_template("index.html")
