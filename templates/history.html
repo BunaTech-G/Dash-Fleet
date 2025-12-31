@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="fr">
 <head>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Historique - Tableau de bord système</title>
@@ -8,6 +9,13 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="/static/i18n.js"></script>
   <script src="/static/fleet-auth.js"></script>
+  <style>
+    .badge-score { font-size:18px;padding:4px 12px;border-radius:16px;font-weight:700;background:rgba(56,189,248,0.10);border:1.5px solid var(--border);color:var(--text);min-width:60px;text-align:center; }
+    .badge-ok { background:#22c55e22; border-color:#22c55e; color:#22c55e; }
+    .badge-warn { background:#facc1522; border-color:#facc15; color:#facc15; }
+    .badge-critical { background:#f43f5e22; border-color:#f43f5e; color:#f43f5e; }
+    .badge-expired { background:#f59e4222; border-color:#f59e42; color:#f59e42; }
+  </style>
 </head>
 <body>
   <main class="page">
@@ -35,6 +43,7 @@
       <a href="/" id="nav-live">Temps réel</a>
       <a href="/history" class="active" id="nav-history">Historique</a>
       <a href="/fleet" id="nav-fleet">Fleet</a>
+      <a href="/help" id="nav-help">Aide</a>
     </nav>
 
     <section class="chart-card">
@@ -51,13 +60,24 @@
         <span class="muted" id="health-timestamp">--</span>
       </div>
       <div class="grid">
-        <article class="card" id="health-card">
-          <div class="label" id="label-health">Santé</div>
-          <div class="value" id="health-value">--</div>
+        <article class="card status-ok" id="health-card">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+            <div class="label" id="label-health">Santé</div>
+            <span class="badge badge-score badge-ok" id="health-badge">--/100</span>
+          </div>
           <div class="meta" id="health-meta">En attente des données</div>
         </article>
       </div>
     </section>
+    <script>
+      // Met à jour le badge santé selon le score/status (à appeler dans ton JS)
+      function updateHistoryHealthUI(score, status) {
+        const badge = document.getElementById('health-badge');
+        badge.textContent = (score ?? '--') + '/100';
+        badge.className = 'badge badge-score badge-' + (status || 'ok');
+        document.getElementById('health-card').className = 'card status-' + (status || 'ok');
+      }
+    </script>
 
     <section class="table-wrap" id="table-wrap">
       <div class="table-header">

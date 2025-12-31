@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Aide & Documentation - DashFleet</title>
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+  <link rel="stylesheet" href="/static/style.css">
+  <style>
+    body { background: radial-gradient(circle at 20% 20%, rgba(56, 189, 248, 0.12), transparent 25%), radial-gradient(circle at 80% 0%, rgba(244, 63, 94, 0.12), transparent 30%), var(--bg); color: var(--text); font-family: 'Space Grotesk', Arial, sans-serif; }
+    .help-box { max-width: 700px; margin: 40px auto; padding: 2.2em 2em 2em; background: var(--panel); border: 1.5px solid var(--border); border-radius: 14px; box-shadow: var(--shadow); }
+    h1 { color: var(--accent); }
+    h2 { color: var(--text); margin-top: 1.5em; }
+    ul { margin-bottom: 1.5em; }
+    code { background: #222; color: #38bdf8; padding: 2px 6px; border-radius: 6px; }
+    .nav-links { margin-bottom: 24px; }
+  </style>
+</head>
+<body>
+  <main class="help-box">
+    <nav class="nav-links">
+      <a href="/">Accueil</a>
+      <a href="/history">Historique</a>
+      <a href="/fleet">Fleet</a>
+      <a href="/help" class="active">Aide</a>
+    </nav>
+    <h1>Aide & Documentation</h1>
+    <h2>Navigation</h2>
+    <ul>
+      <li><b>Temps réel</b> : Statut de la machine locale, actions rapides.</li>
+      <li><b>Historique</b> : Courbes CPU/RAM/Disque, santé sur la durée.</li>
+      <li><b>Fleet</b> : Vue centralisée de toutes les machines reportées.</li>
+      <li><b>Admin</b> : Gestion des organisations, clés, tokens.</li>
+    </ul>
+    <h2>Actions rapides</h2>
+    <ul>
+      <li>Utilisez les boutons d’action pour nettoyer, redémarrer des services, collecter des logs.</li>
+      <li>Les tooltips (info-bulles) expliquent chaque bouton sensible.</li>
+    </ul>
+    <h2>Clés API & Sécurité</h2>
+    <ul>
+      <li>La clé admin est générée à l’installation : gardez-la secrète !</li>
+      <li>Les organisations et tokens se gèrent dans l’interface Admin.</li>
+    </ul>
+    <h2>Accessibilité</h2>
+    <ul>
+      <li>Navigation clavier : Tab/Entrée pour tous les boutons et champs.</li>
+      <li>Contraste renforcé, police lisible, responsive mobile.</li>
+    </ul>
+    <h2>Support</h2>
+    <ul>
+      <li>Consultez la documentation ou contactez l’administrateur pour toute question.</li>
+    </ul>
+  </main>
+</body>
+</html>

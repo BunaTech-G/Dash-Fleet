@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Tableau de bord système</title>
@@ -36,29 +37,41 @@
       <a href="/" class="active" id="nav-live">Temps réel</a>
       <a href="/history" id="nav-history">Historique</a>
       <a href="/fleet" id="nav-fleet">Fleet</a>
+      <a href="/help" id="nav-help">Aide</a>
     </nav>
 
     <section class="grid">
-      <article class="card" id="health-card">
-        <div class="label" id="label-health">Santé</div>
-        <div class="value" id="health-value">--</div>
+      <article class="card status-ok" id="health-card">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+          <div class="label" id="label-health">Santé</div>
+          <span class="badge badge-score badge-ok" id="health-badge">--/100</span>
+        </div>
         <div class="meta" id="health-meta">En attente des données</div>
       </article>
 
-      <article class="card" id="cpu-card">
-        <div class="label" id="label-cpu">CPU</div>
+      <article class="card status-ok" id="cpu-card">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="dot dot-ok" id="cpu-dot"></span>
+          <div class="label" id="label-cpu">CPU</div>
+        </div>
         <div class="value" id="cpu-value">--%</div>
         <div class="meta" id="cpu-meta">En attente des données</div>
       </article>
 
-      <article class="card" id="ram-card">
-        <div class="label" id="label-ram">RAM</div>
+      <article class="card status-ok" id="ram-card">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="dot dot-ok" id="ram-dot"></span>
+          <div class="label" id="label-ram">RAM</div>
+        </div>
         <div class="value" id="ram-value">--%</div>
         <div class="meta" id="ram-meta">En attente des données</div>
       </article>
 
-      <article class="card" id="disk-card">
-        <div class="label" id="label-disk">Disque</div>
+      <article class="card status-ok" id="disk-card">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="dot dot-ok" id="disk-dot"></span>
+          <div class="label" id="label-disk">Disque</div>
+        </div>
         <div class="value" id="disk-value">--%</div>
         <div class="meta" id="disk-meta">En attente des données</div>
       </article>
@@ -68,6 +81,35 @@
         <div class="value" id="uptime-value">--:--:--</div>
         <div class="meta" id="uptime-meta">depuis le démarrage</div>
       </article>
+      <style>
+        .dot { display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:5px;vertical-align:middle; }
+        .dot-ok { background:#22c55e; }
+        .dot-warn { background:#facc15; }
+        .dot-critical { background:#f43f5e; }
+        .dot-expired { background:#f59e42; }
+        .badge-score { font-size:18px;padding:4px 12px;border-radius:16px;font-weight:700;background:rgba(56,189,248,0.10);border:1.5px solid var(--border);color:var(--text);min-width:60px;text-align:center; }
+        .badge-ok { background:#22c55e22; border-color:#22c55e; color:#22c55e; }
+        .badge-warn { background:#facc1522; border-color:#facc15; color:#facc15; }
+        .badge-critical { background:#f43f5e22; border-color:#f43f5e; color:#f43f5e; }
+        .badge-expired { background:#f59e4222; border-color:#f59e42; color:#f59e42; }
+      </style>
+      <script>
+        // Met à jour le badge santé et les pastilles selon le score/status
+        function updateHealthUI(score, status) {
+          const badge = document.getElementById('health-badge');
+          badge.textContent = (score ?? '--') + '/100';
+          badge.className = 'badge badge-score badge-' + (status || 'ok');
+          document.getElementById('health-card').className = 'card status-' + (status || 'ok');
+        }
+        function updateCardDot(id, status) {
+          const dot = document.getElementById(id+'-dot');
+          if(dot) dot.className = 'dot dot-' + (status || 'ok');
+          const card = document.getElementById(id+'-card');
+          if(card) card.className = 'card status-' + (status || 'ok');
+        }
+        // Hook sur la fonction de mise à jour existante (à adapter selon ton JS)
+        // Exemple d'appel : updateHealthUI(85, 'ok'); updateCardDot('cpu', 'warn');
+      </script>
     </section>
 
     <section class="chart-card">

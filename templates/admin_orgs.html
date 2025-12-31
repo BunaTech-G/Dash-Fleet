@@ -1,33 +1,42 @@
 <!doctype html>
 <html lang="fr">
 <head>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Admin Organizations - DashFleet</title>
+  <link rel="stylesheet" href="/static/style.css">
   <style>
-    body{font-family:Segoe UI,Roboto,Arial;margin:20px}
-    input,button{padding:6px;margin:4px}
-    .org{border:1px solid #ddd;padding:8px;margin:8px 0}
-    .key{font-family:monospace;background:#f6f6f6;padding:4px;margin:2px;display:inline-block}
+    body { background: radial-gradient(circle at 20% 20%, rgba(56, 189, 248, 0.12), transparent 25%), radial-gradient(circle at 80% 0%, rgba(244, 63, 94, 0.12), transparent 30%), var(--bg); color: var(--text); font-family: 'Space Grotesk', Arial, sans-serif; }
+    .admin-orgs-box { max-width: 600px; margin: 40px auto; padding: 2.2em 2em 2em; background: var(--panel); border: 1.5px solid var(--border); border-radius: 14px; box-shadow: var(--shadow); }
+    .admin-orgs-box h1 { margin-top: 0; font-size: 1.5em; color: var(--accent); }
+    .admin-orgs-box h2 { margin-bottom: 8px; color: var(--text); }
+    .admin-orgs-box label { font-size: 1em; color: var(--muted); }
+    .admin-orgs-box input[type="text"], .admin-orgs-box input[type="password"] { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border); margin-top: 6px; font-size: 1em; background: rgba(255,255,255,0.04); color: var(--text); }
+    .admin-orgs-box button { margin-top: 10px; padding: 10px 18px; border-radius: 10px; border: none; background: var(--accent); color: #04263a; font-weight: 700; font-size: 1em; cursor: pointer; transition: background 0.15s; }
+    .admin-orgs-box button:hover { background: #0ea5e9; }
+    .org { border:1.5px solid var(--border); background: var(--panel); border-radius: 10px; padding: 12px; margin: 12px 0; box-shadow: var(--shadow); }
+    .key { font-family: monospace; background: #22c55e22; color: #22c55e; padding: 0.4em 0.8em; border-radius: 6px; font-size: 1em; margin: 2px 0; border: 1.5px solid #22c55e; display: inline-block; }
+    @media (max-width: 700px) { .admin-orgs-box { padding: 1.2em 0.5em; } }
   </style>
 </head>
 <body>
-  <h1>Administration - Organisations et clés</h1>
-
-  <div>
-    <label>Token admin (ACTION_TOKEN) : <input id="adminToken" type="password" size="48"></label>
-    <button id="btnList">Lister</button>
+  <div class="admin-orgs-box">
+    <h1>Administration - Organisations et clés</h1>
+    <div style="margin-bottom:18px">
+      <label>Token admin (ACTION_TOKEN) :
+        <input id="adminToken" type="password" placeholder="ACTION_TOKEN" autocomplete="off">
+      </label>
+      <button id="btnList">Lister</button>
+    </div>
+    <h2>Créer nouvelle organisation</h2>
+    <div style="margin-bottom:18px">
+      <input id="orgName" placeholder="Nom de l'organisation">
+      <button id="btnCreate">Créer</button>
+    </div>
+    <h2>Organisations</h2>
+    <div id="orgs"></div>
   </div>
-
-  <h2>Créer nouvelle organisation</h2>
-  <div>
-    <input id="orgName" placeholder="Nom de l'organisation" size="36">
-    <button id="btnCreate">Créer</button>
-  </div>
-
-  <h2>Organisations</h2>
-  <div id="orgs"></div>
-
   <script>
     const elOrgs = document.getElementById('orgs')
     const getToken = ()=>document.getElementById('adminToken').value.trim()

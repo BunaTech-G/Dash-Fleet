@@ -1,25 +1,39 @@
-{% extends "base.html" %}
-
-{% block content %}
-<div class="page">
-  <header>
-    <div>
-      <h1>Admin - Tokens de téléchargement</h1>
-      <p class="lede">Gérer les liens de téléchargement de l'agent (usage unique).</p>
-    </div>
-  </header>
-
-  <div class="card table-wrap">
+<!doctype html>
+<html lang="fr">
+<head>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Admin - Tokens de téléchargement</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <style>
+    body { background: radial-gradient(circle at 20% 20%, rgba(56, 189, 248, 0.12), transparent 25%), radial-gradient(circle at 80% 0%, rgba(244, 63, 94, 0.12), transparent 30%), var(--bg); color: var(--text); font-family: 'Space Grotesk', Arial, sans-serif; }
+    .admin-tokens-box { max-width: 600px; margin: 40px auto; padding: 2.2em 2em 2em; background: var(--panel); border: 1.5px solid var(--border); border-radius: 14px; box-shadow: var(--shadow); }
+    .admin-tokens-box h1 { margin-top: 0; font-size: 1.5em; color: var(--accent); }
+    .admin-tokens-box h2 { margin-bottom: 8px; color: var(--text); }
+    .admin-tokens-box label { font-size: 1em; color: var(--muted); }
+    .admin-tokens-box input[type="text"], .admin-tokens-box input[type="password"] { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border); margin-top: 6px; font-size: 1em; background: rgba(255,255,255,0.04); color: var(--text); }
+    .admin-tokens-box button { margin-top: 10px; padding: 10px 18px; border-radius: 10px; border: none; background: var(--accent); color: #04263a; font-weight: 700; font-size: 1em; cursor: pointer; transition: background 0.15s; }
+    .admin-tokens-box button:hover { background: #0ea5e9; }
+    table { width: 100%; border-collapse: collapse; margin-top: 18px; }
+    th, td { padding: 10px; text-align: left; }
+    th { color: var(--muted); font-weight: 500; }
+    tbody tr:nth-child(odd) { background: rgba(255, 255, 255, 0.02); }
+    .empty { margin-top: 24px; padding: 16px; border: 1px dashed var(--border); border-radius: 14px; color: var(--muted); background: rgba(255, 255, 255, 0.02); }
+    @media (max-width: 700px) { .admin-tokens-box { padding: 1.2em 0.5em; } }
+  </style>
+</head>
+<body>
+  <div class="admin-tokens-box">
+    <h1>Admin - Tokens de téléchargement</h1>
+    <p class="lede">Gérer les liens de téléchargement de l'agent (usage unique).</p>
     <div style="display:flex;gap:12px;align-items:center;margin-bottom:12px;">
       <input id="token-path" class="control-select" style="flex:1" value="dist/fleet_agent.exe" />
       <input id="token-ttl" class="control-select" style="width:140px" value="3600" />
       <button id="create" class="action-btn">Créer lien</button>
     </div>
-
     <div id="list"></div>
   </div>
-</div>
-
 <script>
 async function fetchTokens(){
   const resp = await fetch('/api/tokens', { headers: { 'Accept': 'application/json' } });
