@@ -563,10 +563,15 @@ def _ensure_db_schema() -> None:
         FLEET_DB_PATH.parent.mkdir(parents=True, exist_ok=True)
         conn = sqlite3.connect(str(FLEET_DB_PATH))
         cur = conn.cursor()
-        # organizations table
+        # organizations table (ajout du champ role)
         cur.execute(
-            'CREATE TABLE IF NOT EXISTS organizations (id TEXT PRIMARY KEY, name TEXT)'
+            'CREATE TABLE IF NOT EXISTS organizations (id TEXT PRIMARY KEY, name TEXT, role TEXT DEFAULT "user")'
         )
+        # migration si la colonne role n'existe pas encore
+        try:
+            cur.execute('ALTER TABLE organizations ADD COLUMN role TEXT DEFAULT "user"')
+        except Exception:
+            pass
         # api_keys table
         cur.execute(
             'CREATE TABLE IF NOT EXISTS api_keys (key TEXT PRIMARY KEY, org_id TEXT, created_at REAL, revoked INTEGER DEFAULT 0)'
@@ -826,7 +831,7 @@ def _consume_download_token(token: str) -> str | None:
 @app.route("/api/orgs", methods=["POST"])
 @limiter.limit("10/minute")
 def api_create_org():
-    """Créer une organization + api_key. Protégé par ACTION_TOKEN."""
+    """Créer une organization + api_key. Protégé par ACTION_TOKEN. Le premier org devient admin, les suivants user."""
     auth_err = _check_action_token()
     if auth_err:
         logging.warning(f"Accès refusé /api/orgs depuis {request.remote_addr}")
@@ -843,15 +848,33 @@ def api_create_org():
         logging.error(f"Nom organisation trop court /api/orgs : {name}")
         return jsonify({"error": "name requis (min 3 caractères)"}), 400
 
+    # Déterminer le rôle : admin si première org, sinon user
+    try:
+        conn = sqlite3.connect(str(FLEET_DB_PATH))
+        cur = conn.cursor()
+        cur.execute('SELECT COUNT(*) FROM organizations')
+        count = cur.fetchone()[0]
+        role = "admin" if count == 0 else "user"
+        conn.close()
+    except Exception:
+        role = "user"
+
     org_id = f"org_{secrets.token_hex(6)}"
     key = secrets.token_hex(16)
-    if not insert_organization(org_id, name, key):
-        logging.error(f"Erreur DB /api/orgs : insertion échouée")
+    try:
+        conn = sqlite3.connect(str(FLEET_DB_PATH))
+        cur = conn.cursor()
+        cur.execute('INSERT INTO organizations (id, name, role) VALUES (?, ?, ?)', (org_id, name, role))
+        cur.execute('INSERT INTO api_keys (key, org_id, created_at, revoked) VALUES (?, ?, ?, 0)', (key, org_id, time.time()))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        logging.error(f"Erreur DB /api/orgs : insertion échouée : {e}")
         return jsonify({"error": "db error"}), 500
     user_agent = request.headers.get("User-Agent", "")
     logging.info(f"user_agent={user_agent}")
-    logging.info(f"Organisation créée : {org_id} ({name})")
-    return jsonify({"org_id": org_id, "api_key": key, "name": name})
+    logging.info(f"Organisation créée : {org_id} ({name}) role={role}")
+    return jsonify({"org_id": org_id, "api_key": key, "name": name, "role": role})
 
 
 @app.route("/api/login", methods=["POST"])
