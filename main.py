@@ -1,3 +1,6 @@
+from flasgger import Swagger
+# Initialisation Swagger/OpenAPI
+swagger = Swagger(app)
 from db_utils import insert_organization, insert_fleet_report
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -845,6 +848,8 @@ def api_create_org():
     if not insert_organization(org_id, name, key):
         logging.error(f"Erreur DB /api/orgs : insertion échouée")
         return jsonify({"error": "db error"}), 500
+    user_agent = request.headers.get("User-Agent", "")
+    logging.info(f"user_agent={user_agent}")
     logging.info(f"Organisation créée : {org_id} ({name})")
     return jsonify({"org_id": org_id, "api_key": key, "name": name})
 
@@ -1075,6 +1080,8 @@ def api_action():
     except Exception as e:
         logging.error(f"Erreur exécution action {action_name} : {e}")
         return jsonify({"error": f"Erreur action {action_name}"}), 500
+    user_agent = request.headers.get("User-Agent", "")
+    logging.info(f"org_id={org_id} user_agent={user_agent}")
     logging.info(f"Action exécutée : {action_name} par {request.remote_addr}")
     return jsonify({"action": action_name, **result})
 
@@ -1132,6 +1139,81 @@ def download_agent(token: str):
 @app.route("/api/fleet/report", methods=["POST"])
 @limiter.limit("30/minute")
 def api_fleet_report():
+            """
+            Reporte les métriques d'un agent.
+            ---
+            tags:
+                - Fleet
+            parameters:
+                - in: body
+                    name: body
+                    required: true
+                    schema:
+                        type: object
+                        properties:
+                            machine_id:
+                                type: string
+                            report:
+                                type: object
+                                properties:
+                                    cpu_percent:
+                                        type: number
+                                    ram_percent:
+                                        type: number
+                                    disk_percent:
+                                        type: number
+            responses:
+                200:
+                    description: Rapport accepté
+                400:
+                    description: Erreur de validation
+                403:
+                    description: Non autorisé
+            """
+            """
+            Crée une organisation et une clé API.
+            ---
+            tags:
+                - Orgs
+            parameters:
+                - in: body
+                    name: body
+                    required: true
+                    schema:
+                        type: object
+                        properties:
+                            name:
+                                type: string
+            responses:
+                200:
+                    description: Organisation créée
+                400:
+                    description: Erreur de validation
+                403:
+                    description: Non autorisé
+            """
+            """
+            Exécute une action distante sur le serveur.
+            ---
+            tags:
+                - Actions
+            parameters:
+                - in: body
+                    name: body
+                    required: true
+                    schema:
+                        type: object
+                        properties:
+                            action:
+                                type: string
+            responses:
+                200:
+                    description: Action exécutée
+                400:
+                    description: Erreur de validation
+                403:
+                    description: Non autorisé
+            """
     ok, org_id = _check_org_key()
     if not ok or not org_id:
         logging.warning(f"Accès refusé /api/fleet/report depuis {request.remote_addr}")
@@ -1155,6 +1237,8 @@ def api_fleet_report():
     now_ts = time.time()
     store_key = f"{org_id}:{machine_id}"
     insert_fleet_report(store_key, machine_id, report, now_ts, request.remote_addr, org_id, FLEET_STATE, _save_fleet_state)
+    user_agent = request.headers.get("User-Agent", "")
+    logging.info(f"org_id={org_id} user_agent={user_agent}")
     logging.info(f"Report reçu pour {machine_id} ({org_id}) de {request.remote_addr}")
     return jsonify({"ok": True})
 
