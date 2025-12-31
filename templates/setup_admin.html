@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Initialisation Admin</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 2em; }
+        .box { max-width: 400px; margin: auto; padding: 2em; border: 1px solid #ccc; border-radius: 8px; }
+        .key { font-family: monospace; background: #f5f5f5; padding: 0.5em; border-radius: 4px; }
+        .error { color: #b00; }
+    </style>
+</head>
+<body>
+<div class="box">
+    <h2>Création de la clé admin</h2>
+    {% if already_exists %}
+        <p>Une organisation existe déjà.<br>La création d'une clé admin n'est possible qu'à la première installation.</p>
+    {% elif api_key %}
+        <p><strong>Clé admin générée :</strong></p>
+        <div class="key">{{ api_key }}</div>
+        <p><em>Copiez cette clé et gardez-la précieusement !</em></p>
+    {% else %}
+        {% if error %}<div class="error">{{ error }}</div>{% endif %}
+        <form method="post">
+            <label>Nom de l'organisation admin :<br>
+                <input type="text" name="name" value="admin" minlength="3" required>
+            </label><br><br>
+            <button type="submit">Créer la clé admin</button>
+        </form>
+    {% endif %}
+</div>
+</body>
+</html>
