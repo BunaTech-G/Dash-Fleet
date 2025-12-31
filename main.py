@@ -19,6 +19,8 @@ def require_role_multi(*roles_required):
             return f(*args, **kwargs)
         return wrapper
     return decorator
+
+from __future__ import annotations
 from functools import wraps
 
 # Décorateur pour exiger un rôle spécifique (ex: admin)
@@ -71,7 +73,6 @@ metrics_schema = MetricsSchema()
 """Tableau de bord système : CPU, RAM, disque et uptime.
 Fonctionne en mode CLI ou via une petite UI web Flask.
 """
-from __future__ import annotations
 
 import argparse
 import csv
