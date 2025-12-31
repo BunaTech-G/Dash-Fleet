@@ -1,3 +1,48 @@
+# Décorateur pour exiger un ou plusieurs rôles (ex: admin, user, readonly)
+def require_role_multi(*roles_required):
+    def decorator(f):
+        @wraps(f)
+        def wrapper(*args, **kwargs):
+            ok, org_id = _check_org_key()
+            if not ok or not org_id:
+                return jsonify({"error": "Unauthorized"}), 403
+            try:
+                conn = sqlite3.connect(str(FLEET_DB_PATH))
+                cur = conn.cursor()
+                cur.execute('SELECT role FROM organizations WHERE id = ?', (org_id,))
+                row = cur.fetchone()
+                conn.close()
+                if not row or row[0] not in roles_required:
+                    return jsonify({"error": f"Role(s) {roles_required} required"}), 403
+            except Exception:
+                return jsonify({"error": "Role check failed"}), 500
+            return f(*args, **kwargs)
+        return wrapper
+    return decorator
+from functools import wraps
+
+# Décorateur pour exiger un rôle spécifique (ex: admin)
+def require_role(role_required):
+    def decorator(f):
+        @wraps(f)
+        def wrapper(*args, **kwargs):
+            ok, org_id = _check_org_key()
+            if not ok or not org_id:
+                return jsonify({"error": "Unauthorized"}), 403
+            # Récupérer le rôle de l'organisation
+            try:
+                conn = sqlite3.connect(str(FLEET_DB_PATH))
+                cur = conn.cursor()
+                cur.execute('SELECT role FROM organizations WHERE id = ?', (org_id,))
+                row = cur.fetchone()
+                conn.close()
+                if not row or row[0] != role_required:
+                    return jsonify({"error": f"{role_required} role required"}), 403
+            except Exception:
+                return jsonify({"error": "Role check failed"}), 500
+            return f(*args, **kwargs)
+        return wrapper
+    return decorator
 from flasgger import Swagger
 # Initialisation Swagger/OpenAPI
 swagger = Swagger(app)
@@ -830,6 +875,7 @@ def _consume_download_token(token: str) -> str | None:
 
 @app.route("/api/orgs", methods=["POST"])
 @limiter.limit("10/minute")
+@require_role("admin")
 def api_create_org():
     """Créer une organization + api_key. Protégé par ACTION_TOKEN. Le premier org devient admin, les suivants user."""
     auth_err = _check_action_token()
@@ -934,6 +980,7 @@ def api_logout():
 
 
 @app.route("/api/orgs", methods=["GET"])
+@require_role("admin")
 def api_list_orgs():
     """Liste des organisations et clés (protégé par ACTION_TOKEN)."""
     auth_err = _check_action_token()
@@ -961,6 +1008,7 @@ def api_list_orgs():
 
 
 @app.route("/api/keys/revoke", methods=["POST"])
+@require_role("admin")
 def api_revoke_key():
     """Révoque ou restaure une clé API (protégé par ACTION_TOKEN)."""
     auth_err = _check_action_token()
@@ -1000,6 +1048,7 @@ def admin_tokens():
 
 
 @app.route('/api/tokens', methods=['GET'])
+@require_role("admin")
 def api_list_tokens():
     auth_err = _check_action_token()
     if auth_err:
@@ -1026,6 +1075,7 @@ def api_list_tokens():
 
 
 @app.route('/api/tokens/create', methods=['POST'])
+@require_role("admin")
 def api_create_token():
     auth_err = _check_action_token()
     if auth_err:
@@ -1042,6 +1092,7 @@ def api_create_token():
 
 
 @app.route('/api/tokens/delete', methods=['POST'])
+@require_role("admin")
 def api_delete_token():
     auth_err = _check_action_token()
     if auth_err:
@@ -1161,6 +1212,7 @@ def download_agent(token: str):
 
 @app.route("/api/fleet/report", methods=["POST"])
 @limiter.limit("30/minute")
+@require_role_multi("admin", "user")
 def api_fleet_report():
             """
             Reporte les métriques d'un agent.
@@ -1267,6 +1319,7 @@ def api_fleet_report():
 
 
 @app.route("/api/fleet")
+@require_role_multi("admin", "user", "readonly")
 def api_fleet():
     # require org-key to list fleet (multi-tenant)
     ok, org_id = _check_org_key()
@@ -1291,6 +1344,7 @@ def api_fleet():
 
 
 @app.route("/api/fleet/reload", methods=["POST"])
+@require_role_multi("admin")
 def api_fleet_reload():
     """Forcer le rechargement de `logs/fleet_state.json` en mémoire.
 
