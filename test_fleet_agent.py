@@ -3,6 +3,7 @@ Test unitaire simple pour fleet_agent.py
 """
 import unittest
 import fleet_agent
+import fleet_agent
 
 class TestFleetAgent(unittest.TestCase):
     def test_collect_agent_stats(self):
