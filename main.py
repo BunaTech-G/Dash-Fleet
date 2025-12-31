@@ -1,3 +1,24 @@
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+# Initialisation du rate limiting
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=["100 per minute"]
+)
+from marshmallow import Schema, fields, ValidationError
+# Schéma Marshmallow pour la validation avancée du rapport agent
+class ReportSchema(Schema):
+    machine_id = fields.Str(required=True)
+    report = fields.Dict(required=True)
+
+class MetricsSchema(Schema):
+    cpu_percent = fields.Float(required=True)
+    ram_percent = fields.Float(required=True)
+    disk_percent = fields.Float(required=True)
+
+report_schema = ReportSchema()
+metrics_schema = MetricsSchema()
 """Tableau de bord système : CPU, RAM, disque et uptime.
 Fonctionne en mode CLI ou via une petite UI web Flask.
 """
@@ -799,6 +820,7 @@ def _consume_download_token(token: str) -> str | None:
 
 
 @app.route("/api/orgs", methods=["POST"])
+@limiter.limit("10/minute")
 def api_create_org():
     """Créer une organization + api_key. Protégé par ACTION_TOKEN."""
     auth_err = _check_action_token()
@@ -1041,6 +1063,7 @@ def _check_fleet_token() -> Dict[str, object] | None:
 
 
 @app.route("/api/action", methods=["POST"])
+@limiter.limit("10/minute")
 def api_action():
     auth_err = _check_action_token()
     if auth_err:
@@ -1119,6 +1142,7 @@ def download_agent(token: str):
 
 
 @app.route("/api/fleet/report", methods=["POST"])
+@limiter.limit("30/minute")
 def api_fleet_report():
     ok, org_id = _check_org_key()
     if not ok or not org_id:
@@ -1127,27 +1151,19 @@ def api_fleet_report():
 
     try:
         payload = request.get_json(force=True)
+        # Validation avancée du schéma principal
+        data = report_schema.load(payload)
+        # Validation avancée des métriques
+        metrics_schema.load(data['report'])
+    except ValidationError as ve:
+        logging.error(f"Validation Marshmallow /api/fleet/report : {ve.messages}")
+        return jsonify({"error": ve.messages}), 400
     except Exception as e:
         logging.error(f"JSON invalide /api/fleet/report : {e}")
         return jsonify({"error": "JSON invalide"}), 400
 
-    machine_id = str(payload.get("machine_id") or payload.get("id") or uuid.uuid4())
-    if not machine_id:
-        logging.error(f"machine_id manquant /api/fleet/report depuis {request.remote_addr}")
-        return jsonify({"error": "machine_id manquant"}), 400
-
-    report = payload.get("report")
-    if not isinstance(report, dict):
-        logging.error(f"report non dict /api/fleet/report : {report}")
-        return jsonify({"error": "report doit être un dict"}), 400
-
-    # Validation stricte des métriques
-    for key in ["cpu_percent", "ram_percent", "disk_percent"]:
-        val = report.get(key)
-        if not isinstance(val, (int, float)) or val is None:
-            logging.error(f"Métrique {key} invalide : {val}")
-            return jsonify({"error": f"Métrique {key} invalide"}), 400
-
+    machine_id = data['machine_id']
+    report = data['report']
     now_ts = time.time()
     store_key = f"{org_id}:{machine_id}"
     FLEET_STATE[store_key] = {
