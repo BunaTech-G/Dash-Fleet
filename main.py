@@ -911,7 +911,7 @@ def dashboard() -> str:
     if public_read:
         return render_template("index.html")
 
-    # Permettre l'accès libre si aucune organisation n'existe (premier démarrage)
+    # Vérifier s'il existe une organisation
     try:
         conn = sqlite3.connect(str(FLEET_DB_PATH))
         cur = conn.cursor()
@@ -922,7 +922,9 @@ def dashboard() -> str:
         logging.error(f"Erreur accès DB pour dashboard: {e}")
         count = 0
     if count == 0:
-        return render_template("index.html")
+        # Rediriger vers la page de setup admin si aucune organisation
+        from flask import redirect, url_for
+        return redirect(url_for('setup_admin'))
 
     # Sinon, session requise
     sid = request.cookies.get('dashfleet_sid')
