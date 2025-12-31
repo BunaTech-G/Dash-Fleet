@@ -1,6 +1,5 @@
-# --- Route de setup admin ---
-
 from __future__ import annotations
+# --- Route de setup admin ---
 import os
 import sys
 import time
