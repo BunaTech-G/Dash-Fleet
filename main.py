@@ -964,7 +964,7 @@ def _consume_download_token(token: str) -> str | None:
 
 @app.route("/api/orgs", methods=["POST"])
 @limiter.limit("10/minute")
-@require_role("admin")
+@login_required
 def api_create_org():
     """Créer une organization + api_key. Protégé par ACTION_TOKEN. Le premier org devient admin, les suivants user."""
     auth_err = _check_action_token()
@@ -1068,7 +1068,7 @@ def api_logout():
 
 
 @app.route("/api/orgs", methods=["GET"])
-@require_role("admin")
+@login_required
 def api_list_orgs():
     """Liste des organisations et clés (protégé par ACTION_TOKEN)."""
     auth_err = _check_action_token()
@@ -1096,7 +1096,7 @@ def api_list_orgs():
 
 
 @app.route("/api/keys/revoke", methods=["POST"])
-@require_role("admin")
+@login_required
 def api_revoke_key():
     """Révoque ou restaure une clé API (protégé par ACTION_TOKEN)."""
     auth_err = _check_action_token()
@@ -1137,7 +1137,7 @@ def admin_tokens():
 
 
 @app.route('/api/tokens', methods=['GET'])
-@require_role("admin")
+@login_required
 def api_list_tokens():
     auth_err = _check_action_token()
     if auth_err:
@@ -1164,7 +1164,7 @@ def api_list_tokens():
 
 
 @app.route('/api/tokens/create', methods=['POST'])
-@require_role("admin")
+@login_required
 def api_create_token():
     auth_err = _check_action_token()
     if auth_err:
@@ -1181,7 +1181,7 @@ def api_create_token():
 
 
 @app.route('/api/tokens/delete', methods=['POST'])
-@require_role("admin")
+@login_required
 def api_delete_token():
     auth_err = _check_action_token()
     if auth_err:
@@ -1302,7 +1302,8 @@ def download_agent(token: str):
 
 @app.route("/api/fleet/report", methods=["POST"])
 @limiter.limit("30/minute")
-@require_role_multi("admin", "user")
+# Pour l'instant, seul l'admin est géré. Si besoin d'autres rôles, adapter ici.
+@login_required
 def api_fleet_report():
     """
     Reporte les métriques d'un agent.
@@ -1409,7 +1410,8 @@ def api_fleet_report():
 
 
 @app.route("/api/fleet")
-@require_role_multi("admin", "user", "readonly")
+# Pour l'instant, seul l'admin est géré. Si besoin d'autres rôles, adapter ici.
+@login_required
 def api_fleet():
     # require org-key to list fleet (multi-tenant)
     ok, org_id = _check_org_key()
@@ -1434,7 +1436,8 @@ def api_fleet():
 
 
 @app.route("/api/fleet/reload", methods=["POST"])
-@require_role_multi("admin")
+# Pour l'instant, seul l'admin est géré. Si besoin d'autres rôles, adapter ici.
+@login_required
 def api_fleet_reload():
     """Forcer le rechargement de `logs/fleet_state.json` en mémoire.
 
