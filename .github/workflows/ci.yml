@@ -24,11 +24,13 @@ jobs:
       - name: Show Python version
         run: python --version
 
+      - name: Clean pip cache
+        run: pip cache purge
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip setuptools wheel build
-          pip install -r requirements.txt
-          pip install flake8
+          pip install --force-reinstall -r requirements.txt
+          pip install --force-reinstall flake8
 
       - name: Lint (flake8)
         run: flake8 .
