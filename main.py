@@ -40,7 +40,8 @@ def require_role_multi(*roles_required):
                 conn.close()
                 if not row or row[0] not in roles_required:
                     return jsonify({"error": f"Role(s) {roles_required} required"}), 403
-            except Exception:
+            except Exception as e:
+                logging.error(f"Erreur lors de la vérification du rôle : {e}")
                 return jsonify({"error": "Role check failed"}), 500
             return f(*args, **kwargs)
         return wrapper
@@ -63,7 +64,8 @@ def require_role(role_required):
                 conn.close()
                 if not row or row[0] != role_required:
                     return jsonify({"error": f"{role_required} role required"}), 403
-            except Exception:
+            except Exception as e:
+                logging.error(f"Erreur lors de la vérification du rôle : {e}")
                 return jsonify({"error": "Role check failed"}), 500
             return f(*args, **kwargs)
         return wrapper
@@ -269,13 +271,12 @@ def _load_fleet_state() -> None:
                                     cur.execute(sql, params)
                             conn.commit()
                             conn.close()
-                    except Exception:
-                        pass
-            except Exception:
-                # migration attempt failed, continue with fallback logic
-                pass
-    except Exception:
-        pass
+                    except Exception as e:
+                        logging.error(f"Erreur lors de la fusion JSON->DB fleet : {e}")
+            except Exception as e:
+                logging.error(f"Erreur migration JSON->DB fleet : {e}")
+    except Exception as e:
+        logging.error(f"Erreur lors du chargement de l'état fleet : {e}")
 
     # prefer DB if present
     try:
@@ -340,8 +341,8 @@ def _save_fleet_state() -> None:
                 mid = v.get('id') or k
                 flat[str(mid)] = v
             FLEET_STATE_PATH.write_text(json.dumps(flat), encoding="utf-8")
-        except OSError:
-            pass
+        except OSError as e:
+            logging.error(f"Erreur sauvegarde JSON fleet : {e}")
 
         # ensure db dir and table
         try:
@@ -363,10 +364,10 @@ def _save_fleet_state() -> None:
                 )
             conn.commit()
             conn.close()
-        except Exception:
-            # if DB fails, ignore — JSON backup already attempted
-            pass
-    except Exception:
+        except Exception as e:
+            logging.error(f"Erreur sauvegarde DB fleet : {e}")
+    except Exception as e:
+        logging.error(f"Erreur générale sauvegarde fleet : {e}")
         return
 
 
@@ -635,8 +636,8 @@ def _ensure_db_schema() -> None:
         # migration si la colonne role n'existe pas encore
         try:
             cur.execute('ALTER TABLE organizations ADD COLUMN role TEXT DEFAULT "user"')
-        except Exception:
-            pass
+        except Exception as e:
+            logging.info(f"Colonne role déjà existante ou erreur : {e}")
         # api_keys table
         cur.execute(
             'CREATE TABLE IF NOT EXISTS api_keys (key TEXT PRIMARY KEY, org_id TEXT, created_at REAL, revoked INTEGER DEFAULT 0)'
@@ -656,12 +657,14 @@ def _ensure_db_schema() -> None:
         # attempt to add org_id column if missing (sqlite ignores if exists on many versions, so safe)
         try:
             cur.execute('ALTER TABLE fleet ADD COLUMN org_id TEXT')
-        except Exception:
-            pass
+        except Exception as e:
+            logging.info(f"Colonne org_id déjà existante ou erreur : {e}")
         conn.commit()
         conn.close()
-    except Exception:
+    except Exception as e:
+        logging.error(f"Erreur lors de la création du schéma DB : {e}")
         return
+        
 
 
 def _create_default_org_from_env() -> None:
@@ -679,7 +682,8 @@ def _create_default_org_from_env() -> None:
                     (FLEET_TOKEN, org_id, time.time()))
         conn.commit()
         conn.close()
-    except Exception:
+    except Exception as e:
+        logging.error(f"Erreur création org par défaut : {e}")
         return
 
 
@@ -696,7 +700,8 @@ def _get_org_for_key(key: str) -> str | None:
         if revoked:
             return None
         return org_id
-    except Exception:
+    except Exception as e:
+        logging.error(f"Erreur récupération org pour clé : {e}")
         return None
 
 
@@ -718,11 +723,12 @@ def _get_org_for_session(sid: str) -> str | None:
                 cur.execute('DELETE FROM sessions WHERE id = ?', (sid,))
                 conn.commit()
                 conn.close()
-            except Exception:
-                pass
+            except Exception as e:
+                logging.error(f"Erreur suppression session expirée : {e}")
             return None
         return org_id
-    except Exception:
+    except Exception as e:
+        logging.error(f"Erreur récupération org pour session : {e}")
         return None
 
 
@@ -855,7 +861,8 @@ def _create_download_token(file_path: str, ttl_seconds: int = 3600) -> str | Non
         conn.commit()
         conn.close()
         return token
-    except Exception:
+    except Exception as e:
+        logging.error(f"Erreur création download token : {e}")
         return None
 
 
@@ -877,19 +884,20 @@ def _consume_download_token(token: str) -> str | None:
             try:
                 cur.execute('DELETE FROM download_tokens WHERE token = ?', (token,))
                 conn.commit()
-            except Exception:
-                pass
+            except Exception as e:
+                logging.error(f"Erreur suppression token expiré : {e}")
             conn.close()
             return None
         # mark used
         try:
             cur.execute('UPDATE download_tokens SET used = 1 WHERE token = ?', (token,))
             conn.commit()
-        except Exception:
-            pass
+        except Exception as e:
+            logging.error(f"Erreur update token utilisé : {e}")
         conn.close()
         return path
-    except Exception:
+    except Exception as e:
+        logging.error(f"Erreur consommation download token : {e}")
         return None
 
 
@@ -1458,8 +1466,8 @@ def start_session_cleaner(interval: int = 60) -> None:
                 cur.execute('DELETE FROM sessions WHERE expires_at IS NOT NULL AND expires_at < ?', (now,))
                 conn.commit()
                 conn.close()
-            except Exception:
-                pass
+            except Exception as e:
+                logging.error(f"Erreur purge sessions expirées : {e}")
             time.sleep(interval)
 
     thread = threading.Thread(target=_loop, daemon=True)
@@ -1518,8 +1526,8 @@ def main() -> None:
             # allow disabling public read mode via env
             PUBLIC_READ = os.environ.get("PUBLIC_READ", "false").lower() in ("1", "true", "yes")
             start_session_cleaner(interval=60)
-        except Exception:
-            pass
+        except Exception as e:
+            logging.error(f"Erreur lancement session cleaner : {e}")
         # Ouvre le navigateur par défaut quelques ms après le démarrage du serveur.
         threading.Timer(0.5, lambda: webbrowser.open(f"http://{args.host}:{args.port}")).start()
         app.run(host=args.host, port=args.port, debug=False)
