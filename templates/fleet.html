@@ -9,6 +9,7 @@
   <script src="/static/i18n.js"></script>
 </head>
 <body>
+    <div id="toast" class="toast" role="status" aria-live="polite" style="display:none;position:fixed;top:24px;left:50%;transform:translateX(-50%);background:var(--accent);color:#04263a;padding:14px 24px;border-radius:12px;z-index:9999;font-weight:600;box-shadow:0 8px 30px rgba(0,0,0,0.18);font-size:1.1em;min-width:220px;text-align:center;"></div>
   <main class="page">
     <header>
       <div>
@@ -26,7 +27,7 @@
             <option value="ru">RU</option>
           </select>
         </div>
-        <button class="theme-toggle" id="theme-toggle">Mode sombre</button>
+        <button class="theme-toggle" id="theme-toggle" aria-label="Changer le thème clair/sombre" tabindex="1">Mode sombre</button>
         <button id="loginApiKeyBtn" class="theme-toggle" style="margin-left:8px">Se connecter (clé API)</button>
         <button id="logoutApiKeyBtn" class="theme-toggle" style="margin-left:8px; display:none">Se déconnecter</button>
         <span id="apiKeyStatus" style="margin-left:8px; font-size:0.9em; color:var(--muted)">Non connecté</span>
@@ -70,7 +71,7 @@
           </select>
         </label>
       </div>
-      <div class="table-fleet" id="fleet-cards"></div>
+      <div class="table-fleet" id="fleet-cards" aria-label="Liste des machines" tabindex="2"></div>
     </section>
 
     <div class="empty" id="empty-state" hidden>
@@ -135,7 +136,7 @@
       }
       document.getElementById('empty-state').hidden = true;
 
-      data.forEach((entry) => {
+      data.forEach((entry, i) => {
         const report = entry.report || {};
         const health = report.health || { score: 0, status: 'ok' };
         const lastSeen = new Date(entry.ts * 1000).toLocaleString();
@@ -143,11 +144,14 @@
         const expired = (now - entry.ts > fleetTTL);
         const status = expired ? 'expired' : health.status;
         const card = document.createElement('article');
-        card.className = `card ${statusClass(status, entry.ts)}`;
+        card.className = `card ${statusClass(status, entry.ts)} fade-in`;
+        card.style.animationDelay = (i * 0.07) + 's';
+        card.setAttribute('aria-label', `Machine ${entry.id || 'machine'}`);
+        card.setAttribute('tabindex', 3 + i);
         card.innerHTML = `
           <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
             <div class="label">${entry.id || 'machine'}</div>
-            <span class="badge badge-score badge-${status}">${health.score || 0}/100</span>
+            <span class="badge badge-score badge-${status} fade-in" style="animation-delay:${i*0.07+0.1}s">${health.score || 0}/100</span>
           </div>
           <div class="meta" style="margin-bottom:4px"><span class="dot dot-${status}"></span> ${status.toUpperCase()} · ${report.uptime_hms || ''}</div>
           <div class="meta">CPU <b>${report.cpu_percent?.toFixed?.(1) || '--'}</b>% · RAM <b>${report.ram_percent?.toFixed?.(1) || '--'}</b>% · Disk <b>${report.disk_percent?.toFixed?.(1) || '--'}</b>%</div>

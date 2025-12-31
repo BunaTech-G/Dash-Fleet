@@ -18,6 +18,7 @@
   </style>
 </head>
 <body>
+    <div id="toast" class="toast" role="status" aria-live="polite" style="display:none;position:fixed;top:24px;left:50%;transform:translateX(-50%);background:var(--accent);color:#04263a;padding:14px 24px;border-radius:12px;z-index:9999;font-weight:600;box-shadow:0 8px 30px rgba(0,0,0,0.18);font-size:1.1em;min-width:220px;text-align:center;"></div>
   <main class="page">
     <header>
       <div>
@@ -35,7 +36,7 @@
             <option value="ru">RU</option>
           </select>
         </div>
-        <button class="theme-toggle" id="theme-toggle">Mode sombre</button>
+        <button class="theme-toggle" id="theme-toggle" aria-label="Changer le thème clair/sombre" tabindex="1">Mode sombre</button>
       </div>
     </header>
 
@@ -84,7 +85,7 @@
         <h2 id="history-table-title">Dernières entrées</h2>
         <span class="muted" id="history-table-subtitle">Heure locale</span>
       </div>
-      <table>
+      <table aria-label="Tableau historique" tabindex="2">
         <thead>
           <tr>
             <th id="th-ts">Timestamp</th>
@@ -96,6 +97,18 @@
         </thead>
         <tbody id="history-body"></tbody>
       </table>
+      <script>
+        // Toast universel
+        function showToast(msg, type='info', duration=3000) {
+          const toast = document.getElementById('toast');
+          toast.textContent = msg;
+          toast.style.background = type==='error' ? '#f43f5e' : (type==='success' ? '#22c55e' : 'var(--accent)');
+          toast.style.color = type==='error' ? '#fff' : '#04263a';
+          toast.style.display = 'block';
+          setTimeout(()=>{ toast.style.display = 'none'; }, duration);
+        }
+        // Exemple d'utilisation : showToast('Action réussie', 'success');
+      </script>
     </section>
 
     <div class="empty" id="empty-state" hidden>

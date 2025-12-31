@@ -21,18 +21,32 @@
   </style>
 </head>
 <body>
+    <div id="toast" class="toast" role="status" aria-live="polite" style="display:none;position:fixed;top:24px;left:50%;transform:translateX(-50%);background:var(--accent);color:#04263a;padding:14px 24px;border-radius:12px;z-index:9999;font-weight:600;box-shadow:0 8px 30px rgba(0,0,0,0.18);font-size:1.1em;min-width:220px;text-align:center;"></div>
   <div class="admin-orgs-box">
     <h1>Administration - Organisations et clés</h1>
     <div style="margin-bottom:18px">
       <label>Token admin (ACTION_TOKEN) :
-        <input id="adminToken" type="password" placeholder="ACTION_TOKEN" autocomplete="off">
+        <input id="adminToken" type="password" placeholder="ACTION_TOKEN" autocomplete="off" aria-label="Token admin (ACTION_TOKEN)" tabindex="1">
       </label>
-      <button id="btnList">Lister</button>
+      <button id="btnList" aria-label="Lister toutes les organisations" tabindex="2">Lister</button>
     </div>
     <h2>Créer nouvelle organisation</h2>
     <div style="margin-bottom:18px">
-      <input id="orgName" placeholder="Nom de l'organisation">
-      <button id="btnCreate">Créer</button>
+      <input id="orgName" placeholder="Nom de l'organisation" aria-label="Nom de la nouvelle organisation" tabindex="3">
+      <button id="btnCreate" aria-label="Créer une nouvelle organisation" tabindex="4">Créer</button>
+      <script>
+        // Toast universel
+        function showToast(msg, type='info', duration=3000) {
+          const toast = document.getElementById('toast');
+          toast.textContent = msg;
+          toast.style.background = type==='error' ? '#f43f5e' : (type==='success' ? '#22c55e' : 'var(--accent)');
+          toast.style.color = type==='error' ? '#fff' : '#04263a';
+          toast.style.display = 'block';
+          setTimeout(()=>{ toast.style.display = 'none'; }, duration);
+        }
+        // Remplacer alert() par showToast() pour feedback accessible
+        // Exemple d'utilisation : showToast('Organisation créée', 'success');
+      </script>
     </div>
     <h2>Organisations</h2>
     <div id="orgs"></div>
@@ -43,10 +57,10 @@
 
     async function listOrgs(){
       const token = getToken()
-      if(!token){ alert('Entrez ACTION_TOKEN'); return }
+      if(!token){ showToast('Entrez ACTION_TOKEN', 'error'); return }
       const res = await fetch('/api/orgs',{headers:{'Authorization':'Bearer '+token}})
       const j = await res.json()
-      if(res.status!==200){ alert(JSON.stringify(j)); return }
+      if(res.status!==200){ showToast(JSON.stringify(j), 'error'); return }
       renderOrgs(j.orgs||[])
     }
 
@@ -76,7 +90,7 @@
 
     async function toggleKey(k, revoke){
       const token = getToken();
-      if(!token){ alert('Entrez ACTION_TOKEN'); return }
+      if(!token){ showToast('Entrez ACTION_TOKEN', 'error'); return }
       const payload = { key: k.key_masked ? k.key_masked.replace(/\.\.\./, '') : '' , revoke: revoke }
       // The masked key isn't the real key; instead we ask admin to paste the full key in a prompt:
       const full = prompt('Collez la clé complète à (ré)voquer (sera masquée dans l\'UI)')
@@ -84,16 +98,16 @@
       const body = { key: full, revoke: revoke }
       const res = await fetch('/api/keys/revoke',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify(body)})
       const j = await res.json()
-      if(res.status===200){ alert('OK'); listOrgs() } else { alert(JSON.stringify(j)) }
+      if(res.status===200){ showToast('OK', 'success'); listOrgs() } else { showToast(JSON.stringify(j), 'error') }
     }
 
     document.getElementById('btnList').addEventListener('click', listOrgs)
     document.getElementById('btnCreate').addEventListener('click', async ()=>{
-      const token = getToken(); if(!token){ alert('Entrez ACTION_TOKEN'); return }
-      const name = document.getElementById('orgName').value.trim(); if(!name){ alert('Nom requis'); return }
+      const token = getToken(); if(!token){ showToast('Entrez ACTION_TOKEN', 'error'); return }
+      const name = document.getElementById('orgName').value.trim(); if(!name){ showToast('Nom requis', 'error'); return }
       const res = await fetch('/api/orgs',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({name:name})})
       const j = await res.json()
-      if(res.status===200){ alert('Organisation créée. Clé API:\n'+j.api_key); listOrgs() } else { alert(JSON.stringify(j)) }
+      if(res.status===200){ showToast('Organisation créée. Clé API:\n'+j.api_key, 'success', 6000); listOrgs() } else { showToast(JSON.stringify(j), 'error') }
     })
   </script>
 </body>
