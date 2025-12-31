@@ -1,3 +1,4 @@
+from db_utils import insert_organization, insert_fleet_report
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 # Initialisation du rate limiting
@@ -841,22 +842,9 @@ def api_create_org():
 
     org_id = f"org_{secrets.token_hex(6)}"
     key = secrets.token_hex(16)
-    try:
-        conn = sqlite3.connect(str(FLEET_DB_PATH))
-        cur = conn.cursor()
-        sql_org = 'INSERT INTO organizations (id, name) VALUES (?, ?)'
-        cur.execute(sql_org, (org_id, name))
-        sql_key = (
-            'INSERT INTO api_keys (key, org_id, created_at, revoked) '
-            'VALUES (?, ?, ?, 0)'
-        )
-        cur.execute(sql_key, (key, org_id, time.time()))
-        conn.commit()
-        conn.close()
-    except Exception as e:
-        logging.error(f"Erreur DB /api/orgs : {e}")
+    if not insert_organization(org_id, name, key):
+        logging.error(f"Erreur DB /api/orgs : insertion échouée")
         return jsonify({"error": "db error"}), 500
-
     logging.info(f"Organisation créée : {org_id} ({name})")
     return jsonify({"org_id": org_id, "api_key": key, "name": name})
 
@@ -1166,14 +1154,7 @@ def api_fleet_report():
     report = data['report']
     now_ts = time.time()
     store_key = f"{org_id}:{machine_id}"
-    FLEET_STATE[store_key] = {
-        "id": machine_id,
-        "report": report,
-        "ts": now_ts,
-        "client": request.remote_addr,
-        "org_id": org_id,
-    }
-    _save_fleet_state()
+    insert_fleet_report(store_key, machine_id, report, now_ts, request.remote_addr, org_id, FLEET_STATE, _save_fleet_state)
     logging.info(f"Report reçu pour {machine_id} ({org_id}) de {request.remote_addr}")
     return jsonify({"ok": True})
 
