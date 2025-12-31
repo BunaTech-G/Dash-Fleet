@@ -26,6 +26,17 @@ from flask import Flask, jsonify, render_template, request
 import sqlite3
 import secrets
 import requests
+import logging
+from pathlib import Path
+
+# Journalisation dans un fichier log
+LOG_PATH = Path("logs/api.log")
+LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+logging.basicConfig(
+    filename=str(LOG_PATH),
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(message)s"
+)
 
 # Seuils d’alerte (pourcentage).
 CPU_ALERT = 80.0
@@ -792,17 +803,22 @@ def api_create_org():
     """Créer une organization + api_key. Protégé par ACTION_TOKEN."""
     auth_err = _check_action_token()
     if auth_err:
+        logging.warning(f"Accès refusé /api/orgs depuis {request.remote_addr}")
         return jsonify(auth_err), 403
 
-    payload = request.get_json(silent=True) or {}
-    name = str(payload.get("name") or "").strip()
-    if not name:
-        return jsonify({"error": "name requis"}), 400
+    try:
+        payload = request.get_json(force=True)
+    except Exception as e:
+        logging.error(f"JSON invalide /api/orgs : {e}")
+        return jsonify({"error": "JSON invalide"}), 400
 
-    # create org id and key
+    name = str(payload.get("name") or "").strip()
+    if not name or len(name) < 3:
+        logging.error(f"Nom organisation trop court /api/orgs : {name}")
+        return jsonify({"error": "name requis (min 3 caractères)"}), 400
+
     org_id = f"org_{secrets.token_hex(6)}"
     key = secrets.token_hex(16)
-
     try:
         conn = sqlite3.connect(str(FLEET_DB_PATH))
         cur = conn.cursor()
@@ -815,9 +831,11 @@ def api_create_org():
         cur.execute(sql_key, (key, org_id, time.time()))
         conn.commit()
         conn.close()
-    except Exception:
+    except Exception as e:
+        logging.error(f"Erreur DB /api/orgs : {e}")
         return jsonify({"error": "db error"}), 500
 
+    logging.info(f"Organisation créée : {org_id} ({name})")
     return jsonify({"org_id": org_id, "api_key": key, "name": name})
 
 
@@ -1026,15 +1044,27 @@ def _check_fleet_token() -> Dict[str, object] | None:
 def api_action():
     auth_err = _check_action_token()
     if auth_err:
+        logging.warning(f"Accès refusé /api/action depuis {request.remote_addr}")
         return jsonify(auth_err), 403
 
-    payload = request.get_json(silent=True) or {}
+    try:
+        payload = request.get_json(force=True)
+    except Exception as e:
+        logging.error(f"JSON invalide /api/action : {e}")
+        return jsonify({"error": "JSON invalide"}), 400
+
     action_name = str(payload.get("action", "")).strip()
     if action_name not in APPROVED_ACTIONS:
+        logging.error(f"Action inconnue /api/action : {action_name}")
         return jsonify({"error": "Action inconnue"}), 400
 
     runner = APPROVED_ACTIONS[action_name]["runner"]
-    result = runner()
+    try:
+        result = runner()
+    except Exception as e:
+        logging.error(f"Erreur exécution action {action_name} : {e}")
+        return jsonify({"error": f"Erreur action {action_name}"}), 500
+    logging.info(f"Action exécutée : {action_name} par {request.remote_addr}")
     return jsonify({"action": action_name, **result})
 
 
@@ -1090,22 +1120,36 @@ def download_agent(token: str):
 
 @app.route("/api/fleet/report", methods=["POST"])
 def api_fleet_report():
-    # validate org key (returns org_id)
     ok, org_id = _check_org_key()
     if not ok or not org_id:
+        logging.warning(f"Accès refusé /api/fleet/report depuis {request.remote_addr}")
         return jsonify({"error": "Unauthorized"}), 403
 
-    payload = request.get_json(silent=True) or {}
+    try:
+        payload = request.get_json(force=True)
+    except Exception as e:
+        logging.error(f"JSON invalide /api/fleet/report : {e}")
+        return jsonify({"error": "JSON invalide"}), 400
+
     machine_id = str(payload.get("machine_id") or payload.get("id") or uuid.uuid4())
     if not machine_id:
+        logging.error(f"machine_id manquant /api/fleet/report depuis {request.remote_addr}")
         return jsonify({"error": "machine_id manquant"}), 400
 
-    report = payload.get("report") or {}
+    report = payload.get("report")
+    if not isinstance(report, dict):
+        logging.error(f"report non dict /api/fleet/report : {report}")
+        return jsonify({"error": "report doit être un dict"}), 400
+
+    # Validation stricte des métriques
+    for key in ["cpu_percent", "ram_percent", "disk_percent"]:
+        val = report.get(key)
+        if not isinstance(val, (int, float)) or val is None:
+            logging.error(f"Métrique {key} invalide : {val}")
+            return jsonify({"error": f"Métrique {key} invalide"}), 400
+
     now_ts = time.time()
-
-    # key entries by org:machine to avoid collisions
     store_key = f"{org_id}:{machine_id}"
-
     FLEET_STATE[store_key] = {
         "id": machine_id,
         "report": report,
@@ -1113,9 +1157,8 @@ def api_fleet_report():
         "client": request.remote_addr,
         "org_id": org_id,
     }
-
     _save_fleet_state()
-
+    logging.info(f"Report reçu pour {machine_id} ({org_id}) de {request.remote_addr}")
     return jsonify({"ok": True})
 
 
