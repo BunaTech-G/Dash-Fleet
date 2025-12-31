@@ -15,11 +15,8 @@ import sqlite3
 import urllib.request
 import urllib.error
 import argparse
-from pathlib import Path
-from typing import Dict, Iterable
 import requests
 import psutil
-from flask import Flask, jsonify, render_template, request
 from flasgger import Swagger
 from db_utils import insert_organization, insert_fleet_report
 from flask_limiter import Limiter
@@ -113,7 +110,6 @@ import urllib.request
 import webbrowser
 import zipfile
 import uuid
-from pathlib import Path
 from typing import Dict, Iterable
 
 import psutil
