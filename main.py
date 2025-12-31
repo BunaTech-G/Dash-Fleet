@@ -1,68 +1,46 @@
 # ALWAYS keep this import as the very first line:
 
 from __future__ import annotations
-from __future__ import annotations
-import os
-import sys
-import time
-import json
-import csv
-import secrets
-import threading
-import tempfile
-import zipfile
-import subprocess
-import logging
-import datetime as dt
-import sqlite3
-import urllib.request
-import urllib.error
-import requests
-import psutil
-from flask import Flask, request, jsonify, render_template, redirect, url_for, session, flash
-from flasgger import Swagger
-from db_utils import insert_fleet_report
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
-from marshmallow import Schema, fields, ValidationError
-from functools import wraps
 
+import csv
+import datetime as dt
+import json
+import logging
+import os
+import secrets
+import sqlite3
+import subprocess
+import sys
+import tempfile
+import threading
+import time
+import urllib.error
+import urllib.request
+import zipfile
 from pathlib import Path
 from typing import Dict, Iterable
+
+import psutil
+import requests
+from flask import Flask, request, jsonify, render_template, redirect, url_for, session, flash
+from flasgger import Swagger
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from functools import wraps
+from marshmallow import Schema, fields, ValidationError
+
+from db_utils import insert_fleet_report
 
 
 app = Flask(__name__, template_folder="templates", static_folder="static")
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key')  # À changer en prod !
 
-
-
-# --- Route de setup admin ---
-import os
-import sys
-import time
-import json
-import csv
-import secrets
-import threading
-import tempfile
-import zipfile
-import subprocess
-import logging
-import datetime as dt
-import sqlite3
-import urllib.request
-import urllib.error
-import requests
-import psutil
-from flask import Flask, request, jsonify, render_template
-from flasgger import Swagger
-app = Flask(__name__, template_folder="templates", static_folder="static")
-from db_utils import insert_fleet_report
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
-from marshmallow import Schema, fields, ValidationError
-from functools import wraps
-from pathlib import Path
+swagger = Swagger(app)
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=["100 per minute"]
+)
 
 
 # --- Route temporaire de debug pour lister les templates ---
@@ -79,14 +57,6 @@ def debug_templates():
         return f"Erreur accès dossier templates : {e}", 500
 
 
-swagger = Swagger(app)
-limiter = Limiter(
-    get_remote_address,
-    app=app,
-    default_limits=["100 per minute"]
-)
-
-
 # --- Initialisation du compte admin (une seule fois) ---
 def create_admin_table():
     conn = sqlite3.connect(str(FLEET_DB_PATH))
@@ -97,6 +67,7 @@ def create_admin_table():
     )''')
     conn.commit()
     conn.close()
+
 
 @app.route('/init-admin', methods=['GET', 'POST'])
 def init_admin():
@@ -121,8 +92,8 @@ def init_admin():
     conn.close()
     return render_template('init_admin.html')
 
+
 # --- Authentification admin/password ---
-from functools import wraps
 def login_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
@@ -130,6 +101,7 @@ def login_required(f):
             return redirect(url_for('login'))
         return f(*args, **kwargs)
     return decorated
+
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -148,25 +120,12 @@ def login():
         flash('Identifiants invalides')
     return render_template('login.html')
 
+
 @app.route('/logout')
 def logout():
     session.clear()
     return redirect(url_for('login'))
 
-
-
-
-# Suppression des décorateurs liés à l'ancien système d'API key
-
-
-
-app = Flask(__name__, template_folder="templates", static_folder="static")
-swagger = Swagger(app)
-limiter = Limiter(
-    get_remote_address,
-    app=app,
-    default_limits=["100 per minute"]
-)
 
 # Schéma Marshmallow pour la validation avancée du rapport agent
 
@@ -222,11 +181,7 @@ SESSION_TTL_SECONDS = int(os.environ.get("SESSION_TTL_SECONDS", str(60 * 60 * 8)
 # - api_keys(key TEXT PRIMARY KEY, org_id TEXT, created_at REAL, revoked INTEGER)
 # - fleet(id TEXT PRIMARY KEY, report TEXT, ts REAL, client TEXT, org_id TEXT)
 
-
-app = Flask(__name__, template_folder="templates", static_folder="static")
-
 # Force la migration de la base au démarrage
-
 
 def _format_bytes_to_gib(bytes_value: float) -> float:
     """Convertit des bytes en Gio avec deux décimales."""
