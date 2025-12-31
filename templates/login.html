@@ -1,91 +1,167 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <title>Connexion Admin</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Connexion administrateur</title>
+  <style>
+    :root {
+      --bg: radial-gradient(circle at 10% 20%, #0d1b2a 0%, #0b1321 25%, #0b0f1a 60%, #080b12 100%);
+      --card-bg: rgba(255,255,255,0.07);
+      --card-border: rgba(255,255,255,0.08);
+      --text: #eef2f7;
+      --muted: #9fb1c7;
+      --accent: #4dd0e1;
+      --accent-strong: #2bb0c8;
+      --danger: #ff6b6b;
+      --shadow: 0 20px 60px rgba(0,0,0,0.35);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Poppins', 'Segoe UI', sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .card {
+      width: 100%;
+      max-width: 420px;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 28px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(8px);
+      position: relative;
+      overflow: hidden;
+    }
+    .card::before {
+      content: '';
+      position: absolute;
+      inset: -40px;
+      background: radial-gradient(circle at 20% 20%, rgba(77,208,225,0.15), transparent 40%),
+                  radial-gradient(circle at 80% 0%, rgba(255,255,255,0.06), transparent 35%);
+      z-index: 0;
+    }
+    h1 {
+      margin: 0 0 8px;
+      font-size: 24px;
+      letter-spacing: -0.3px;
+      position: relative;
+      z-index: 1;
+    }
+    p.sub {
+      margin: 0 0 20px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.5;
+      position: relative;
+      z-index: 1;
+    }
+    label {
+      display: block;
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 6px;
+      position: relative;
+      z-index: 1;
+    }
+    input[type="text"], input[type="password"] {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 12px;
+      border: 1px solid var(--card-border);
+      background: rgba(255,255,255,0.04);
+      color: var(--text);
+      font-size: 15px;
+      outline: none;
+      transition: border 0.2s, box-shadow 0.2s;
+      position: relative;
+      z-index: 1;
+    }
+    input[type="text"]:focus, input[type="password"]:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(77,208,225,0.15);
+    }
+    .field { margin-bottom: 16px; position: relative; z-index: 1; }
+    button {
+      width: 100%;
+      padding: 12px 16px;
+      border-radius: 12px;
+      border: none;
+      background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+      color: #041019;
+      font-weight: 700;
+      font-size: 15px;
+      cursor: pointer;
+      box-shadow: 0 12px 30px rgba(43,176,200,0.3);
+      transition: transform 0.1s ease, box-shadow 0.2s ease;
+      position: relative;
+      z-index: 1;
+    }
+    button:hover { transform: translateY(-1px); box-shadow: 0 14px 34px rgba(43,176,200,0.35); }
+    button:active { transform: translateY(0); }
+    .footer {
+      margin-top: 16px;
+      font-size: 13px;
+      color: var(--muted);
+      text-align: center;
+      position: relative;
+      z-index: 1;
+    }
+    .footer a {
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .footer a:hover { text-decoration: underline; }
+    .flash {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid var(--card-border);
+      padding: 10px 12px;
+      border-radius: 10px;
+      color: var(--danger);
+      font-size: 13px;
+      margin-bottom: 12px;
+      position: relative;
+      z-index: 1;
+    }
+  </style>
 </head>
 <body>
-    <h2>Connexion admin</h2>
-    <form method="post">
-        <label>Nom d'utilisateur : <input type="text" name="username" required></label><br>
-        <label>Mot de passe : <input type="password" name="password" required></label><br>
-        <button type="submit">Se connecter</button>
-    </form>
+  <div class="card" role="main">
+    <h1>Connexion admin</h1>
+    <p class="sub">Connectez-vous avec vos identifiants administrateur pour accéder au tableau de bord.</p>
+
     {% with messages = get_flashed_messages() %}
       {% if messages %}
-        <ul>
         {% for message in messages %}
-          <li>{{ message }}</li>
+          <div class="flash">{{ message }}</div>
         {% endfor %}
-        </ul>
       {% endif %}
     {% endwith %}
-</body>
-</html>
-      <!-- Ancien formulaire clé API supprimé -->
-        </script>
-      <div id="msg" class="auth-error" aria-live="polite"></div>
-      <div class="small" id="login-footer">Vous pouvez créer une clé via l'admin si vous disposez d'un `ACTION_TOKEN`.</div>
-          <div style="position: absolute; bottom: 18px; right: 24px; font-size: 12px; color: #888;">
-            <a href="/setup-admin" style="color: #888; text-decoration: none;">Initialiser admin&nbsp;?</a>
-          </div>
+
+    <form method="post" autocomplete="on">
+      <div class="field">
+        <label for="username">Nom d'utilisateur</label>
+        <input id="username" name="username" type="text" required autofocus placeholder="admin" />
+      </div>
+      <div class="field">
+        <label for="password">Mot de passe</label>
+        <input id="password" name="password" type="password" required placeholder="••••••••" />
+      </div>
+      <button type="submit">Se connecter</button>
+    </form>
+
+    <div class="footer">
+      Besoin de créer le premier compte ?
+      <a href="/init-admin">Initialiser un admin</a>
     </div>
   </div>
-
-  <script>
-    const i18n = {
-      fr: {
-        title: 'Connexion', hint: 'Entrez une clé API valide pour afficher le tableau de bord.',
-        api_required: 'La clé API est requise.', network: 'Erreur réseau.', create_hint: "Vous pouvez créer une clé via l'admin si vous disposez d'un ACTION_TOKEN.", login_btn: 'Se connecter'
-      },
-      en: {
-        title: 'Sign in', hint: 'Enter a valid API key to view the dashboard.',
-        api_required: 'API key is required.', network: 'Network error.', create_hint: 'You can create a key via admin if you have an ACTION_TOKEN.', login_btn: 'Sign in'
-      }
-    };
-
-    function applyLang(code){
-      const t = i18n[code]||i18n.fr;
-      document.getElementById('login-title').textContent = t.title;
-      document.getElementById('login-hint').textContent = t.hint;
-      document.getElementById('login-footer').textContent = t.create_hint;
-      document.getElementById('login').textContent = t.login_btn;
-      document.getElementById('msg').textContent = '';
-      document.getElementById('api_key').placeholder = '';
-      // store selected
-      try{ localStorage.setItem('dash_lang', code) }catch(e){}
-    }
-
-    (function(){ const stored = localStorage.getItem('dash_lang')||'fr'; document.getElementById('lang').value=stored; applyLang(stored); })();
-
-    document.getElementById('lang').addEventListener('change', (e)=> applyLang(e.target.value));
-
-    async function doLogin() {
-      const key = document.getElementById('api_key').value.trim();
-      const msg = document.getElementById('msg');
-      msg.textContent = '';
-      const lang = document.getElementById('lang').value || 'fr';
-      const t = i18n[lang] || i18n.fr;
-      if (!key) { msg.textContent = t.api_required; return }
-      try {
-        const resp = await fetch('/api/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ api_key: key })
-        });
-        const data = await resp.json();
-        if (!resp.ok) {
-          msg.textContent = data.error || t.network;
-          return
-        }
-        // session cookie set by server; redirect to root
-        window.location.replace('/');
-      } catch (err) {
-        msg.textContent = t.network;
-      }
-    }
-    document.getElementById('login').addEventListener('click', doLogin);
-    document.getElementById('api_key').addEventListener('keydown', (e)=>{ if(e.key==='Enter') doLogin() });
-  </script>
 </body>
 </html>

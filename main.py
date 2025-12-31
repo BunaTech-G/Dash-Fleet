@@ -69,6 +69,35 @@ def create_admin_table():
     conn.close()
 
 
+def ensure_bootstrap_admin():
+    """Crée un admin initial si la table est vide et que les variables d'env sont définies.
+
+    Définir ADMIN_BOOTSTRAP_USERNAME et ADMIN_BOOTSTRAP_PASSWORD avant le démarrage
+    pour créer automatiquement le compte si aucun admin n'existe encore.
+    """
+    user = os.environ.get("ADMIN_BOOTSTRAP_USERNAME")
+    pwd = os.environ.get("ADMIN_BOOTSTRAP_PASSWORD")
+    if not user or not pwd:
+        return
+    create_admin_table()
+    try:
+        conn = sqlite3.connect(str(FLEET_DB_PATH))
+        cur = conn.execute('SELECT COUNT(*) FROM admin')
+        count = cur.fetchone()[0]
+        if count == 0:
+            from werkzeug.security import generate_password_hash
+            conn.execute('INSERT INTO admin (username, password_hash) VALUES (?, ?)', (user, generate_password_hash(pwd)))
+            conn.commit()
+            logging.info("Admin bootstrap créé via variables d'environnement.")
+    except Exception as e:
+        logging.error(f"Erreur bootstrap admin : {e}")
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
+
+
 @app.route('/init-admin', methods=['GET', 'POST'])
 def init_admin():
     create_admin_table()
@@ -175,6 +204,9 @@ FLEET_TTL_SECONDS = int(os.environ.get("FLEET_TTL_SECONDS", "600"))  # expiratio
 FLEET_STATE_PATH = Path("logs/fleet_state.json")
 FLEET_DB_PATH = Path("data/fleet.db")
 SESSION_TTL_SECONDS = int(os.environ.get("SESSION_TTL_SECONDS", str(60 * 60 * 8)))
+
+# Crée automatiquement un admin si la table est vide et que les variables d'env sont présentes.
+ensure_bootstrap_admin()
 
 # DB schema notes:
 # - organizations(id TEXT PRIMARY KEY, name TEXT)
