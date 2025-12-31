@@ -45,12 +45,15 @@ def require_role(role_required):
             return f(*args, **kwargs)
         return wrapper
     return decorator
+from flask import Flask, jsonify, render_template, request
 from flasgger import Swagger
-# Initialisation Swagger/OpenAPI
-swagger = Swagger(app)
 from db_utils import insert_organization, insert_fleet_report
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+
+app = Flask(__name__, template_folder="templates", static_folder="static")
+# Initialisation Swagger/OpenAPI
+swagger = Swagger(app)
 # Initialisation du rate limiting
 limiter = Limiter(
     get_remote_address,
@@ -199,7 +202,6 @@ def _health_score(stats: Dict[str, object]) -> Dict[str, object]:
 
 _LAST_WEBHOOK_TS = 0.0
 FLEET_STATE: Dict[str, Dict[str, object]] = {}
-_ensure_db_schema()
 def _load_fleet_state() -> None:
     """Recharge l'état fleet depuis la base SQLite si présente, sinon depuis le JSON (best effort)."""
     global FLEET_STATE
@@ -889,7 +891,6 @@ def api_create_org():
     except Exception as e:
         logging.error(f"JSON invalide /api/orgs : {e}")
         return jsonify({"error": "JSON invalide"}), 400
-
     name = str(payload.get("name") or "").strip()
     if not name or len(name) < 3:
         logging.error(f"Nom organisation trop court /api/orgs : {name}")
@@ -1156,7 +1157,8 @@ def api_action():
         logging.error(f"Erreur exécution action {action_name} : {e}")
         return jsonify({"error": f"Erreur action {action_name}"}), 500
     user_agent = request.headers.get("User-Agent", "")
-    logging.info(f"org_id={org_id} user_agent={user_agent}")
+    # org_id n'est pas défini ici, donc on ne le log pas
+    logging.info(f"user_agent={user_agent}")
     logging.info(f"Action exécutée : {action_name} par {request.remote_addr}")
     return jsonify({"action": action_name, **result})
 
