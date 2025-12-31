@@ -1549,8 +1549,7 @@ def main() -> None:
             start_session_cleaner(interval=60)
         except Exception as e:
             logging.error(f"Erreur lancement session cleaner : {e}")
-        # Ouvre le navigateur par défaut quelques ms après le démarrage du serveur.
-        threading.Timer(0.5, lambda: webbrowser.open(f"http://{args.host}:{args.port}")).start()
+        # (L'ouverture automatique du navigateur est désactivée sur Render)
         app.run(host=args.host, port=args.port, debug=False)
     else:
         run_cli(args.interval, args.export_csv, args.export_jsonl)
