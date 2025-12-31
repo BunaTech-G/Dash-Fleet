@@ -1,43 +1,27 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Connexion - DashFleet</title>
-  <link rel="stylesheet" href="/static/style.css">
-  <style>
-    /* Small overrides to centre the auth card */
-    .auth-wrap { min-height: 100vh; display:flex; align-items:center; justify-content:center; padding:40px; }
-    .auth-card { width:420px; max-width:96%; padding:28px; border-radius:12px; background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border:1px solid var(--border); box-shadow:var(--shadow); }
-    .auth-card h2 { margin:0 0 8px; font-size:22px }
-    .auth-hint { color:var(--muted); margin-bottom:14px }
-    .auth-field { margin-bottom:12px }
-    .auth-input { width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--border); background: rgba(255,255,255,0.02); color:var(--text); }
-    .auth-btn { margin-top:8px; width:100%; padding:10px; border-radius:10px; border:none; background:var(--accent); color:#04263a; font-weight:700; cursor:pointer }
-    .auth-error { margin-top:10px; color:#ffb4b4; font-weight:600 }
-    .small { font-size:13px; color:var(--muted); margin-top:8px }
-  </style>
+    <meta charset="UTF-8">
+    <title>Connexion Admin</title>
 </head>
-<body class="">
-    <div id="toast" class="toast" role="status" aria-live="polite" style="display:none;position:fixed;top:24px;left:50%;transform:translateX(-50%);background:var(--accent);color:#04263a;padding:14px 24px;border-radius:12px;z-index:9999;font-weight:600;box-shadow:0 8px 30px rgba(0,0,0,0.18);font-size:1.1em;min-width:220px;text-align:center;"></div>
-  <div class="page auth-wrap">
-    <div class="auth-card">
-      <div class="header" style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
-        <img src="/static/logo.svg" alt="DashFleet" style="height:40px;" />
-        <div>
-          <div class="eyebrow">Tableau de bord système</div>
-          <h2 id="login-title">Connexion</h2>
-        </div>
-      </div>
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-        <p id="login-hint" class="auth-hint">Entrez une clé API valide pour afficher le tableau de bord.</p>
-        <select id="lang" class="lang-select" aria-label="Langue">
-          <option value="fr">FR</option>
-          <option value="en">EN</option>
-        </select>
-      </div>
-
-      <div class="auth-field">
+<body>
+    <h2>Connexion admin</h2>
+    <form method="post">
+        <label>Nom d'utilisateur : <input type="text" name="username" required></label><br>
+        <label>Mot de passe : <input type="password" name="password" required></label><br>
+        <button type="submit">Se connecter</button>
+    </form>
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <ul>
+        {% for message in messages %}
+          <li>{{ message }}</li>
+        {% endfor %}
+        </ul>
+      {% endif %}
+    {% endwith %}
+</body>
+</html>
         <label for="api_key" class="label">Clé API</label>
         <input id="api_key" class="auth-input" type="text" placeholder="xxxx..." autocomplete="off" aria-label="Clé API" tabindex="1" />
       </div>

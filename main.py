@@ -906,31 +906,8 @@ def print_stats(stats: Dict[str, object]) -> None:
 
 @app.route("/")
 def dashboard() -> str:
-    # Si PUBLIC_READ est activé, accès libre au dashboard
-    public_read = os.environ.get("PUBLIC_READ", "false").lower() in ("1", "true", "yes")
-    if public_read:
-        return render_template("index.html")
-
-    # Vérifier s'il existe une organisation
-    try:
-        conn = sqlite3.connect(str(FLEET_DB_PATH))
-        cur = conn.cursor()
-        cur.execute('SELECT COUNT(*) FROM organizations')
-        count = cur.fetchone()[0]
-        conn.close()
-    except Exception as e:
-        logging.error(f"Erreur accès DB pour dashboard: {e}")
-        count = 0
-    if count == 0:
-        # Rediriger vers la page de setup admin si aucune organisation
-        from flask import redirect, url_for
-        return redirect(url_for('setup_admin'))
-
-    # Sinon, session requise
-    sid = request.cookies.get('dashfleet_sid')
-    if sid and _get_org_for_session(sid):
-        return render_template("index.html")
-    return render_template("login.html")
+    # Accès libre au dashboard (aucune authentification requise)
+    return render_template("index.html")
 
 
 @app.route("/history")
@@ -1184,15 +1161,14 @@ def api_revoke_key():
         return jsonify({"error": "db error"}), 500
 
 
+
+# Accès libre à l'admin (aucune authentification requise)
 @app.route("/admin/orgs")
 def admin_orgs():
-    """Simple admin UI for organizations and API keys."""
     return render_template("admin_orgs.html")
-
 
 @app.route("/admin/tokens")
 def admin_tokens():
-    """Admin UI to manage agent download tokens."""
     return render_template("admin_tokens.html")
 
 
