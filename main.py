@@ -35,43 +35,7 @@ app = Flask(__name__, template_folder="templates", static_folder="static")
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key')  # À changer en prod !
 
 
-# --- Route temporaire de debug pour lister les templates ---
-# ATTENTION : À désactiver en production !
-@app.route('/debug-templates')
-def debug_templates():
-    if not session.get('admin_logged_in'):
-        return redirect(url_for('login'))
-    import os
-    template_dir = app.template_folder or 'templates'
-    try:
-        files = os.listdir(template_dir)
-        return '<br>'.join(files)
-    except Exception as e:
-        return f"Erreur accès dossier templates : {e}", 500
 
-
-swagger = Swagger(app)
-limiter = Limiter(
-    get_remote_address,
-    app=app,
-    default_limits=["100 per minute"]
-)
-
-# ...existing code...
-
-
-# --- Route temporaire de debug pour lister les templates ---
-# ATTENTION : À désactiver en production !
-@app.route('/debug-templates')
-def debug_templates():
-    # TODO: restreindre l'accès à cette route (admin uniquement)
-    import os
-    template_dir = app.template_folder or 'templates'
-    try:
-        files = os.listdir(template_dir)
-        return '<br>'.join(files)
-    except Exception as e:
-        return f"Erreur accès dossier templates : {e}", 500
 # --- Route de setup admin ---
 import os
 import sys
