@@ -1,3 +1,31 @@
+.dot {
+  display:inline-block;
+  width:12px;
+  height:12px;
+  border-radius:50%;
+  margin-right:5px;
+  vertical-align:middle;
+}
+.dot-ok { background:#22c55e; }
+.dot-warn { background:#facc15; }
+.dot-critical { background:#f43f5e; }
+.dot-expired { background:#f59e42; }
+
+.badge-score {
+  font-size:18px;
+  padding:4px 12px;
+  border-radius:16px;
+  font-weight:700;
+  background:rgba(56,189,248,0.10);
+  border:1.5px solid var(--border);
+  color:var(--text);
+  min-width:60px;
+  text-align:center;
+}
+.badge-ok { background:#22c55e22; border-color:#22c55e; color:#22c55e; }
+.badge-warn { background:#facc1522; border-color:#facc15; color:#facc15; }
+.badge-critical { background:#f43f5e22; border-color:#f43f5e; color:#f43f5e; }
+.badge-expired { background:#f59e4222; border-color:#f59e42; color:#f59e42; }
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&display=swap');
 
 :root {

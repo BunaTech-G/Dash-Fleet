@@ -43,6 +43,12 @@
         <h2 id="fleet-table-title">Machines</h2>
         <span class="muted" id="fleet-meta">--</span>
       </div>
+      <div class="legend-status" style="margin-bottom:10px;font-size:13px;color:var(--muted);display:flex;gap:18px;flex-wrap:wrap">
+        <span><span class="dot dot-ok"></span> OK</span>
+        <span><span class="dot dot-warn"></span> Warn</span>
+        <span><span class="dot dot-critical"></span> Critical</span>
+        <span><span class="dot dot-expired"></span> Expired</span>
+      </div>
       <div class="fleet-controls">
         <label>Statut:
           <select id="filter-status" class="control-select">
@@ -130,17 +136,20 @@
       data.forEach((entry) => {
         const report = entry.report || {};
         const health = report.health || { score: 0, status: 'ok' };
-        const lastSeen = new Date(entry.ts * 1000).toISOString();
+        const lastSeen = new Date(entry.ts * 1000).toLocaleString();
         const now = Date.now() / 1000;
         const expired = (now - entry.ts > fleetTTL);
+        const status = expired ? 'expired' : health.status;
         const card = document.createElement('article');
-        card.className = `card ${statusClass(health.status, entry.ts)}`;
+        card.className = `card ${statusClass(status, entry.ts)}`;
         card.innerHTML = `
-          <div class="label">${entry.id || 'machine'}</div>
-          <div class="value">${health.score || 0}/100</div>
-          <div class="meta">${health.status || 'ok'} · ${report.uptime_hms || ''}</div>
-          <div class="meta">CPU ${report.cpu_percent?.toFixed?.(1) || '--'}% · RAM ${report.ram_percent?.toFixed?.(1) || '--'}% · Disk ${report.disk_percent?.toFixed?.(1) || '--'}%</div>
-          <div class="meta muted">Last: ${lastSeen} (${entry.client || ''})${expired ? ' ⚠️' : ''}</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+            <div class="label">${entry.id || 'machine'}</div>
+            <span class="badge badge-score badge-${status}">${health.score || 0}/100</span>
+          </div>
+          <div class="meta" style="margin-bottom:4px"><span class="dot dot-${status}"></span> ${status.toUpperCase()} · ${report.uptime_hms || ''}</div>
+          <div class="meta">CPU <b>${report.cpu_percent?.toFixed?.(1) || '--'}</b>% · RAM <b>${report.ram_percent?.toFixed?.(1) || '--'}</b>% · Disk <b>${report.disk_percent?.toFixed?.(1) || '--'}</b>%</div>
+          <div class="meta muted">Dernier: ${lastSeen} (${entry.client || ''})${expired ? ' ⚠️' : ''}</div>
         `;
         fleetCards.appendChild(card);
       });
