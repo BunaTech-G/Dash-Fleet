@@ -1,5 +1,10 @@
 # ALWAYS keep this import as the very first line:
+
 from __future__ import annotations
+# ...existing code...
+app = Flask(__name__, template_folder="templates", static_folder="static")
+# ...existing code...
+
 # --- Route temporaire de debug pour lister les templates ---
 @app.route('/debug-templates')
 def debug_templates():
