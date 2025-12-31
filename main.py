@@ -1,3 +1,5 @@
+# ALWAYS keep this import as the very first line:
+from __future__ import annotations
 # --- Route temporaire de debug pour lister les templates ---
 @app.route('/debug-templates')
 def debug_templates():
@@ -8,7 +10,6 @@ def debug_templates():
         return '<br>'.join(files)
     except Exception as e:
         return f"Erreur accès dossier templates : {e}", 500
-from __future__ import annotations
 # --- Route de setup admin ---
 import os
 import sys
@@ -35,6 +36,17 @@ from flask_limiter.util import get_remote_address
 from marshmallow import Schema, fields, ValidationError
 from functools import wraps
 from pathlib import Path
+
+# --- Route temporaire de debug pour lister les templates ---
+@app.route('/debug-templates')
+def debug_templates():
+    import os
+    template_dir = app.template_folder or 'templates'
+    try:
+        files = os.listdir(template_dir)
+        return '<br>'.join(files)
+    except Exception as e:
+        return f"Erreur accès dossier templates : {e}", 500
 
 app = Flask(__name__, template_folder="templates", static_folder="static")
 swagger = Swagger(app)
