@@ -190,8 +190,7 @@ def logout():
     return redirect(url_for('login'))
 
 
-def require_role_multi(*roles_required):
-def require_role(role_required):
+
 
 # Suppression des décorateurs liés à l'ancien système d'API key
 
