@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 # ...existing code...
-app = Flask(__name__, template_folder="templates", static_folder="static")
+
 # ...existing code...
 
 
@@ -38,6 +38,7 @@ import requests
 import psutil
 from flask import Flask, request, jsonify, render_template
 from flasgger import Swagger
+app = Flask(__name__, template_folder="templates", static_folder="static")
 from db_utils import insert_fleet_report
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
