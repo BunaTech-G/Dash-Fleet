@@ -1,28 +1,5 @@
 # --- Route de setup admin ---
-from flask import render_template, request
 
-@app.route('/setup-admin', methods=['GET', 'POST'])
-def setup_admin():
-    conn = sqlite3.connect(str(FLEET_DB_PATH))
-    cur = conn.cursor()
-    cur.execute('SELECT COUNT(*) FROM organizations')
-    count = cur.fetchone()[0]
-    if count > 0:
-        conn.close()
-        return render_template('setup_admin.html', already_exists=True)
-    api_key = None
-    if request.method == 'POST':
-        name = request.form.get('name', 'admin').strip()
-        if not name or len(name) < 3:
-            return render_template('setup_admin.html', error="Nom requis (min 3 caractères)", already_exists=False)
-        org_id = f"org_{secrets.token_hex(6)}"
-        key = secrets.token_hex(16)
-        cur.execute('INSERT INTO organizations (id, name, role) VALUES (?, ?, ?)', (org_id, name, 'admin'))
-        cur.execute('INSERT INTO api_keys (key, org_id, created_at, revoked) VALUES (?, ?, ?, 0)', (key, org_id, time.time()))
-        conn.commit()
-        api_key = key
-    conn.close()
-    return render_template('setup_admin.html', api_key=api_key, already_exists=False)
 from __future__ import annotations
 import os
 import sys
@@ -49,6 +26,31 @@ from flask_limiter.util import get_remote_address
 from marshmallow import Schema, fields, ValidationError
 from functools import wraps
 from pathlib import Path
+from flask import render_template, request
+
+@app.route('/setup-admin', methods=['GET', 'POST'])
+def setup_admin():
+    conn = sqlite3.connect(str(FLEET_DB_PATH))
+    cur = conn.cursor()
+    cur.execute('SELECT COUNT(*) FROM organizations')
+    count = cur.fetchone()[0]
+    if count > 0:
+        conn.close()
+        return render_template('setup_admin.html', already_exists=True)
+    api_key = None
+    if request.method == 'POST':
+        name = request.form.get('name', 'admin').strip()
+        if not name or len(name) < 3:
+            return render_template('setup_admin.html', error="Nom requis (min 3 caractères)", already_exists=False)
+        org_id = f"org_{secrets.token_hex(6)}"
+        key = secrets.token_hex(16)
+        cur.execute('INSERT INTO organizations (id, name, role) VALUES (?, ?, ?)', (org_id, name, 'admin'))
+        cur.execute('INSERT INTO api_keys (key, org_id, created_at, revoked) VALUES (?, ?, ?, 0)', (key, org_id, time.time()))
+        conn.commit()
+        api_key = key
+    conn.close()
+    return render_template('setup_admin.html', api_key=api_key, already_exists=False)
+
 
 # Décorateur pour exiger un ou plusieurs rôles (ex: admin, user, readonly)
 
