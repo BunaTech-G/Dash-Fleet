@@ -1214,81 +1214,81 @@ def download_agent(token: str):
 @limiter.limit("30/minute")
 @require_role_multi("admin", "user")
 def api_fleet_report():
-            """
-            Reporte les métriques d'un agent.
-            ---
-            tags:
-                - Fleet
-            parameters:
-                - in: body
-                    name: body
-                    required: true
-                    schema:
-                        type: object
-                        properties:
-                            machine_id:
-                                type: string
-                            report:
-                                type: object
-                                properties:
-                                    cpu_percent:
-                                        type: number
-                                    ram_percent:
-                                        type: number
-                                    disk_percent:
-                                        type: number
-            responses:
-                200:
-                    description: Rapport accepté
-                400:
-                    description: Erreur de validation
-                403:
-                    description: Non autorisé
-            """
-            """
-            Crée une organisation et une clé API.
-            ---
-            tags:
-                - Orgs
-            parameters:
-                - in: body
-                    name: body
-                    required: true
-                    schema:
-                        type: object
-                        properties:
-                            name:
-                                type: string
-            responses:
-                200:
-                    description: Organisation créée
-                400:
-                    description: Erreur de validation
-                403:
-                    description: Non autorisé
-            """
-            """
-            Exécute une action distante sur le serveur.
-            ---
-            tags:
-                - Actions
-            parameters:
-                - in: body
-                    name: body
-                    required: true
-                    schema:
-                        type: object
-                        properties:
-                            action:
-                                type: string
-            responses:
-                200:
-                    description: Action exécutée
-                400:
-                    description: Erreur de validation
-                403:
-                    description: Non autorisé
-            """
+    """
+    Reporte les métriques d'un agent.
+    ---
+    tags:
+        - Fleet
+    parameters:
+        - in: body
+          name: body
+          required: true
+          schema:
+            type: object
+            properties:
+                machine_id:
+                    type: string
+                report:
+                    type: object
+                    properties:
+                        cpu_percent:
+                            type: number
+                        ram_percent:
+                            type: number
+                        disk_percent:
+                            type: number
+    responses:
+        200:
+            description: Rapport accepté
+        400:
+            description: Erreur de validation
+        403:
+            description: Non autorisé
+    """
+    """
+    Crée une organisation et une clé API.
+    ---
+    tags:
+        - Orgs
+    parameters:
+        - in: body
+          name: body
+          required: true
+          schema:
+            type: object
+            properties:
+                name:
+                    type: string
+    responses:
+        200:
+            description: Organisation créée
+        400:
+            description: Erreur de validation
+        403:
+            description: Non autorisé
+    """
+    """
+    Exécute une action distante sur le serveur.
+    ---
+    tags:
+        - Actions
+    parameters:
+        - in: body
+          name: body
+          required: true
+          schema:
+            type: object
+            properties:
+                action:
+                    type: string
+    responses:
+        200:
+            description: Action exécutée
+        400:
+            description: Erreur de validation
+        403:
+            description: Non autorisé
+    """
     ok, org_id = _check_org_key()
     if not ok or not org_id:
         logging.warning(f"Accès refusé /api/fleet/report depuis {request.remote_addr}")
