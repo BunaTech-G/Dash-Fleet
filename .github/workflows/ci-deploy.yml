@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  test:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -17,43 +17,10 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-
-  integration:
-    needs: test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-      - name: Start Flask server in background
-        env:
-          ACTION_TOKEN: ${{ secrets.ACTION_TOKEN }}
-        run: |
-          nohup python main.py --host 127.0.0.1 --port 5000 > server.log 2>&1 &
-      - name: Wait for server
-        run: |
-          for i in {1..20}; do
-            if curl -sSf http://127.0.0.1:5000/api/status >/dev/null 2>&1; then
-              echo ready && break
-            fi
-            sleep 1
-          done
-
-  package:
-    needs: test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
-      - name: Install build tools
-        run: python -m pip install --upgrade pip build
+          pip install flake8
+      - name: Lint (flake8)
+        run: flake8 .
+        continue-on-error: true
       - name: Build distribution
         run: python -m build
       - name: Upload dist artifact
@@ -61,57 +28,4 @@ jobs:
         with:
           name: dist
           path: dist/*
-
-  deploy:
-    if: github.event_name == 'workflow_dispatch'
-    needs: package
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download built artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: dist
-          path: release
-
-      - name: Copy artifacts to remote (SCP)
-        uses: appleboy/scp-action@master
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: ${{ secrets.SERVER_PORT }}
-          source: "release/*"
-          target: "${{ secrets.REMOTE_PATH }}"
-
-      - name: Restart service on remote
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: ${{ secrets.SERVER_PORT }}
-          script: |
-            sudo systemctl restart dashfleet
-            sudo systemctl status dashfleet --no-pager
-
-  windows-package:
-    needs: test
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
-      - name: Install PyInstaller
-        run: python -m pip install --upgrade pip pyinstaller
-      - name: Build Windows agent (PowerShell script)
-        shell: pwsh
-        run: |
-          Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-          .\scripts\build_agent_windows.ps1
-      - name: Upload windows artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: windows-agent
-          path: dist\\*
+          python -m pip install --upgrade pip
