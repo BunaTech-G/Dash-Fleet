@@ -19,7 +19,7 @@ import urllib.request
 import urllib.error
 import requests
 import psutil
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, redirect, url_for, session, flash
 from flasgger import Swagger
 from db_utils import insert_fleet_report
 from flask_limiter import Limiter
@@ -31,12 +31,15 @@ from pathlib import Path
 from typing import Dict, Iterable
 
 app = Flask(__name__, template_folder="templates", static_folder="static")
+app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key')  # À changer en prod !
+
 
 # --- Route temporaire de debug pour lister les templates ---
 # ATTENTION : À désactiver en production !
 @app.route('/debug-templates')
 def debug_templates():
-    # TODO: restreindre l'accès à cette route (admin uniquement)
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('login'))
     import os
     template_dir = app.template_folder or 'templates'
     try:
@@ -118,32 +121,72 @@ limiter = Limiter(
     default_limits=["100 per minute"]
 )
 
-# --- Route de setup admin ---
-import re
-@app.route('/setup-admin', methods=['GET', 'POST'])
-@limiter.limit("3 per minute")
-def setup_admin():
+
+# --- Initialisation du compte admin (une seule fois) ---
+def create_admin_table():
     conn = sqlite3.connect(str(FLEET_DB_PATH))
-    cur = conn.cursor()
-    cur.execute('SELECT COUNT(*) FROM organizations')
-    count = cur.fetchone()[0]
-    if count > 0:
-        conn.close()
-        return render_template('setup_admin.html', already_exists=True)
-    api_key = None
-    if request.method == 'POST':
-        name = request.form.get('name', 'admin').strip()
-        # Validation stricte du nom d'organisation (alphanum, tiret, underscore, 3-32)
-        if not re.match(r'^[a-zA-Z0-9_-]{3,32}$', name):
-            return render_template('setup_admin.html', error="Nom invalide (alphanumérique, 3-32 caractères)", already_exists=False)
-        org_id = f"org_{secrets.token_hex(6)}"
-        key = secrets.token_hex(16)
-        cur.execute('INSERT INTO organizations (id, name, role) VALUES (?, ?, ?)', (org_id, name, 'admin'))
-        cur.execute('INSERT INTO api_keys (key, org_id, created_at, revoked) VALUES (?, ?, ?, 0)', (key, org_id, time.time()))
-        conn.commit()
-        api_key = key
+    conn.execute('''CREATE TABLE IF NOT EXISTS admin (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT UNIQUE NOT NULL,
+        password_hash TEXT NOT NULL
+    )''')
+    conn.commit()
     conn.close()
-    return render_template('setup_admin.html', api_key=api_key, already_exists=False)
+
+@app.route('/init-admin', methods=['GET', 'POST'])
+def init_admin():
+    create_admin_table()
+    conn = sqlite3.connect(str(FLEET_DB_PATH))
+    cur = conn.execute('SELECT COUNT(*) FROM admin')
+    if cur.fetchone()[0] > 0:
+        conn.close()
+        return 'Admin déjà initialisé.'
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        from werkzeug.security import generate_password_hash
+        hash_pw = generate_password_hash(password)
+        try:
+            conn.execute('INSERT INTO admin (username, password_hash) VALUES (?, ?)', (username, hash_pw))
+            conn.commit()
+            flash('Admin créé. Connectez-vous.')
+            return redirect(url_for('login'))
+        except Exception as e:
+            flash('Erreur : ' + str(e))
+    conn.close()
+    return render_template('init_admin.html')
+
+# --- Authentification admin/password ---
+from functools import wraps
+def login_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not session.get('admin_logged_in'):
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        conn = sqlite3.connect(str(FLEET_DB_PATH))
+        conn.row_factory = sqlite3.Row
+        cur = conn.execute('SELECT password_hash FROM admin WHERE username = ?', (username,))
+        row = cur.fetchone()
+        conn.close()
+        from werkzeug.security import check_password_hash
+        if row and check_password_hash(row['password_hash'], password):
+            session['admin_logged_in'] = True
+            return redirect(url_for('dashboard'))
+        flash('Identifiants invalides')
+    return render_template('login.html')
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for('login'))
 
 
 # Décorateur pour exiger un ou plusieurs rôles (ex: admin, user, readonly)
@@ -905,8 +948,8 @@ def print_stats(stats: Dict[str, object]) -> None:
 
 
 @app.route("/")
+@login_required
 def dashboard() -> str:
-    # Accès libre au dashboard (aucune authentification requise)
     return render_template("index.html")
 
 
@@ -1162,12 +1205,13 @@ def api_revoke_key():
 
 
 
-# Accès libre à l'admin (aucune authentification requise)
 @app.route("/admin/orgs")
+@login_required
 def admin_orgs():
     return render_template("admin_orgs.html")
 
 @app.route("/admin/tokens")
+@login_required
 def admin_tokens():
     return render_template("admin_tokens.html")
 
