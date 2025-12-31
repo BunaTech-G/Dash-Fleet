@@ -22,22 +22,7 @@
     {% endwith %}
 </body>
 </html>
-        <label for="api_key" class="label">Clé API</label>
-        <input id="api_key" class="auth-input" type="text" placeholder="xxxx..." autocomplete="off" aria-label="Clé API" tabindex="1" />
-      </div>
-
-      <button id="login" class="auth-btn" aria-label="Se connecter" tabindex="2">Se connecter</button>
-        <script>
-          // Toast universel
-          function showToast(msg, type='info', duration=3000) {
-            const toast = document.getElementById('toast');
-            toast.textContent = msg;
-            toast.style.background = type==='error' ? '#f43f5e' : (type==='success' ? '#22c55e' : 'var(--accent)');
-            toast.style.color = type==='error' ? '#fff' : '#04263a';
-            toast.style.display = 'block';
-            setTimeout(()=>{ toast.style.display = 'none'; }, duration);
-          }
-          // Exemple d'utilisation : showToast('Identifiants invalides', 'error');
+      <!-- Ancien formulaire clé API supprimé -->
         </script>
       <div id="msg" class="auth-error" aria-live="polite"></div>
       <div class="small" id="login-footer">Vous pouvez créer une clé via l'admin si vous disposez d'un `ACTION_TOKEN`.</div>
