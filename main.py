@@ -5,9 +5,12 @@ from __future__ import annotations
 app = Flask(__name__, template_folder="templates", static_folder="static")
 # ...existing code...
 
+
 # --- Route temporaire de debug pour lister les templates ---
+# ATTENTION : À désactiver en production !
 @app.route('/debug-templates')
 def debug_templates():
+    # TODO: restreindre l'accès à cette route (admin uniquement)
     import os
     template_dir = app.template_folder or 'templates'
     try:
@@ -62,7 +65,9 @@ limiter = Limiter(
 )
 
 # --- Route de setup admin ---
+import re
 @app.route('/setup-admin', methods=['GET', 'POST'])
+@limiter.limit("3 per minute")
 def setup_admin():
     conn = sqlite3.connect(str(FLEET_DB_PATH))
     cur = conn.cursor()
@@ -74,8 +79,9 @@ def setup_admin():
     api_key = None
     if request.method == 'POST':
         name = request.form.get('name', 'admin').strip()
-        if not name or len(name) < 3:
-            return render_template('setup_admin.html', error="Nom requis (min 3 caractères)", already_exists=False)
+        # Validation stricte du nom d'organisation (alphanum, tiret, underscore, 3-32)
+        if not re.match(r'^[a-zA-Z0-9_-]{3,32}$', name):
+            return render_template('setup_admin.html', error="Nom invalide (alphanumérique, 3-32 caractères)", already_exists=False)
         org_id = f"org_{secrets.token_hex(6)}"
         key = secrets.token_hex(16)
         cur.execute('INSERT INTO organizations (id, name, role) VALUES (?, ?, ?)', (org_id, name, 'admin'))
