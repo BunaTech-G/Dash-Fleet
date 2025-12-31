@@ -30,6 +30,7 @@ from functools import wraps
 from pathlib import Path
 from typing import Dict, Iterable
 
+
 app = Flask(__name__, template_folder="templates", static_folder="static")
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key')  # À changer en prod !
 
@@ -48,7 +49,7 @@ def debug_templates():
     except Exception as e:
         return f"Erreur accès dossier templates : {e}", 500
 
-app = Flask(__name__, template_folder="templates", static_folder="static")
+
 swagger = Swagger(app)
 limiter = Limiter(
     get_remote_address,
@@ -189,55 +190,10 @@ def logout():
     return redirect(url_for('login'))
 
 
-# Décorateur pour exiger un ou plusieurs rôles (ex: admin, user, readonly)
-
-
 def require_role_multi(*roles_required):
-    def decorator(f):
-        @wraps(f)
-        def wrapper(*args, **kwargs):
-            ok, org_id = _check_org_key()
-            if not ok or not org_id:
-                return jsonify({"error": "Unauthorized"}), 403
-            try:
-                conn = sqlite3.connect(str(FLEET_DB_PATH))
-                cur = conn.cursor()
-                cur.execute('SELECT role FROM organizations WHERE id = ?', (org_id,))
-                row = cur.fetchone()
-                conn.close()
-                if not row or row[0] not in roles_required:
-                    return jsonify({"error": f"Role(s) {roles_required} required"}), 403
-            except Exception as e:
-                logging.error(f"Erreur lors de la vérification du rôle : {e}")
-                return jsonify({"error": "Role check failed"}), 500
-            return f(*args, **kwargs)
-        return wrapper
-    return decorator
-
-# Décorateur pour exiger un rôle spécifique (ex: admin)
-
-
 def require_role(role_required):
-    def decorator(f):
-        @wraps(f)
-        def wrapper(*args, **kwargs):
-            ok, org_id = _check_org_key()
-            if not ok or not org_id:
-                return jsonify({"error": "Unauthorized"}), 403
-            try:
-                conn = sqlite3.connect(str(FLEET_DB_PATH))
-                cur = conn.cursor()
-                cur.execute('SELECT role FROM organizations WHERE id = ?', (org_id,))
-                row = cur.fetchone()
-                conn.close()
-                if not row or row[0] != role_required:
-                    return jsonify({"error": f"{role_required} role required"}), 403
-            except Exception as e:
-                logging.error(f"Erreur lors de la vérification du rôle : {e}")
-                return jsonify({"error": "Role check failed"}), 500
-            return f(*args, **kwargs)
-        return wrapper
-    return decorator
+
+# Suppression des décorateurs liés à l'ancien système d'API key
 
 
 
@@ -1202,6 +1158,7 @@ def api_revoke_key():
         return jsonify({"ok": False, "message": "clé inconnue"}), 404
     except Exception:
         return jsonify({"error": "db error"}), 500
+
 
 
 
