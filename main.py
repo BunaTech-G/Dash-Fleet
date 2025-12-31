@@ -25,8 +25,16 @@ from flask_limiter.util import get_remote_address
 from marshmallow import Schema, fields, ValidationError
 from functools import wraps
 from pathlib import Path
-from flask import render_template, request
 
+app = Flask(__name__, template_folder="templates", static_folder="static")
+swagger = Swagger(app)
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=["100 per minute"]
+)
+
+# --- Route de setup admin ---
 @app.route('/setup-admin', methods=['GET', 'POST'])
 def setup_admin():
     conn = sqlite3.connect(str(FLEET_DB_PATH))
