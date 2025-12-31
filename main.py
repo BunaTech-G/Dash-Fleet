@@ -1,3 +1,32 @@
+from __future__ import annotations
+import os
+import sys
+import time
+import json
+import csv
+import secrets
+import threading
+import tempfile
+import zipfile
+import subprocess
+import logging
+import datetime as dt
+import sqlite3
+import urllib.request
+import urllib.error
+import argparse
+from pathlib import Path
+from typing import Dict, Iterable
+import requests
+import psutil
+from flask import Flask, jsonify, render_template, request
+from flasgger import Swagger
+from db_utils import insert_organization, insert_fleet_report
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from marshmallow import Schema, fields, ValidationError
+from functools import wraps
+
 # Décorateur pour exiger un ou plusieurs rôles (ex: admin, user, readonly)
 def require_role_multi(*roles_required):
     def decorator(f):
@@ -19,9 +48,6 @@ def require_role_multi(*roles_required):
             return f(*args, **kwargs)
         return wrapper
     return decorator
-
-from __future__ import annotations
-from functools import wraps
 
 # Décorateur pour exiger un rôle spécifique (ex: admin)
 def require_role(role_required):
@@ -45,11 +71,6 @@ def require_role(role_required):
             return f(*args, **kwargs)
         return wrapper
     return decorator
-from flask import Flask, jsonify, render_template, request
-from flasgger import Swagger
-from db_utils import insert_organization, insert_fleet_report
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
 
 app = Flask(__name__, template_folder="templates", static_folder="static")
 # Initialisation Swagger/OpenAPI
@@ -60,7 +81,7 @@ limiter = Limiter(
     app=app,
     default_limits=["100 per minute"]
 )
-from marshmallow import Schema, fields, ValidationError
+
 # Schéma Marshmallow pour la validation avancée du rapport agent
 class ReportSchema(Schema):
     machine_id = fields.Str(required=True)
