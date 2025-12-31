@@ -1,7 +1,55 @@
 # ALWAYS keep this import as the very first line:
 
 from __future__ import annotations
-# ...existing code...
+from __future__ import annotations
+import os
+import sys
+import time
+import json
+import csv
+import secrets
+import threading
+import tempfile
+import zipfile
+import subprocess
+import logging
+import datetime as dt
+import sqlite3
+import urllib.request
+import urllib.error
+import requests
+import psutil
+from flask import Flask, request, jsonify, render_template
+from flasgger import Swagger
+from db_utils import insert_fleet_report
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from marshmallow import Schema, fields, ValidationError
+from functools import wraps
+from pathlib import Path
+
+app = Flask(__name__, template_folder="templates", static_folder="static")
+
+# --- Route temporaire de debug pour lister les templates ---
+# ATTENTION : À désactiver en production !
+@app.route('/debug-templates')
+def debug_templates():
+    # TODO: restreindre l'accès à cette route (admin uniquement)
+    import os
+    template_dir = app.template_folder or 'templates'
+    try:
+        files = os.listdir(template_dir)
+        return '<br>'.join(files)
+    except Exception as e:
+        return f"Erreur accès dossier templates : {e}", 500
+
+app = Flask(__name__, template_folder="templates", static_folder="static")
+swagger = Swagger(app)
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=["100 per minute"]
+)
 
 # ...existing code...
 
@@ -46,9 +94,12 @@ from marshmallow import Schema, fields, ValidationError
 from functools import wraps
 from pathlib import Path
 
+
 # --- Route temporaire de debug pour lister les templates ---
+# ATTENTION : À désactiver en production !
 @app.route('/debug-templates')
 def debug_templates():
+    # TODO: restreindre l'accès à cette route (admin uniquement)
     import os
     template_dir = app.template_folder or 'templates'
     try:
@@ -57,7 +108,7 @@ def debug_templates():
     except Exception as e:
         return f"Erreur accès dossier templates : {e}", 500
 
-app = Flask(__name__, template_folder="templates", static_folder="static")
+
 swagger = Swagger(app)
 limiter = Limiter(
     get_remote_address,
