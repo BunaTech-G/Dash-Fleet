@@ -14,17 +14,19 @@ import datetime as dt
 import sqlite3
 import urllib.request
 import urllib.error
-import argparse
 import requests
 import psutil
 from flasgger import Swagger
-from db_utils import insert_organization, insert_fleet_report
+from db_utils import insert_fleet_report
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from marshmallow import Schema, fields, ValidationError
 from functools import wraps
+from pathlib import Path
 
 # Décorateur pour exiger un ou plusieurs rôles (ex: admin, user, readonly)
+
+
 def require_role_multi(*roles_required):
     def decorator(f):
         @wraps(f)
@@ -48,6 +50,8 @@ def require_role_multi(*roles_required):
     return decorator
 
 # Décorateur pour exiger un rôle spécifique (ex: admin)
+
+
 def require_role(role_required):
     def decorator(f):
         @wraps(f)
@@ -55,7 +59,6 @@ def require_role(role_required):
             ok, org_id = _check_org_key()
             if not ok or not org_id:
                 return jsonify({"error": "Unauthorized"}), 403
-            # Récupérer le rôle de l'organisation
             try:
                 conn = sqlite3.connect(str(FLEET_DB_PATH))
                 cur = conn.cursor()
@@ -71,10 +74,10 @@ def require_role(role_required):
         return wrapper
     return decorator
 
+
+
 app = Flask(__name__, template_folder="templates", static_folder="static")
-# Initialisation Swagger/OpenAPI
 swagger = Swagger(app)
-# Initialisation du rate limiting
 limiter = Limiter(
     get_remote_address,
     app=app,
@@ -82,14 +85,20 @@ limiter = Limiter(
 )
 
 # Schéma Marshmallow pour la validation avancée du rapport agent
+
+
 class ReportSchema(Schema):
     machine_id = fields.Str(required=True)
     report = fields.Dict(required=True)
+
+
 
 class MetricsSchema(Schema):
     cpu_percent = fields.Float(required=True)
     ram_percent = fields.Float(required=True)
     disk_percent = fields.Float(required=True)
+
+
 
 report_schema = ReportSchema()
 metrics_schema = MetricsSchema()
@@ -98,29 +107,6 @@ Fonctionne en mode CLI ou via une petite UI web Flask.
 """
 
 import argparse
-import csv
-import datetime as dt
-import json
-import os
-import subprocess
-import sys
-import threading
-import tempfile
-import time
-import urllib.error
-import urllib.request
-import webbrowser
-import zipfile
-import uuid
-from typing import Dict, Iterable
-
-import psutil
-from flask import Flask, jsonify, render_template, request
-import sqlite3
-import secrets
-import requests
-import logging
-from pathlib import Path
 
 # Journalisation dans un fichier log
 LOG_PATH = Path("logs/api.log")
