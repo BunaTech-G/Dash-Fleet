@@ -86,7 +86,10 @@
     <section class="table-wrap" id="table-wrap">
       <div class="table-header">
         <h2 id="history-table-title">Dernières entrées</h2>
-        <span class="muted" id="history-table-subtitle">Heure locale</span>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <button class="theme-toggle" id="toggle-rows-btn" aria-label="Afficher plus ou moins d'entrées" style="padding:7px 12px;">Afficher plus</button>
+          <span class="muted" id="history-table-subtitle">Heure locale</span>
+        </div>
       </div>
       <table aria-label="Tableau historique" tabindex="2">
         <thead>
@@ -133,6 +136,7 @@
     const ramSeries = [];
     const diskSeries = [];
     let historyRows = [];
+    let showAllRows = false;
 
     const historyChart = new Chart(chartCtx, {
       type: 'line',
@@ -214,7 +218,8 @@
     function renderTable(rows) {
       const body = document.getElementById('history-body');
       body.innerHTML = '';
-      rows.slice(-20).reverse().forEach((row) => {
+      const subset = showAllRows ? rows.slice().reverse() : rows.slice(-20).reverse();
+      subset.forEach((row) => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
           <td>${row.timestamp}</td>
@@ -310,6 +315,16 @@
 
     setTheme(theme);
     updateHealth();
+
+    function toggleRows() {
+      showAllRows = !showAllRows;
+      const btn = document.getElementById('toggle-rows-btn');
+      if (btn) btn.textContent = showAllRows ? 'Afficher moins' : 'Afficher plus';
+      renderTable(historyRows || []);
+    }
+
+    const toggleBtn = document.getElementById('toggle-rows-btn');
+    if (toggleBtn) toggleBtn.addEventListener('click', toggleRows);
 
     function exportHistoryCsv() {
       if (!historyRows || historyRows.length === 0) {
