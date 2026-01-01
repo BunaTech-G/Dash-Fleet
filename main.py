@@ -145,6 +145,7 @@ def login():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
+        logging.info(f"LOGIN attempt user={username}")
         conn = sqlite3.connect(str(FLEET_DB_PATH))
         conn.row_factory = sqlite3.Row
         cur = conn.execute('SELECT password_hash FROM admin WHERE username = ?', (username,))
@@ -152,8 +153,10 @@ def login():
         conn.close()
         from werkzeug.security import check_password_hash
         if row and check_password_hash(row['password_hash'], password):
+            logging.info(f"LOGIN success user={username}")
             session['admin_logged_in'] = True
             return redirect(url_for('dashboard'))
+        logging.warning(f"LOGIN failed user={username} found_row={bool(row)}")
         flash('Identifiants invalides')
     return render_template('login.html')
 
