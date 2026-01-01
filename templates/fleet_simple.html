@@ -56,7 +56,7 @@
         }
 
         function loadFleet() {
-            fetch('/api/fleet')
+            fetch('/api/fleet/public')
                 .then(r => {
                     if (!r.ok) throw new Error(`HTTP ${r.status}`);
                     return r.json();

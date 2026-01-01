@@ -1518,6 +1518,23 @@ def api_fleet():
     return jsonify({"count": len(data), "expired": expired, "data": data})
 
 
+@app.route("/api/fleet/public")
+def api_fleet_public():
+    # Public version: return all machines (no auth required)
+    now_ts = time.time()
+    expired = []
+    for mid, entry in list(FLEET_STATE.items()):
+        if now_ts - entry.get("ts", 0) > FLEET_TTL_SECONDS:
+            expired.append(entry.get("id") or mid)
+            FLEET_STATE.pop(mid, None)
+
+    if expired:
+        _save_fleet_state()
+
+    data = list(FLEET_STATE.values())
+    return jsonify({"count": len(data), "expired": expired, "data": data})
+
+
 @app.route("/api/fleet/reload", methods=["POST"])
 def api_fleet_reload():
     """Forcer le rechargement de `logs/fleet_state.json` en mémoire.
