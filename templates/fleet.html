@@ -9,7 +9,7 @@
   <script src="/static/i18n.js"></script>
 </head>
 <body>
-    <div id="toast" class="toast" role="status" aria-live="polite" style="display:none;position:fixed;top:24px;left:50%;transform:translateX(-50%);background:var(--accent);color:#04263a;padding:14px 24px;border-radius:12px;z-index:9999;font-weight:600;box-shadow:0 8px 30px rgba(0,0,0,0.18);font-size:1.1em;min-width:220px;text-align:center;"></div>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <main class="page">
     <header>
       <div>
@@ -82,6 +82,16 @@
 
   <script src="/static/fleet-auth.js"></script>
   <script>
+    function showToast(msg, type='info', duration=3200) {
+      const toast = document.getElementById('toast');
+      if (!toast) return;
+      toast.textContent = msg;
+      toast.style.background = type==='error' ? '#f43f5e' : (type==='success' ? '#22c55e' : 'var(--accent)');
+      toast.style.color = type==='error' ? '#fff' : '#04263a';
+      toast.style.display = 'block';
+      setTimeout(()=>{ toast.style.display = 'none'; }, duration);
+    }
+
     const langSelect = document.getElementById('lang-select');
     const themeToggle = document.getElementById('theme-toggle');
     const fleetCards = document.getElementById('fleet-cards');
@@ -200,7 +210,11 @@
           fleetRawData = data.data || [];
           applyFilterSortAndRender();
         })
-        .catch((err) => console.error(err));
+        .catch((err) => {
+          console.error(err);
+          document.getElementById('fleet-meta').textContent = 'Erreur API';
+          showToast('Erreur de récupération de la flotte', 'error');
+        });
     }
 
     dashboardI18n.bindSelect(langSelect);

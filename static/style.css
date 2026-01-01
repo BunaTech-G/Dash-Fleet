@@ -318,6 +318,24 @@ code {
   color: var(--text);
 }
 
+.toast {
+  position: fixed;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--accent);
+  color: #04263a;
+  padding: 14px 24px;
+  border-radius: 12px;
+  z-index: 9999;
+  font-weight: 600;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.18);
+  font-size: 1.05em;
+  min-width: 220px;
+  text-align: center;
+  display: none;
+}
+
 .table-header {
   display: flex;
   justify-content: space-between;
