@@ -1,19 +1,224 @@
-# DashFleet Copilot Instructions
-- Architecture: Flask server in [main.py](main.py) serves dashboards and REST APIs; lightweight agent in [fleet_agent.py](fleet_agent.py) collects psutil stats and POSTs to `/api/fleet/report`. State is held in-memory `FLEET_STATE`, persisted to SQLite `data/fleet.db` with JSON backup `logs/fleet_state.json` via [db_utils.py](db_utils.py).
-- Security prerequisites: `SECRET_KEY` env must be set (dev override `ALLOW_DEV_INSECURE=1`). Dashboard routes use password gate `require_password` driven by `DASHBOARD_PASSWORD` or `config.json` (`dashboard_password`).
-- Auth model: Multi-tenant API keys mapped to organizations. `_check_org_key` accepts `Authorization: Bearer <api_key>` or server-side cookie `dashfleet_sid` issued by `/api/login` and stored in `sessions` table. Legacy `FLEET_TOKEN` seeds default org via `_create_default_org_from_env`.
-- Admin token: `ACTION_TOKEN` protects org/key admin endpoints (`/api/orgs`, `/api/keys/revoke`, `/api/tokens*`, `/api/agent/link`, `/api/action`). No token → 403. First org created becomes `role=admin`.
-- Rate limits: `flask_limiter` default 100/min; `/api/action` 10/min, `/api/fleet/report` 30/min (see [main.py](main.py)).
-- Persistence schema: `_ensure_db_schema` creates `organizations`, `api_keys`, `fleet`, `sessions`, `download_tokens`; `_save_fleet_state` upserts fleet entries and writes JSON backup. Fleet TTL configurable via `FLEET_TTL_SECONDS` (default 600); expired entries purged on read and reload.
-- Fleet reporting: `/api/fleet/report` validates payload with Marshmallow `ReportSchema`/`MetricsSchema`, stores entry keyed by `org_id:machine_id`, logs client IP/UA, and exposes per-org filtering on `/api/fleet`. Use the same org API key in agents.
-- Agent usage: `python fleet_agent.py --server http://host:5000 --token <api_key> --machine-id <id> --interval <s>`; token priority CLI > env FLEET_TOKEN > config file. Health score logic mirrors server-side.
-- Session/password bootstrapping: Optional admin bootstrap via `ADMIN_BOOTSTRAP_USERNAME`/`ADMIN_BOOTSTRAP_PASSWORD` (and `ADMIN_FORCE_BOOTSTRAP`). A one-time `/init-admin` exists but should stay disabled in production. Login/password required to view `/`, `/history`, `/fleet`, `/help`, `/admin/*`.
-- Actions: `/api/action` runs whitelisted `APPROVED_ACTIONS` (flush DNS, restart spooler, cleanup temp/Teams/Outlook, collect logs). Many are Windows-only; keep list centralized in [main.py](main.py).
-- Download links: `/api/agent/link` creates one-time download tokens stored in `download_tokens`; `/download/agent/<token>` consumes and serves the binary (default `dist/fleet_agent.exe`).
-- Webhooks: if `WEBHOOK_URL` set, critical health in `/api/status` triggers POSTs throttled by `WEBHOOK_MIN_SECONDS`.
-- CLI vs web: `python main.py --web` is default when no args; background exporters (CSV/JSONL) start when export paths provided. CLI mode supports `--server` + env `FLEET_API_KEY` to push remote reports.
-- Tests: `tests/test_fleet_persistence.py` and `tests/test_fleet_expiration.py` expect a running server, env `FLEET_TOKEN` (or org API key) set, and will read/write `logs/fleet_state.json` / `data/fleet.db`. They assume base URL from `TEST_SERVER` (default http://localhost:5000).
-- Deployment: See [deploy/README.md](deploy/README.md) for gunicorn + systemd + nginx; service example loads env from `.env` with `FLEET_TOKEN`/`ACTION_TOKEN`. Windows/Linux agent installers live under `deploy/` and `scripts/`.
-- UI assets: Templates under [templates/](templates) (notably `fleet.html`) and JS/CSS under [static/](static); fleet page receives `fleet_ttl_seconds` from Flask for client-side expiration display.
-- Logging/paths: API logs to `logs/api.log`; history CSV default `logs/metrics.csv`, exports default to user Desktop when unspecified.
-- Keep responses/translations: client strings rely on [static/i18n.js](static/i18n.js) for FR/EN/ES/RU; avoid removing keys without updating templates.
+# DashFleet AI Agent Instructions
+
+## Architecture Overview
+
+DashFleet is a **multi-tenant fleet monitoring system** with three core components:
+
+1. **Flask Backend** (`main.py`) - API server handling metrics, authentication, and multi-org data
+2. **Python Agents** (`fleet_agent.py`) - Lightweight system monitors deployed on client machines
+3. **SQLite Database** (`data/fleet.db`) - Multi-tenant schema with organizations, API keys, fleet data
+
+**Data Flow**: Agent → POST `/api/fleet/report` (Bearer auth) → SQLite persistence → Dashboard UI fetches via `/api/fleet` or `/api/fleet/public`
+
+## Critical Project-Specific Patterns
+
+### Multi-Tenant Architecture
+- All fleet data is scoped by `org_id` (from `api_keys` table)
+- API authentication: Bearer token extracted from `api_keys` table via `_check_org_key()`
+- Legacy `FLEET_TOKEN` env var supported for backward compatibility (deprecated)
+- Database schema: `organizations` → `api_keys` → `fleet` (foreign keys enforce boundaries)
+
+### Centralized Utilities (NEW - Jan 2026 Refactor)
+Recent refactoring extracted duplicated code into shared modules:
+- `fleet_utils.py` - Shared health calculations, formatting (health_score, bytes→GiB, uptime)
+- `constants.py` - Configuration constants (thresholds, rate limits, paths)
+- `logging_config.py` - Centralized logging setup
+
+**Import Pattern**: Main app and agents both import from `fleet_utils`. Backward-compatible wrappers exist in `main.py` (e.g., `_health_score()` → `calculate_health_score()`).
+
+### Health Score Algorithm
+```python
+# Core logic in fleet_utils.calculate_health_score()
+# CPU: 100% → 0 score (linear from 50%)
+# RAM: 100% → 0 score (linear from 60%)
+# Disk: 100% → 0 score (linear from 70%)
+# Weighted: CPU 35%, RAM 35%, Disk 30%
+# Status: ≥80 = "ok", ≥60 = "warn", <60 = "critical"
+```
+
+### Authentication Workflow
+```python
+# In main.py endpoints:
+ok, org_id = _check_org_key()  # Extracts Bearer token, validates against DB
+if not ok:
+    return jsonify({"error": "Unauthorized"}), 403
+# All queries filtered by org_id
+```
+
+### Agent Configuration
+Agents read `config.json` (JSON format) with:
+```json
+{
+  "server": "https://dash-fleet.com",
+  "path": "/api/fleet/report",
+  "token": "api_xxx",  // From api_keys table
+  "interval": 30,
+  "machine_id": "hostname",
+  "log_file": "logs/agent.log"
+}
+```
+
+## Development Workflows
+
+### Local Development
+```powershell
+# Activate venv (PowerShell)
+.\.venv\Scripts\Activate.ps1
+
+# Set secrets
+$env:SECRET_KEY="random_hex"
+$env:FLEET_TOKEN="legacy_token"  # Optional
+
+# Run server
+python main.py --web --host localhost --port 5000
+
+# Run agent (separate terminal)
+python fleet_agent.py --server http://localhost:5000 --token api_xxx --machine-id test-pc
+```
+
+### Production Deployment (VPS: 83.150.218.175)
+```bash
+# On VPS (/opt/dashfleet)
+cd /opt/dashfleet
+git pull origin fix/pyproject-exclude  # Current branch
+systemctl restart dashfleet  # Gunicorn service
+systemctl status dashfleet
+tail -f logs/api.log
+```
+
+**Gunicorn Config**: 3 workers, binds to `127.0.0.1:5000`, proxied by Nginx (HTTPS via Let's Encrypt)
+
+### Database Access
+```bash
+# On VPS
+sqlite3 data/fleet.db
+# List orgs: SELECT * FROM organizations;
+# List keys: SELECT key, org_id FROM api_keys WHERE revoked=0;
+# View fleet: SELECT * FROM fleet WHERE org_id='org_xxx';
+```
+
+### Testing
+```powershell
+# Syntax validation
+python -m py_compile main.py fleet_agent.py
+
+# Integration tests (server must be running)
+$env:FLEET_TOKEN="test_token"
+python tests/test_fleet_persistence.py
+python tests/test_fleet_expiration.py
+```
+
+## Key Files & Conventions
+
+### Template Structure (`templates/`)
+- `fleet.html` - Main dashboard (professional dark theme, Space Grotesk font)
+- Uses `fetch('/api/fleet/public')` for anonymous access (no Bearer required)
+- JavaScript refreshes every 5s, includes skeleton loaders, filter/sort
+- CSS: 12+ semantic classes (`.metric-card`, `.health-badge`, `.machine-grid`)
+
+### API Endpoints
+- `/api/fleet/report` (POST) - Agent uploads (rate limited 30/min, requires Bearer)
+- `/api/fleet` (GET) - Authenticated fleet view (org-scoped)
+- `/api/fleet/public` (GET) - Anonymous fleet view (returns ALL orgs data - security note)
+- `/api/status` - Local server health metrics
+- `/api/action` - Remote actions (protected by `ACTION_TOKEN` env var)
+
+### Rate Limiting
+Configured in `main.py` using `flask_limiter`:
+- Default: 100/min
+- `/api/fleet/report`: 30/min (high-frequency agent uploads)
+- `/api/action`: 10/min (sensitive operations)
+
+### Environment Variables
+Required:
+- `SECRET_KEY` - Flask session key (use `openssl rand -hex 32`)
+
+Optional:
+- `FLEET_TOKEN` - Legacy auth (deprecated, use api_keys)
+- `ACTION_TOKEN` - Protects `/api/action` endpoint
+- `WEBHOOK_URL` - Critical health alerts
+- `FLEET_TTL_SECONDS` - Machine expiry (default 600)
+- `ALLOW_DEV_INSECURE=1` - Skip SECRET_KEY for local dev
+
+## Common Tasks
+
+### Create New Organization
+```bash
+ssh root@83.150.218.175
+cd /opt/dashfleet
+python3 scripts/create_org.sh "Acme Corp"
+# Returns: org_id and api_key
+```
+
+### Deploy Agent to Windows
+```powershell
+.\deploy\install_windows_complete.ps1 -ApiKey "api_xxx" -MachineId "server-01"
+# Creates scheduled task running as SYSTEM
+# Installs to C:\Program Files\DashFleet
+```
+
+### Deploy Agent to Linux
+```bash
+sudo API_KEY="api_xxx" bash deploy/install_linux_complete.sh
+# Creates systemd service: dashfleet-agent
+# Installs to /opt/dashfleet-agent
+```
+
+## Schema Notes (SQLite)
+
+```sql
+-- Organizations (multi-tenant root)
+organizations(id TEXT PRIMARY KEY, name TEXT, created_at REAL)
+
+-- API Keys (Bearer tokens)
+api_keys(key TEXT PRIMARY KEY, org_id TEXT, created_at REAL, revoked INTEGER)
+
+-- Fleet Data (machine metrics)
+fleet(id TEXT PRIMARY KEY, report TEXT, ts REAL, client TEXT, org_id TEXT)
+-- 'id' format: "org_id:machine_id"
+-- 'report' is JSON blob
+
+-- Sessions (admin login)
+sessions(sid TEXT PRIMARY KEY, data TEXT, expiry REAL)
+```
+
+## Error Handling Patterns
+
+### Marshmallow Validation
+```python
+# In main.py - all POST endpoints
+try:
+    data = schema.load(request.get_json(force=True))
+except ValidationError as ve:
+    logging.error(f"Validation error: {ve.messages}")
+    return jsonify({"error": ve.messages}), 400
+```
+
+### TTL Expiration Logic
+```python
+# Machines expire after FLEET_TTL_SECONDS
+now_ts = time.time()
+expired = [m for m in machines if now_ts - m['ts'] > FLEET_TTL_SECONDS]
+# UI shows "expired" badge, dims display
+```
+
+## Git Workflow
+- Main branch: `fix/pyproject-exclude` (current production)
+- Deploy: `git push origin fix/pyproject-exclude` → VPS `git pull` → `systemctl restart`
+- No CI/CD pipeline (manual deployment)
+
+## Security Considerations
+- `/api/fleet/public` exposes ALL organizations' data (documented limitation)
+- Store `SECRET_KEY` and `ACTION_TOKEN` in systemd environment files
+- API keys stored plaintext in SQLite (rotate regularly)
+- Agent config.json contains sensitive tokens (chmod 600 on Linux)
+
+## Performance Notes
+- `FLEET_STATE` in-memory dict shadows DB for fast reads
+- Purges expired entries on each `/api/fleet` call
+- No pagination on fleet endpoints (acceptable for <1000 machines)
+- psutil metrics collection in agents takes ~0.3s CPU sampling
+
+---
+
+**Last Updated**: 2026-01-02 (Post-refactoring with fleet_utils, constants, logging_config modules)
