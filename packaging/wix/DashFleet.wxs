@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Product Id="*" Name="DashFleet Agent" Language="1033" Version="0.0.2" Manufacturer="BunaTech-G" UpgradeCode="PUT-GUID-HERE">
+    <Package InstallerVersion="200" Compressed="yes" InstallScope="perMachine"/>
+    <MediaTemplate/>
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="ProgramFilesFolder">
+        <Directory Id="INSTALLFOLDER" Name="DashFleet" />
+      </Directory>
+    </Directory>
+    <DirectoryRef Id="INSTALLFOLDER">
+      <Component Id="cmpFleetAgentExe" Guid="PUT-GUID-HERE">
+        <File Id="filFleetAgentExe" Source="..\..\dist\fleet_agent.exe" KeyPath="yes"/>
+      </Component>
+    </DirectoryRef>
+    <Feature Id="DefaultFeature" Level="1">
+      <ComponentRef Id="cmpFleetAgentExe"/>
+    </Feature>
+  </Product>
+</Wix>

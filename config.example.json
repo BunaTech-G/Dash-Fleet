@@ -1,0 +1,9 @@
+{
+  "server": "https://mon-serveur-mdm.example.com",
+  "path": "/api/fleet/report",
+  "token": "REMPLACER_PAR_FLEET_TOKEN",
+  "interval": 30,
+  "machine_id": "",
+  "log_file": "logs/agent.log",
+  "dashboard_password": "REMPLACEZ_PAR_UN_SECRET"
+}

@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Aide & Documentation - DashFleet</title>
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/i18n.js"></script>
+</head>
+<body>
+  <main class="help-wrap">
+    <header style="margin-bottom:20px;">
+      <div>
+        <p class="eyebrow">Aide</p>
+        <h1 style="margin:6px 0 4px;">Aide & Documentation</h1>
+        <p class="lede">Infos rapides pour naviguer, dépanner et sécuriser DashFleet.</p>
+      </div>
+      <div class="header-actions">
+        <div class="lang-switch">
+          <label for="lang-select" id="lang-label">Langue</label>
+          <select id="lang-select" class="lang-select">
+            <option value="fr">FR</option>
+            <option value="en">EN</option>
+            <option value="es">ES</option>
+            <option value="ru">RU</option>
+          </select>
+        </div>
+        <button class="theme-toggle" id="theme-toggle" aria-label="Changer le thème clair/sombre" tabindex="1">Mode sombre</button>
+      </div>
+    </header>
+
+    <nav class="nav-links">
+      <a href="/">Temps réel</a>
+      <a href="/history">Historique</a>
+      <a href="/fleet">Fleet</a>
+      <a href="/help" class="active">Aide</a>
+    </nav>
+
+    <section class="help-grid">
+      <article class="help-card">
+        <div class="label">Navigation</div>
+        <h2 style="margin:4px 0 10px;">Où trouver quoi</h2>
+        <ul class="muted-list">
+          <li><b>Temps réel</b> : Statut local + actions rapides.</li>
+          <li><b>Historique</b> : Courbes CPU/RAM/Disque.</li>
+          <li><b>Fleet</b> : Santé des postes reportés.</li>
+          <li><b>Admin</b> : Orgs, clés API, tokens.</li>
+        </ul>
+      </article>
+
+      <article class="help-card">
+        <div class="label">Actions</div>
+        <h2 style="margin:4px 0 10px;">Actions rapides</h2>
+        <ul class="muted-list">
+          <li>Nettoyage (temp, caches), flush DNS, restart spooler.</li>
+          <li>Collecte de logs en un clic.</li>
+          <li>Survol pour voir l’intitulé complet.</li>
+        </ul>
+      </article>
+
+      <article class="help-card">
+        <div class="label">Sécurité</div>
+        <h2 style="margin:4px 0 10px;">Clés & sessions</h2>
+        <div class="callout">Garde ta clé admin et tes tokens d’org secrets.</div>
+        <ul class="muted-list">
+          <li>Clés API gérées dans l’Admin.</li>
+          <li>Utilise la connexion par session serveur (bouton "Se connecter" dans Fleet) plutôt que de stocker la clé côté client.</li>
+          <li>Révoque les clés perdues ou suspectes.</li>
+        </ul>
+      </article>
+
+      <article class="help-card">
+        <div class="label">Accessibilité</div>
+        <h2 style="margin:4px 0 10px;">Clavier & contraste</h2>
+        <ul class="muted-list">
+          <li>Navigation clavier sur tous les contrôles.</li>
+          <li>Focus visibles, contraste renforcé.</li>
+          <li>Layouts responsives (mobile/desktop).</li>
+        </ul>
+      </article>
+    </section>
+
+    <section class="help-card" style="margin-top:16px;">
+      <div class="label">Support</div>
+      <h2 style="margin:4px 0 10px;">Besoin d’aide ?</h2>
+      <p class="muted">Consulte la doc interne ou contacte l’administrateur. Fournis les logs en cas d’incident pour accélérer le diagnostic.</p>
+    </section>
+  </main>
+  <script>
+    const langSelect = document.getElementById('lang-select');
+    const themeToggle = document.getElementById('theme-toggle');
+    let t = dashboardI18n.get();
+    let theme = localStorage.getItem('theme') === 'light' ? 'light' : 'dark';
+
+    function updateThemeButton() {
+      if (!themeToggle) return;
+      themeToggle.textContent = theme === 'dark' ? (t.themeLight || 'Mode clair') : (t.themeDark || 'Mode sombre');
+    }
+
+    function setTheme(nextTheme) {
+      theme = nextTheme === 'light' ? 'light' : 'dark';
+      document.body.classList.toggle('light', theme === 'light');
+      localStorage.setItem('theme', theme);
+      updateThemeButton();
+    }
+
+    function applyStaticTexts() {
+      document.getElementById('lang-label').textContent = t.langLabel || 'Langue';
+    }
+
+    dashboardI18n.bindSelect(langSelect);
+    dashboardI18n.subscribe((lang, nextT) => {
+      t = nextT;
+      if (langSelect) langSelect.value = lang;
+      applyStaticTexts();
+      updateThemeButton();
+    });
+
+    if (themeToggle) {
+      themeToggle.addEventListener('click', () => setTheme(theme === 'dark' ? 'light' : 'dark'));
+    }
+
+    setTheme(theme);
+    applyStaticTexts();
+    updateThemeButton();
+  </script>
+</body>
+</html>

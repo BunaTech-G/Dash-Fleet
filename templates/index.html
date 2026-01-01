@@ -1,14 +1,17 @@
 <!doctype html>
 <html lang="en">
 <head>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Tableau de bord système</title>
   <link rel="stylesheet" href="/static/style.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="/static/i18n.js"></script>
+  <script src="/static/fleet-auth.js"></script>
 </head>
 <body>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <main class="page">
     <header>
       <div>
@@ -26,7 +29,7 @@
             <option value="ru">RU</option>
           </select>
         </div>
-        <button class="theme-toggle" id="theme-toggle">Mode sombre</button>
+        <button class="theme-toggle" id="theme-toggle" aria-label="Changer le thème clair/sombre" tabindex="1">Mode sombre</button>
         <div class="badge" id="alert-badge">Tout va bien</div>
       </div>
     </header>
@@ -35,38 +38,83 @@
       <a href="/" class="active" id="nav-live">Temps réel</a>
       <a href="/history" id="nav-history">Historique</a>
       <a href="/fleet" id="nav-fleet">Fleet</a>
+      <a href="/help" id="nav-help">Aide</a>
     </nav>
 
     <section class="grid">
-      <article class="card" id="health-card">
-        <div class="label" id="label-health">Santé</div>
-        <div class="value" id="health-value">--</div>
+      <article class="card status-ok" id="health-card" tabindex="2" aria-label="Carte santé">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+          <div class="label" id="label-health">Santé</div>
+          <span class="badge badge-score badge-ok" id="health-badge">--/100</span>
+        </div>
+        <div class="value" id="health-value">--/100</div>
         <div class="meta" id="health-meta">En attente des données</div>
       </article>
 
-      <article class="card" id="cpu-card">
-        <div class="label" id="label-cpu">CPU</div>
+      <article class="card status-ok" id="cpu-card" tabindex="3" aria-label="Carte CPU">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="dot dot-ok" id="cpu-dot"></span>
+          <div class="label" id="label-cpu">CPU</div>
+        </div>
         <div class="value" id="cpu-value">--%</div>
         <div class="meta" id="cpu-meta">En attente des données</div>
+        <div class="meter" aria-hidden="true"><div id="cpu-meter" class="meter-fill meter-ok" style="width:0%"></div></div>
       </article>
 
-      <article class="card" id="ram-card">
-        <div class="label" id="label-ram">RAM</div>
+      <article class="card status-ok" id="ram-card" tabindex="4" aria-label="Carte RAM">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="dot dot-ok" id="ram-dot"></span>
+          <div class="label" id="label-ram">RAM</div>
+        </div>
         <div class="value" id="ram-value">--%</div>
         <div class="meta" id="ram-meta">En attente des données</div>
+        <div class="meter" aria-hidden="true"><div id="ram-meter" class="meter-fill meter-ok" style="width:0%"></div></div>
       </article>
 
-      <article class="card" id="disk-card">
-        <div class="label" id="label-disk">Disque</div>
+      <article class="card status-ok" id="disk-card" tabindex="5" aria-label="Carte Disque">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="dot dot-ok" id="disk-dot"></span>
+          <div class="label" id="label-disk">Disque</div>
+        </div>
         <div class="value" id="disk-value">--%</div>
         <div class="meta" id="disk-meta">En attente des données</div>
+        <div class="meter" aria-hidden="true"><div id="disk-meter" class="meter-fill meter-ok" style="width:0%"></div></div>
       </article>
 
-      <article class="card" id="uptime-card">
+      <article class="card" id="uptime-card" tabindex="6" aria-label="Carte Uptime">
+          <script>
+            // Toast universel
+            function showToast(msg, type='info', duration=3000) {
+              const toast = document.getElementById('toast');
+              toast.textContent = msg;
+              toast.style.background = type==='error' ? '#f43f5e' : (type==='success' ? '#22c55e' : 'var(--accent)');
+              toast.style.color = type==='error' ? '#fff' : '#04263a';
+              toast.style.display = 'block';
+              setTimeout(()=>{ toast.style.display = 'none'; }, duration);
+            }
+            // Exemple d'utilisation : showToast('Action réussie', 'success');
+          </script>
         <div class="label" id="label-uptime">Uptime</div>
         <div class="value" id="uptime-value">--:--:--</div>
         <div class="meta" id="uptime-meta">depuis le démarrage</div>
       </article>
+      <script>
+        // Met à jour le badge santé et les pastilles selon le score/status
+        function updateHealthUI(score, status) {
+          const badge = document.getElementById('health-badge');
+          badge.textContent = (score ?? '--') + '/100';
+          badge.className = 'badge badge-score badge-' + (status || 'ok');
+          document.getElementById('health-card').className = 'card status-' + (status || 'ok');
+        }
+        function updateCardDot(id, status) {
+          const dot = document.getElementById(id+'-dot');
+          if(dot) dot.className = 'dot dot-' + (status || 'ok');
+          const card = document.getElementById(id+'-card');
+          if(card) card.className = 'card status-' + (status || 'ok');
+        }
+        // Hook sur la fonction de mise à jour existante (à adapter selon ton JS)
+        // Exemple d'appel : updateHealthUI(85, 'ok'); updateCardDot('cpu', 'warn');
+      </script>
     </section>
 
     <section class="chart-card">
@@ -250,6 +298,17 @@
       card.classList.toggle('alert', alert);
     }
 
+    function updateMeter(id, percent) {
+      const fill = document.getElementById(id + '-meter');
+      if (!fill) return;
+      const p = Math.max(0, Math.min(100, percent || 0));
+      fill.style.width = p + '%';
+      fill.classList.remove('meter-ok', 'meter-warn', 'meter-critical');
+      if (p >= 85) fill.classList.add('meter-critical');
+      else if (p >= 70) fill.classList.add('meter-warn');
+      else fill.classList.add('meter-ok');
+    }
+
     function addPoint(timestamp, cpuPercent, ramPercent) {
       const label = timestamp.split('T')[1]?.slice(0, 8) || timestamp;
       labels.push(label);
@@ -293,7 +352,7 @@
     }
 
     function refresh() {
-      fetch('/api/status')
+      authFetch('/api/status')
         .then((resp) => resp.json())
         .then((data) => {
           const cpuText = `${data.cpu_percent.toFixed(1)}%`;
@@ -324,6 +383,10 @@
           document.getElementById('disk-value').textContent = diskText;
           document.getElementById('uptime-value').textContent = data.uptime_hms;
 
+          updateMeter('cpu', data.cpu_percent);
+          updateMeter('ram', data.ram_percent);
+          updateMeter('disk', data.disk_percent);
+
           document.getElementById('row-cpu').textContent = cpuText + (data.alerts.cpu ? t.alertTag : '');
           document.getElementById('row-ram').textContent = `${ramText} (${t.ramDetail(data.ram_used_gib.toFixed(2), data.ram_total_gib.toFixed(2))})` + (data.alerts.ram ? t.alertTag : '');
           document.getElementById('row-disk').textContent = `${diskText} (${t.diskDetail(data.disk_used_gib.toFixed(2), data.disk_total_gib.toFixed(2))})`;
@@ -336,6 +399,9 @@
           console.error(err);
           alertBadge.textContent = t.badgeAlert;
           alertBadge.classList.add('alert');
+          if (typeof showToast === 'function') {
+            showToast(t.apiError || 'Erreur de récupération des données', 'error', 4000);
+          }
         });
     }
 

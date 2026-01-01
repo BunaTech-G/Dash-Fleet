@@ -34,7 +34,11 @@ def test_multi_agents_report():
     def agent_thread(mid: str):
         url = SERVER.rstrip('/') + '/api/fleet/report'
         hdr = {'Content-Type': 'application/json', 'Authorization': f'Bearer {api_key}'}
-        payload = json.dumps({'machine_id': mid, 'report': {'timestamp': time.strftime('%Y-%m-%dT%H:%M:%S'), 'cpu_percent': 1.0}}).encode('utf-8')
+        report = {
+            'timestamp': time.strftime('%Y-%m-%dT%H:%M:%S'),
+            'cpu_percent': 1.0,
+        }
+        payload = json.dumps({'machine_id': mid, 'report': report}).encode('utf-8')
         try:
             c, _ = _req(url, payload, hdr, method='POST')
             assert c == 200

@@ -1,14 +1,24 @@
 <!doctype html>
 <html lang="fr">
 <head>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Historique - Tableau de bord système</title>
   <link rel="stylesheet" href="/static/style.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="/static/i18n.js"></script>
+  <script src="/static/fleet-auth.js"></script>
+  <style>
+    .badge-score { font-size:18px;padding:4px 12px;border-radius:16px;font-weight:700;background:rgba(56,189,248,0.10);border:1.5px solid var(--border);color:var(--text);min-width:60px;text-align:center; }
+    .badge-ok { background:#22c55e22; border-color:#22c55e; color:#22c55e; }
+    .badge-warn { background:#facc1522; border-color:#facc15; color:#facc15; }
+    .badge-critical { background:#f43f5e22; border-color:#f43f5e; color:#f43f5e; }
+    .badge-expired { background:#f59e4222; border-color:#f59e42; color:#f59e42; }
+  </style>
 </head>
 <body>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <main class="page">
     <header>
       <div>
@@ -26,7 +36,7 @@
             <option value="ru">RU</option>
           </select>
         </div>
-        <button class="theme-toggle" id="theme-toggle">Mode sombre</button>
+        <button class="theme-toggle" id="theme-toggle" aria-label="Changer le thème clair/sombre" tabindex="1">Mode sombre</button>
       </div>
     </header>
 
@@ -34,12 +44,16 @@
       <a href="/" id="nav-live">Temps réel</a>
       <a href="/history" class="active" id="nav-history">Historique</a>
       <a href="/fleet" id="nav-fleet">Fleet</a>
+      <a href="/help" id="nav-help">Aide</a>
     </nav>
 
     <section class="chart-card">
       <div class="table-header">
         <h2 id="history-chart-title">Séries temporelles</h2>
-        <span class="muted" id="meta-count">0 points</span>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <button class="theme-toggle" id="download-history-btn" aria-label="Télécharger l'historique CSV" style="padding:7px 12px;">Télécharger CSV</button>
+          <span class="muted" id="meta-count">0 points</span>
+        </div>
       </div>
       <canvas id="history-chart" height="150"></canvas>
     </section>
@@ -50,20 +64,34 @@
         <span class="muted" id="health-timestamp">--</span>
       </div>
       <div class="grid">
-        <article class="card" id="health-card">
-          <div class="label" id="label-health">Santé</div>
-          <div class="value" id="health-value">--</div>
+        <article class="card status-ok" id="health-card">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+            <div class="label" id="label-health">Santé</div>
+            <span class="badge badge-score badge-ok" id="health-badge">--/100</span>
+          </div>
           <div class="meta" id="health-meta">En attente des données</div>
         </article>
       </div>
     </section>
+    <script>
+      // Met à jour le badge santé selon le score/status (à appeler dans ton JS)
+      function updateHistoryHealthUI(score, status) {
+        const badge = document.getElementById('health-badge');
+        badge.textContent = (score ?? '--') + '/100';
+        badge.className = 'badge badge-score badge-' + (status || 'ok');
+        document.getElementById('health-card').className = 'card status-' + (status || 'ok');
+      }
+    </script>
 
     <section class="table-wrap" id="table-wrap">
       <div class="table-header">
         <h2 id="history-table-title">Dernières entrées</h2>
-        <span class="muted" id="history-table-subtitle">Heure locale</span>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <button class="theme-toggle" id="toggle-rows-btn" aria-label="Afficher plus ou moins d'entrées" style="padding:7px 12px;">Afficher plus</button>
+          <span class="muted" id="history-table-subtitle">Heure locale</span>
+        </div>
       </div>
-      <table>
+      <table aria-label="Tableau historique" tabindex="2">
         <thead>
           <tr>
             <th id="th-ts">Timestamp</th>
@@ -75,6 +103,18 @@
         </thead>
         <tbody id="history-body"></tbody>
       </table>
+      <script>
+        // Toast universel
+        function showToast(msg, type='info', duration=3000) {
+          const toast = document.getElementById('toast');
+          toast.textContent = msg;
+          toast.style.background = type==='error' ? '#f43f5e' : (type==='success' ? '#22c55e' : 'var(--accent)');
+          toast.style.color = type==='error' ? '#fff' : '#04263a';
+          toast.style.display = 'block';
+          setTimeout(()=>{ toast.style.display = 'none'; }, duration);
+        }
+        // Exemple d'utilisation : showToast('Action réussie', 'success');
+      </script>
     </section>
 
     <div class="empty" id="empty-state" hidden>
@@ -95,6 +135,8 @@
     const cpuSeries = [];
     const ramSeries = [];
     const diskSeries = [];
+    let historyRows = [];
+    let showAllRows = false;
 
     const historyChart = new Chart(chartCtx, {
       type: 'line',
@@ -176,7 +218,8 @@
     function renderTable(rows) {
       const body = document.getElementById('history-body');
       body.innerHTML = '';
-      rows.slice(-20).reverse().forEach((row) => {
+      const subset = showAllRows ? rows.slice().reverse() : rows.slice(-20).reverse();
+      subset.forEach((row) => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
           <td>${row.timestamp}</td>
@@ -212,7 +255,7 @@
     }
 
     function updateHealth() {
-      fetch('/api/status')
+      authFetch('/api/status')
         .then((resp) => resp.json())
         .then((data) => {
           const health = data.health || { score: 0, status: 'ok' };
@@ -232,10 +275,11 @@
     }
 
     function loadHistory() {
-      fetch('/api/history?limit=300')
+      authFetch('/api/history?limit=300')
         .then((resp) => resp.json())
         .then((payload) => {
           const rows = payload.data || [];
+          historyRows = rows;
           document.getElementById('meta-count').textContent = t.pointsLabel(rows.length);
 
           if (!rows.length) {
@@ -271,6 +315,41 @@
 
     setTheme(theme);
     updateHealth();
+
+    function toggleRows() {
+      showAllRows = !showAllRows;
+      const btn = document.getElementById('toggle-rows-btn');
+      if (btn) btn.textContent = showAllRows ? 'Afficher moins' : 'Afficher plus';
+      renderTable(historyRows || []);
+    }
+
+    const toggleBtn = document.getElementById('toggle-rows-btn');
+    if (toggleBtn) toggleBtn.addEventListener('click', toggleRows);
+
+    function exportHistoryCsv() {
+      if (!historyRows || historyRows.length === 0) {
+        showToast('Aucune donnée à exporter', 'error');
+        return;
+      }
+      const header = ['timestamp','cpu_percent','ram_percent','disk_percent','uptime_hms'];
+      const lines = [header.join(',')];
+      historyRows.forEach(r => {
+        const row = [r.timestamp, r.cpu_percent, r.ram_percent, r.disk_percent, r.uptime_hms || ''];
+        lines.push(row.join(','));
+      });
+      const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'history.csv';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    const dlBtn = document.getElementById('download-history-btn');
+    if (dlBtn) dlBtn.addEventListener('click', exportHistoryCsv);
   </script>
 </body>
 </html>

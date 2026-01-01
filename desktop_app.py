@@ -8,14 +8,13 @@ from __future__ import annotations
 
 import csv
 import datetime as dt
-import threading
 import time
 from pathlib import Path
 from typing import Dict
 
 import psutil
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk
 
 CPU_ALERT = 80.0
 RAM_ALERT = 90.0

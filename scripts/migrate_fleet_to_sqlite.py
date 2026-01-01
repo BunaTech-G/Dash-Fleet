@@ -7,7 +7,6 @@ Usage:
 Le script crée `data/fleet.db` et une table `fleet(id TEXT PRIMARY KEY, report JSON, ts REAL, client TEXT)`.
 """
 import json
-import os
 import sqlite3
 from pathlib import Path
 

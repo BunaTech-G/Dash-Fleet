@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+        <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <meta charset="UTF-8">
+    <title>Initialisation Admin</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        body { background: radial-gradient(circle at 20% 20%, rgba(56, 189, 248, 0.12), transparent 25%), radial-gradient(circle at 80% 0%, rgba(244, 63, 94, 0.12), transparent 30%), var(--bg); color: var(--text); font-family: 'Space Grotesk', Arial, sans-serif; }
+        .admin-setup-box { max-width: 420px; margin: 60px auto; padding: 2.2em 2em 2em; background: var(--panel); border: 1.5px solid var(--border); border-radius: 14px; box-shadow: var(--shadow); }
+        .admin-setup-box h2 { margin-top: 0; font-size: 1.6em; color: var(--accent); }
+        .admin-key-badge { display: inline-block; font-family: monospace; background: #22c55e22; color: #22c55e; padding: 0.7em 1.2em; border-radius: 8px; font-size: 1.1em; margin: 10px 0; border: 1.5px solid #22c55e; letter-spacing: 1px; }
+        .admin-error { color: #f43f5e; margin-bottom: 10px; font-weight: 600; }
+        .admin-setup-box form { margin-top: 18px; }
+        .admin-setup-box input[type="text"] { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border); margin-top: 6px; font-size: 1em; background: rgba(255,255,255,0.04); color: var(--text); }
+        .admin-setup-box button { margin-top: 16px; width: 100%; padding: 12px; border-radius: 10px; border: none; background: var(--accent); color: #04263a; font-weight: 700; font-size: 1.1em; cursor: pointer; transition: background 0.15s; }
+        .admin-setup-box button:hover { background: #0ea5e9; }
+        @media (max-width: 600px) { .admin-setup-box { padding: 1.2em 0.5em; } }
+    </style>
+</head>
+<body>
+    <div id="toast" class="toast" role="status" aria-live="polite" style="display:none;position:fixed;top:24px;left:50%;transform:translateX(-50%);background:var(--accent);color:#04263a;padding:14px 24px;border-radius:12px;z-index:9999;font-weight:600;box-shadow:0 8px 30px rgba(0,0,0,0.18);font-size:1.1em;min-width:220px;text-align:center;"></div>
+<div class="admin-setup-box">
+    <h2>Création de la clé admin</h2>
+    {% if already_exists %}
+        <p style="color:var(--alert)">Une organisation existe déjà.<br>La création d'une clé admin n'est possible qu'à la première installation.</p>
+    {% elif api_key %}
+        <p><strong>Clé admin générée :</strong></p>
+        <div class="admin-key-badge">{{ api_key }}</div>
+        <p style="color:var(--muted)"><em>Copiez cette clé et gardez-la précieusement !</em></p>
+    {% else %}
+        {% if error %}<div class="admin-error">{{ error }}</div>{% endif %}
+        <form method="post" class="admin-form" aria-label="Formulaire de création admin" tabindex="1">
+            <label>Nom de l'organisation admin :<br>
+                <input type="text" id="name" name="name" placeholder="Nom d'utilisateur" required autofocus aria-label="Nom d'utilisateur" tabindex="2">
+            </label>
+                        <button type="submit" aria-label="Créer l'admin" tabindex="4">Créer l'admin</button>
+    <script>
+        // Toast universel
+        function showToast(msg, type='info', duration=3000) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.style.background = type==='error' ? '#f43f5e' : (type==='success' ? '#22c55e' : 'var(--accent)');
+            toast.style.color = type==='error' ? '#fff' : '#04263a';
+            toast.style.display = 'block';
+            setTimeout(()=>{ toast.style.display = 'none'; }, duration);
+        }
+        // Exemple d'utilisation : showToast('Admin créé', 'success');
+    </script>
+        </form>
+    {% endif %}
+</div>
+</body>
+</html>

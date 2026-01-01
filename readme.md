@@ -1,3 +1,24 @@
+Server-side agent hosting
+-------------------------
+Le serveur peut maintenant générer des liens de téléchargement sécurisés à usage unique pour l'agent. Pour créer un lien (protégé par `ACTION_TOKEN`) :
+```bash
+curl -X POST -H "Authorization: Bearer $ACTION_TOKEN" -H "Content-Type: application/json" \
+  -d '{"ttl":3600, "path":"dist/fleet_agent.exe"}' https://votre-instance/api/agent/link
+La réponse contient `link` (ex: `/download/agent/<token>`) valable pendant `ttl` secondes. L'appelant peut ensuite télécharger l'exécutable via ce lien.
+
+Packaging & installers
+----------------------
+ - Chocolatey package skeleton: `packaging/chocolatey/` (nuspec + `tools/chocolateyinstall.ps1`). Placez `fleet_agent.exe` sous `packaging/chocolatey/tools/files/` et publiez avec `choco pack`.
+ - MSI WiX template: `packaging/wix/DashFleet.wxs` — utilise WiX Toolset pour compiler (`candle`/`light`) et générer un MSI.
+
+Déploiement multi-postes
+------------------------
+Le script PowerShell `scripts/install_windows_agent_multi.ps1` permet de pousser `fleet_agent.exe` sur plusieurs machines (PSRemoting ou partage admin C$) et de créer une tâche planifiée. Exemple :
+
+```powershell
+.\scripts\install_windows_agent_multi.ps1 -Targets @('host1','host2') -Source .\dist\fleet_agent.exe
+```
+
 # Dashboard système — README (fr)
 
 Résumé
@@ -236,3 +257,12 @@ Règles rapides : utilisez HTTPS en production et ne publiez jamais vos tokens d
 
 ## Suite (vision courte)
 On vise un “agent santé poste” léger : score de santé, auto-remédiations simples, self-service (scripts approuvés), alertes sobres. Voir [docs/ROADMAP.md](docs/ROADMAP.md) pour le plan à étapes.
+
+## Scripts d'installation et service
+Des exemples sont fournis dans `scripts/` et `deploy/systemd/` :
+
+- `scripts/install_systemd.sh` : script d'installation rapide pour Linux (copie dans `/opt/dashfleet`, création d'un venv et activation d'une unité systemd).
+- `deploy/systemd/dashfleet.service` : fichier d'unité systemd exemple.
+- `scripts/install_windows_agent.ps1` : exemple PowerShell pour installer l'agent/instance sur Windows et créer une tâche planifiée au démarrage.
+
+Voir aussi : `scripts/migrate_fleet_to_sqlite.py` pour migrer l'ancien backup JSON vers SQLite.

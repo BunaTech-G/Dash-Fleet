@@ -109,4 +109,8 @@ def test_fleet_expiration_flow():
     body = json.loads(raw.decode('utf-8'))
     expired = body.get('expired', [])
     data_ids = [d.get('id') for d in body.get('data', [])]
-    assert MACHINE_ID in expired or MACHINE_ID not in data_ids, f"Machine {MACHINE_ID} not expired/removed, response: {body}"
+    msg = (
+        f"Machine {MACHINE_ID} not expired/removed, "
+        f"response: {body}"
+    )
+    assert MACHINE_ID in expired or MACHINE_ID not in data_ids, msg
