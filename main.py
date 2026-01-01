@@ -33,13 +33,20 @@ from db_utils import insert_fleet_report
 
 
 app = Flask(__name__, template_folder="templates", static_folder="static")
-app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key')  # À changer en prod !
+
+_secret = os.environ.get('SECRET_KEY')
+if not _secret and os.environ.get('ALLOW_DEV_INSECURE') == '1':
+    _secret = 'dev-secret-key'
+if not _secret:
+    raise RuntimeError("SECRET_KEY manquant : définissez-le ou ALLOW_DEV_INSECURE=1 pour un dev local.")
+app.secret_key = _secret
 
 swagger = Swagger(app)
 limiter = Limiter(
     get_remote_address,
     app=app,
-    default_limits=["100 per minute"]
+    default_limits=["100 per minute"],
+    storage_uri=os.environ.get("FLASK_LIMITER_STORAGE_URI", "memory://"),
 )
 
 
@@ -47,6 +54,8 @@ limiter = Limiter(
 # ATTENTION : À désactiver en production !
 @app.route('/debug-templates')
 def debug_templates():
+    if os.environ.get('ENABLE_DEBUG_TEMPLATES') != '1':
+        return "Not found", 404
     # TODO: restreindre l'accès à cette route (admin uniquement)
     import os
     template_dir = app.template_folder or 'templates'
