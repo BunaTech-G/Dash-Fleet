@@ -70,25 +70,33 @@ def create_admin_table():
 
 
 def ensure_bootstrap_admin():
-    """Crée un admin initial si la table est vide et que les variables d'env sont définies.
+    """Crée ou met à jour un admin via variables d'env si activé.
 
-    Définir ADMIN_BOOTSTRAP_USERNAME et ADMIN_BOOTSTRAP_PASSWORD avant le démarrage
-    pour créer automatiquement le compte si aucun admin n'existe encore.
+    - ADMIN_BOOTSTRAP_USERNAME / ADMIN_BOOTSTRAP_PASSWORD doivent être définies.
+    - Si aucun admin n'existe : création.
+    - Si ADMIN_FORCE_BOOTSTRAP=1 et qu'un admin existe : met à jour le premier admin (reset user/mot de passe).
     """
     user = os.environ.get("ADMIN_BOOTSTRAP_USERNAME")
     pwd = os.environ.get("ADMIN_BOOTSTRAP_PASSWORD")
     if not user or not pwd:
         return
+    force = os.environ.get("ADMIN_FORCE_BOOTSTRAP") == "1"
     create_admin_table()
     try:
         conn = sqlite3.connect(str(FLEET_DB_PATH))
-        cur = conn.execute('SELECT COUNT(*) FROM admin')
-        count = cur.fetchone()[0]
-        if count == 0:
+        cur = conn.execute('SELECT id, COUNT(*) OVER() as c FROM admin ORDER BY id ASC LIMIT 1')
+        row = cur.fetchone()
+        if not row or row[1] == 0:
             from werkzeug.security import generate_password_hash
             conn.execute('INSERT INTO admin (username, password_hash) VALUES (?, ?)', (user, generate_password_hash(pwd)))
             conn.commit()
             logging.info("Admin bootstrap créé via variables d'environnement.")
+        elif force:
+            from werkzeug.security import generate_password_hash
+            first_id = row[0]
+            conn.execute('UPDATE admin SET username = ?, password_hash = ? WHERE id = ?', (user, generate_password_hash(pwd), first_id))
+            conn.commit()
+            logging.info("Admin bootstrap forcé : compte mis à jour via variables d'environnement.")
     except Exception as e:
         logging.error(f"Erreur bootstrap admin : {e}")
     finally:
