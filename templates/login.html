@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Connexion administrateur</title>
+  <title>Connexion</title>
   <style>
     :root {
       --bg: radial-gradient(circle at 10% 20%, #0d1b2a 0%, #0b1321 25%, #0b0f1a 60%, #080b12 100%);
@@ -135,8 +135,8 @@
 </head>
 <body>
   <div class="card" role="main">
-    <h1>Connexion admin</h1>
-    <p class="sub">Connectez-vous avec vos identifiants administrateur pour accéder au tableau de bord.</p>
+    <h1>Connexion</h1>
+    <p class="sub">Entrez le mot de passe du tableau de bord (config.json).</p>
 
     {% with messages = get_flashed_messages() %}
       {% if messages %}
@@ -146,22 +146,13 @@
       {% endif %}
     {% endwith %}
 
-    <form method="post" autocomplete="on">
-      <div class="field">
-        <label for="username">Nom d'utilisateur</label>
-        <input id="username" name="username" type="text" required autofocus placeholder="admin" />
-      </div>
+    <form method="post" autocomplete="off">
       <div class="field">
         <label for="password">Mot de passe</label>
-        <input id="password" name="password" type="password" required placeholder="••••••••" />
+        <input id="password" name="password" type="password" required autofocus placeholder="••••••••" />
       </div>
       <button type="submit">Se connecter</button>
     </form>
-
-    <div class="footer">
-      Besoin de créer le premier compte ?
-      <a href="/init-admin">Initialiser un admin</a>
-    </div>
   </div>
 </body>
 </html>

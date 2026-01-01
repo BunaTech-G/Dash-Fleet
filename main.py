@@ -17,6 +17,7 @@ import time
 import urllib.error
 import urllib.request
 import zipfile
+import hmac
 from pathlib import Path
 from typing import Dict, Iterable
 
@@ -139,32 +140,46 @@ def init_admin():
     return render_template('init_admin.html')
 
 
-# --- Authentification admin/password ---
-def login_required(f):
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        return f(*args, **kwargs)
-    return decorated
+# --- Authentification minimale par mot de passe unique ---
+CONFIG_PATH = Path("config.json")
+
+
+def _get_dashboard_password() -> str | None:
+    try:
+        if CONFIG_PATH.exists():
+            data = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
+            pwd = data.get("dashboard_password")
+            if pwd:
+                return str(pwd)
+    except Exception as e:
+        logging.error(f"Erreur lecture config.json pour dashboard_password : {e}")
+    return None
+
+
+def require_password(view_func):
+    @wraps(view_func)
+    def wrapper(*args, **kwargs):
+        if session.get("pw_ok"):
+            return view_func(*args, **kwargs)
+        nxt = request.path
+        return redirect(url_for("login", next=nxt))
+    return wrapper
 
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    expected = _get_dashboard_password()
+    if not expected:
+        flash("Mot de passe non configuré (config.json -> dashboard_password)")
     if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
-        logging.info(f"LOGIN attempt user={username}")
-        conn = sqlite3.connect(str(FLEET_DB_PATH))
-        conn.row_factory = sqlite3.Row
-        cur = conn.execute('SELECT password_hash FROM admin WHERE username = ?', (username,))
-        row = cur.fetchone()
-        conn.close()
-        from werkzeug.security import check_password_hash
-        if row and check_password_hash(row['password_hash'], password):
-            logging.info(f"LOGIN success user={username}")
-            session['admin_logged_in'] = True
-            return redirect(url_for('dashboard'))
-        logging.warning(f"LOGIN failed user={username} found_row={bool(row)}")
-        flash('Identifiants invalides')
+        password = request.form.get('password', '')
+        next_url = request.args.get('next') or url_for('dashboard')
+        if expected and hmac.compare_digest(password, expected):
+            session.clear()
+            session['pw_ok'] = True
+            session.permanent = True
+            return redirect(next_url)
+        flash('Mot de passe invalide')
     return render_template('login.html')
 
 
@@ -872,23 +887,26 @@ def print_stats(stats: Dict[str, object]) -> None:
 
 
 @app.route("/")
-@login_required
+@require_password
 def dashboard() -> str:
     return render_template("index.html")
 
 
 @app.route("/history")
+@require_password
 def history_page() -> str:
     return render_template("history.html")
 
 
 @app.route("/fleet")
+@require_password
 def fleet_page() -> str:
     # expose le TTL côté client pour cohérence (secondes)
     return render_template("fleet.html", fleet_ttl_seconds=FLEET_TTL_SECONDS)
 
 
 @app.route("/help")
+@require_password
 def help_page() -> str:
     return render_template("help.html")
 
@@ -974,7 +992,6 @@ def _consume_download_token(token: str) -> str | None:
 
 @app.route("/api/orgs", methods=["POST"])
 @limiter.limit("10/minute")
-@login_required
 def api_create_org():
     """Créer une organization + api_key. Protégé par ACTION_TOKEN. Le premier org devient admin, les suivants user."""
     auth_err = _check_action_token()
@@ -1078,7 +1095,6 @@ def api_logout():
 
 
 @app.route("/api/orgs", methods=["GET"])
-@login_required
 def api_list_orgs():
     """Liste des organisations et clés (protégé par ACTION_TOKEN)."""
     auth_err = _check_action_token()
@@ -1106,7 +1122,6 @@ def api_list_orgs():
 
 
 @app.route("/api/keys/revoke", methods=["POST"])
-@login_required
 def api_revoke_key():
     """Révoque ou restaure une clé API (protégé par ACTION_TOKEN)."""
     auth_err = _check_action_token()
@@ -1136,18 +1151,17 @@ def api_revoke_key():
 
 
 @app.route("/admin/orgs")
-@login_required
+@require_password
 def admin_orgs():
     return render_template("admin_orgs.html")
 
 @app.route("/admin/tokens")
-@login_required
+@require_password
 def admin_tokens():
     return render_template("admin_tokens.html")
 
 
 @app.route('/api/tokens', methods=['GET'])
-@login_required
 def api_list_tokens():
     auth_err = _check_action_token()
     if auth_err:
@@ -1174,7 +1188,6 @@ def api_list_tokens():
 
 
 @app.route('/api/tokens/create', methods=['POST'])
-@login_required
 def api_create_token():
     auth_err = _check_action_token()
     if auth_err:
@@ -1191,7 +1204,6 @@ def api_create_token():
 
 
 @app.route('/api/tokens/delete', methods=['POST'])
-@login_required
 def api_delete_token():
     auth_err = _check_action_token()
     if auth_err:
@@ -1312,8 +1324,6 @@ def download_agent(token: str):
 
 @app.route("/api/fleet/report", methods=["POST"])
 @limiter.limit("30/minute")
-# Pour l'instant, seul l'admin est géré. Si besoin d'autres rôles, adapter ici.
-@login_required
 def api_fleet_report():
     """
     Reporte les métriques d'un agent.
@@ -1420,8 +1430,6 @@ def api_fleet_report():
 
 
 @app.route("/api/fleet")
-# Pour l'instant, seul l'admin est géré. Si besoin d'autres rôles, adapter ici.
-@login_required
 def api_fleet():
     # require org-key to list fleet (multi-tenant)
     ok, org_id = _check_org_key()
@@ -1446,8 +1454,6 @@ def api_fleet():
 
 
 @app.route("/api/fleet/reload", methods=["POST"])
-# Pour l'instant, seul l'admin est géré. Si besoin d'autres rôles, adapter ici.
-@login_required
 def api_fleet_reload():
     """Forcer le rechargement de `logs/fleet_state.json` en mémoire.
 
