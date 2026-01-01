@@ -958,16 +958,9 @@ def history_page() -> str:
 
 
 @app.route("/fleet")
-@require_password
 def fleet_page() -> str:
-    # expose le TTL côté client pour cohérence (secondes)
-    return render_template("fleet.html", fleet_ttl_seconds=FLEET_TTL_SECONDS)
-
-
-@app.route("/fleet-simple")
-def fleet_simple_page() -> str:
-    # Page simple sans authentification, affiche les machines directement
-    return render_template("fleet_simple.html")
+    # Page simple sans authentification
+    return render_template("fleet.html")
 
 
 @app.route("/help")

@@ -1,14 +1,121 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="fr">
 <head>
-    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Fleet - Tableau de bord système</title>
-  <link rel="stylesheet" href="/static/style.css">
-  <script src="/static/i18n.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fleet - Machines</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            padding: 20px;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        h1 { margin-bottom: 30px; color: #fff; }
+        .machines {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        .card {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 20px;
+            transition: all 0.3s;
+        }
+        .card:hover { border-color: #64748b; }
+        .card-title { font-size: 18px; font-weight: bold; margin-bottom: 10px; color: #60a5fa; }
+        .card-meta { font-size: 13px; color: #94a3b8; margin: 8px 0; }
+        .card-value { font-weight: bold; color: #fff; }
+        .status-ok { color: #22c55e; }
+        .status-warn { color: #f59e0b; }
+        .status-critical { color: #ef4444; }
+        .status-expired { color: #6b7280; }
+        .score { font-size: 24px; font-weight: bold; margin: 15px 0; }
+        .empty { text-align: center; color: #94a3b8; padding: 40px; }
+        .loading { text-align: center; padding: 40px; }
+    </style>
 </head>
 <body>
+    <div class="container">
+        <h1>🖥️ Santé des machines</h1>
+        <div id="machines" class="machines">
+            <div class="loading">Chargement...</div>
+        </div>
+    </div>
+
+    <script>
+        function getStatusClass(status) {
+            if (status === 'critical') return 'status-critical';
+            if (status === 'warn') return 'status-warn';
+            if (status === 'expired') return 'status-expired';
+            return 'status-ok';
+        }
+
+        function loadFleet() {
+            fetch('/api/fleet/public')
+                .then(r => {
+                    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                    return r.json();
+                })
+                .then(data => {
+                    const machines = document.getElementById('machines');
+                    const list = data.data || [];
+                    
+                    if (!list.length) {
+                        machines.innerHTML = '<div class="empty">Aucune machine reportée.</div>';
+                        return;
+                    }
+
+                    machines.innerHTML = list.map(entry => {
+                        const report = entry.report || {};
+                        const health = report.health || { score: 0, status: 'ok' };
+                        const now = Date.now() / 1000;
+                        const expired = (now - entry.ts > 600);
+                        const status = expired ? 'expired' : health.status;
+                        const lastSeen = new Date(entry.ts * 1000).toLocaleString();
+
+                        return `
+                            <div class="card">
+                                <div class="card-title">${entry.id || 'Machine'}</div>
+                                <div class="card-meta">
+                                    Status: <span class="${getStatusClass(status)}">${status.toUpperCase()}</span>
+                                </div>
+                                <div class="score ${getStatusClass(status)}">
+                                    ${health.score || 0}/100
+                                </div>
+                                <div class="card-meta">
+                                    <div>🖥️ CPU: <span class="card-value">${report.cpu_percent?.toFixed?.(1) || '--'}%</span></div>
+                                    <div>💾 RAM: <span class="card-value">${report.ram_percent?.toFixed?.(1) || '--'}%</span></div>
+                                    <div>📦 Disk: <span class="card-value">${report.disk_percent?.toFixed?.(1) || '--'}%</span></div>
+                                </div>
+                                <div class="card-meta">
+                                    ⏱️ Uptime: <span class="card-value">${report.uptime_hms || '--'}</span>
+                                </div>
+                                <div class="card-meta" style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #334155;">
+                                    Dernier: ${lastSeen}
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                })
+                .catch(err => {
+                    document.getElementById('machines').innerHTML = 
+                        `<div class="empty">Erreur: ${err.message}</div>`;
+                });
+        }
+
+        // Charger au démarrage
+        loadFleet();
+        
+        // Rafraîchir toutes les 5 secondes
+        setInterval(loadFleet, 5000);
+    </script>
+</body>
+</html>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <main class="page">
     <header>
