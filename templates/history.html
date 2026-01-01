@@ -50,7 +50,10 @@
     <section class="chart-card">
       <div class="table-header">
         <h2 id="history-chart-title">Séries temporelles</h2>
-        <span class="muted" id="meta-count">0 points</span>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <button class="theme-toggle" id="download-history-btn" aria-label="Télécharger l'historique CSV" style="padding:7px 12px;">Télécharger CSV</button>
+          <span class="muted" id="meta-count">0 points</span>
+        </div>
       </div>
       <canvas id="history-chart" height="150"></canvas>
     </section>
@@ -129,6 +132,7 @@
     const cpuSeries = [];
     const ramSeries = [];
     const diskSeries = [];
+    let historyRows = [];
 
     const historyChart = new Chart(chartCtx, {
       type: 'line',
@@ -270,6 +274,7 @@
         .then((resp) => resp.json())
         .then((payload) => {
           const rows = payload.data || [];
+          historyRows = rows;
           document.getElementById('meta-count').textContent = t.pointsLabel(rows.length);
 
           if (!rows.length) {
@@ -305,6 +310,31 @@
 
     setTheme(theme);
     updateHealth();
+
+    function exportHistoryCsv() {
+      if (!historyRows || historyRows.length === 0) {
+        showToast('Aucune donnée à exporter', 'error');
+        return;
+      }
+      const header = ['timestamp','cpu_percent','ram_percent','disk_percent','uptime_hms'];
+      const lines = [header.join(',')];
+      historyRows.forEach(r => {
+        const row = [r.timestamp, r.cpu_percent, r.ram_percent, r.disk_percent, r.uptime_hms || ''];
+        lines.push(row.join(','));
+      });
+      const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'history.csv';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    const dlBtn = document.getElementById('download-history-btn');
+    if (dlBtn) dlBtn.addEventListener('click', exportHistoryCsv);
   </script>
 </body>
 </html>
