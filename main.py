@@ -964,6 +964,12 @@ def fleet_page() -> str:
     return render_template("fleet.html", fleet_ttl_seconds=FLEET_TTL_SECONDS)
 
 
+@app.route("/fleet-simple")
+def fleet_simple_page() -> str:
+    # Page simple sans authentification, affiche les machines directement
+    return render_template("fleet_simple.html")
+
+
 @app.route("/help")
 @require_password
 def help_page() -> str:
