@@ -4,180 +4,108 @@
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Fleet - Tableau de bord système</title>
+  <title>Fleet - Machines</title>
   <link rel="stylesheet" href="/static/style.css">
-  <script src="/static/i18n.js"></script>
 </head>
 <body>
-    <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <main class="page">
     <header>
       <div>
-        <p class="eyebrow" id="fleet-eyebrow">Fleet</p>
-        <h1 id="fleet-title">Santé des postes</h1>
-        <p class="lede" id="fleet-subtitle">Vue centrale des machines reportées par les agents.</p>
+        <p class="eyebrow">Fleet</p>
+        <h1>Santé des postes</h1>
+        <p class="lede">Vue centrale des machines reportées par les agents.</p>
       </div>
       <div class="header-actions">
-        <div class="lang-switch">
-          <label for="lang-select" id="lang-label">Langue</label>
-          <select id="lang-select" class="lang-select">
-            <option value="fr">FR</option>
-            <option value="en">EN</option>
-            <option value="es">ES</option>
-            <option value="ru">RU</option>
-          </select>
-        </div>
-        <button class="theme-toggle" id="theme-toggle" aria-label="Changer le thème clair/sombre" tabindex="1">Mode sombre</button>
+        <button class="theme-toggle" id="theme-toggle" aria-label="Changer le thème clair/sombre">Mode sombre</button>
       </div>
     </header>
 
     <nav class="nav-links">
-      <a href="/" id="nav-live">Temps réel</a>
-      <a href="/history" id="nav-history">Historique</a>
-      <a href="/fleet" class="active" id="nav-fleet">Fleet</a>
-      <a href="/help" id="nav-help">Aide</a>
+      <a href="/">Temps réel</a>
+      <a href="/history">Historique</a>
+      <a href="/fleet" class="active">Fleet</a>
+      <a href="/help">Aide</a>
     </nav>
 
     <section class="table-wrap">
       <div class="table-header">
-        <h2 id="fleet-table-title">Machines</h2>
-        <span class="muted" id="fleet-meta">--</span>
+        <h2>Machines</h2>
+        <span class="muted" id="machine-count">0 machines</span>
       </div>
-      <div id="fleet-error" class="inline-error" role="status" aria-live="polite"></div>
-      <div class="table-fleet" id="fleet-cards" aria-label="Liste des machines" tabindex="2"></div>
+      <div class="table-fleet" id="fleet-cards"></div>
     </section>
 
     <div class="empty" id="empty-state" hidden>
-      <p id="empty-title">Aucune machine reportée.</p>
-      <p class="muted" id="empty-hint">Déployer un agent qui POST sur /api/fleet/report.</p>
+      <p>Aucune machine reportée.</p>
     </div>
   </main>
 
   <script>
-    function showToast(msg, type='info', duration=3200) {
-      const toast = document.getElementById('toast');
-      if (!toast) return;
-      toast.textContent = msg;
-      toast.style.background = type==='error' ? '#f43f5e' : (type==='success' ? '#22c55e' : 'var(--accent)');
-      toast.style.color = type==='error' ? '#fff' : '#04263a';
-      toast.style.display = 'block';
-      setTimeout(()=>{ toast.style.display = 'none'; }, duration);
-    }
-
-    const langSelect = document.getElementById('lang-select');
-    const themeToggle = document.getElementById('theme-toggle');
-    const fleetCards = document.getElementById('fleet-cards');
-    const fleetMeta = document.getElementById('fleet-meta');
     let theme = localStorage.getItem('theme') === 'light' ? 'light' : 'dark';
-
-    function updateThemeButton() {
-      if (!themeToggle) return;
-      themeToggle.textContent = theme === 'dark' ? 'Mode clair' : 'Mode sombre';
-    }
+    const themeToggle = document.getElementById('theme-toggle');
 
     function setTheme(nextTheme) {
       theme = nextTheme === 'light' ? 'light' : 'dark';
       document.body.classList.toggle('light', theme === 'light');
       localStorage.setItem('theme', theme);
-      updateThemeButton();
+      themeToggle.textContent = theme === 'dark' ? 'Mode clair' : 'Mode sombre';
     }
 
-    if (themeToggle) {
-      updateThemeButton();
-      themeToggle.addEventListener('click', () => setTheme(theme === 'dark' ? 'light' : 'dark'));
-    }
-
-    if (langSelect) {
-      langSelect.addEventListener('change', (e) => {
-        localStorage.setItem('lang', e.target.value);
-        location.reload();
-      });
-    }
-
-    function statusClass(status, lastSeenTs) {
-      const now = Date.now() / 1000;
-      if (status === 'critical') return 'status-critical';
-      if (now - lastSeenTs > 600) return 'status-expired';
-      if (status === 'warn') return 'status-warn';
-      return 'status-ok';
-    }
-
-    function renderSkeleton(count = 4) {
-      fleetCards.innerHTML = '';
-      for (let i = 0; i < count; i++) {
-        const card = document.createElement('article');
-        card.className = 'skeleton fade-in';
-        card.style.animationDelay = (i * 0.06) + 's';
-        card.innerHTML = `
-          <div class="skeleton-line wide"></div>
-          <div class="skeleton-line mid"></div>
-          <div class="skeleton-line short"></div>
-        `;
-        fleetCards.appendChild(card);
-      }
-    }
+    setTheme(theme);
+    themeToggle.addEventListener('click', () => setTheme(theme === 'dark' ? 'light' : 'dark'));
 
     function renderFleet(data) {
-      fleetCards.innerHTML = '';
-      if (!data.length) {
-        document.getElementById('empty-state').hidden = false;
+      const fleetCards = document.getElementById('fleet-cards');
+      const emptyState = document.getElementById('empty-state');
+      const machineCount = document.getElementById('machine-count');
+      
+      if (!data || data.length === 0) {
+        fleetCards.innerHTML = '';
+        emptyState.hidden = false;
+        machineCount.textContent = '0 machines';
         return;
       }
-      document.getElementById('empty-state').hidden = true;
 
-      data.forEach((entry, i) => {
+      emptyState.hidden = true;
+      machineCount.textContent = `${data.length} machine${data.length > 1 ? 's' : ''}`;
+      
+      fleetCards.innerHTML = data.map((entry, i) => {
         const report = entry.report || {};
         const health = report.health || { score: 0, status: 'ok' };
-        const lastSeen = new Date(entry.ts * 1000).toLocaleString();
         const now = Date.now() / 1000;
         const expired = (now - entry.ts > 600);
         const status = expired ? 'expired' : health.status;
-        const card = document.createElement('article');
-        card.className = `card ${statusClass(status, entry.ts)} fade-in`;
-        card.style.animationDelay = (i * 0.07) + 's';
-        card.setAttribute('aria-label', `Machine ${entry.id || 'machine'}`);
-        card.setAttribute('tabindex', 3 + i);
-        card.innerHTML = `
-          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
-            <div class="label">${entry.id || 'Machine'}</div>
-            <span class="badge badge-score badge-${status} fade-in" style="animation-delay:${i*0.07+0.1}s">${health.score || 0}/100</span>
-          </div>
-          <div class="meta" style="margin-bottom:4px"><span class="dot dot-${status}"></span> ${status.toUpperCase()} · ${report.uptime_hms || ''}</div>
-          <div class="meta">CPU <b>${report.cpu_percent?.toFixed?.(1) || '--'}</b>% · RAM <b>${report.ram_percent?.toFixed?.(1) || '--'}</b>% · Disk <b>${report.disk_percent?.toFixed?.(1) || '--'}</b>%</div>
-          <div class="meta muted">Dernier: ${lastSeen}${expired ? ' ⚠️' : ''}</div>
+        const lastSeen = new Date(entry.ts * 1000).toLocaleString();
+
+        return `
+          <article class="card status-${status}">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+              <div class="label">${entry.id || 'Machine'}</div>
+              <span class="badge badge-score badge-${status}">${health.score || 0}/100</span>
+            </div>
+            <div class="meta"><span class="dot dot-${status}"></span> ${status.toUpperCase()} · ${report.uptime_hms || '--'}</div>
+            <div class="meta">🖥️ CPU <b>${(report.cpu_percent || 0).toFixed(1)}</b>% · 💾 RAM <b>${(report.ram_percent || 0).toFixed(1)}</b>% · 📦 Disk <b>${(report.disk_percent || 0).toFixed(1)}</b>%</div>
+            <div class="meta muted">Dernier: ${lastSeen}${expired ? ' ⚠️' : ''}</div>
+          </article>
         `;
-        fleetCards.appendChild(card);
-      });
+      }).join('');
     }
 
-    function scheduleNext(delay) {
-      setTimeout(refreshFleet, delay);
-    }
-
-    function refreshFleet() {
-      if (!fleetMeta) return;
-      fleetMeta.textContent = 'Chargement...';
-      renderSkeleton(4);
+    function loadFleet() {
       fetch('/api/fleet/public')
-        .then((resp) => resp.json())
-        .then((data) => {
-          const list = data.data || [];
-          renderFleet(list);
-          if (fleetMeta) fleetMeta.textContent = `${list.length || 0} machines`;
-          const errBox = document.getElementById('fleet-error');
-          if (errBox) errBox.style.display = 'none';
-          scheduleNext(5000);
-        })
-        .catch((err) => {
-          console.error(err);
-          if (fleetMeta) fleetMeta.textContent = 'Erreur API';
-          showToast('Erreur de récupération de la flotte', 'error');
-          scheduleNext(10000);
+        .then(r => r.json())
+        .then(data => renderFleet(data.data || []))
+        .catch(err => {
+          console.error('Erreur:', err);
+          document.getElementById('fleet-cards').innerHTML = '<div class="empty" style="margin:0;padding:16px;">Erreur de chargement</div>';
         });
     }
 
     // Charger au démarrage
-    refreshFleet();
+    loadFleet();
+    
+    // Rafraîchir toutes les 5 secondes
+    setInterval(loadFleet, 5000);
   </script>
 </body>
 </html>
