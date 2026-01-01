@@ -693,6 +693,41 @@ def _action_collect_logs() -> Dict[str, object]:
         return {"ok": False, "message": str(exc)}
 
 
+def _action_sync_time() -> Dict[str, object]:
+    """Synchronize system time with NTP server."""
+    if _is_windows():
+        return _run_subprocess(["powershell", "-Command", "net start w32time; w32tm /resync"])
+    else:
+        result = _run_subprocess(["timedatectl", "set-ntp", "true"])
+        if not result.get("ok"):
+            result = _run_subprocess(["ntpdate", "-s", "pool.ntp.org"])
+        return result
+
+
+def _action_restart_network() -> Dict[str, object]:
+    """Restart network adapter(s)."""
+    if _is_windows():
+        return _run_subprocess(["powershell", "-Command", "ipconfig /release; ipconfig /renew"])
+    else:
+        return _run_subprocess(["sudo", "systemctl", "restart", "networking"])
+
+
+def _action_clear_recyclebin() -> Dict[str, object]:
+    """Empty recycle bin (Windows only)."""
+    if not _is_windows():
+        return {"ok": False, "message": "Action Windows uniquement"}
+    return _run_subprocess(["powershell", "-Command", "Clear-RecycleBin -Force -Confirm:$false"])
+
+
+def _action_clear_event_logs() -> Dict[str, object]:
+    """Clear Windows Event Logs (Windows only)."""
+    if not _is_windows():
+        return {"ok": False, "message": "Action Windows uniquement"}
+    result = _run_subprocess(["powershell", "-Command",
+        "Clear-EventLog -LogName Application,System -Confirm:$false"])
+    return result
+
+
 def _maybe_send_webhook(stats: Dict[str, object]) -> None:
     global _LAST_WEBHOOK_TS
     if not WEBHOOK_URL:
@@ -850,13 +885,17 @@ def _check_org_key() -> tuple[bool, str | None]:
 
 
 APPROVED_ACTIONS: Dict[str, object] = {
+    "sync_time": {
+        "label": "Synchroniser l'heure",
+        "runner": _action_sync_time,
+    },
     "flush_dns": {
-        "label": "Flush DNS",
+        "label": "Vider cache DNS",
         "runner": _action_flush_dns,
     },
-    "restart_spooler": {
-        "label": "Redémarrer Spooler",
-        "runner": _action_restart_spooler,
+    "restart_network": {
+        "label": "Redémarrer réseau",
+        "runner": _action_restart_network,
     },
     "cleanup_temp": {
         "label": "Nettoyer Temp (*.tmp)",
@@ -869,6 +908,14 @@ APPROVED_ACTIONS: Dict[str, object] = {
     "cleanup_outlook": {
         "label": "Nettoyer caches Outlook",
         "runner": _action_cleanup_outlook,
+    },
+    "clear_recyclebin": {
+        "label": "Vider Corbeille",
+        "runner": _action_clear_recyclebin,
+    },
+    "clear_event_logs": {
+        "label": "Effacer Event Logs",
+        "runner": _action_clear_event_logs,
     },
     "collect_logs": {
         "label": "Collecter logs (zip)",
