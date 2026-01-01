@@ -888,6 +888,11 @@ def fleet_page() -> str:
     return render_template("fleet.html", fleet_ttl_seconds=FLEET_TTL_SECONDS)
 
 
+@app.route("/help")
+def help_page() -> str:
+    return render_template("help.html")
+
+
 @app.route("/api/stats")
 def api_stats():
     return jsonify(collect_stats())
