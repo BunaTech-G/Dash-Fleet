@@ -29,26 +29,36 @@
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&display=swap');
 
 :root {
-  --bg: #0f172a;
-  --panel: #111827;
-  --border: #1f2937;
-  --text: #e5e7eb;
-  --muted: #9ca3af;
-  --accent: #38bdf8;
-  --alert: #f43f5e;
+  --bg: #0d1628;
+  --panel: #0f1c32;
+  --panel-strong: #0c1728;
+  --border: #1e2c45;
+  --text: #e9edf5;
+  --muted: #9fb2d0;
+  --accent: #46b8ff;
+  --accent-strong: #0ea5e9;
+  --success: #22c55e;
+  --warn: #facc15;
+  --critical: #f43f5e;
+  --expired: #f59e42;
   --card-radius: 14px;
-  --shadow: 0 15px 40px rgba(0, 0, 0, 0.35);
+  --shadow: 0 18px 42px rgba(0, 0, 0, 0.35);
 }
 
 body.light {
-  --bg: #f5f6fb;
+  --bg: #f3f6fb;
   --panel: #ffffff;
-  --border: #e5e7eb;
+  --panel-strong: #f4f6fb;
+  --border: #dfe5ef;
   --text: #0f172a;
   --muted: #4b5563;
   --accent: #0ea5e9;
-  --alert: #e11d48;
-  --shadow: 0 12px 30px rgba(0, 0, 0, 0.08);
+  --accent-strong: #0284c7;
+  --success: #16a34a;
+  --warn: #e0b100;
+  --critical: #e11d48;
+  --expired: #f28c28;
+  --shadow: 0 14px 32px rgba(0, 0, 0, 0.08);
 }
 
 * { box-sizing: border-box; }
@@ -57,6 +67,7 @@ body {
   margin: 0;
   min-height: 100vh;
   font-family: 'Space Grotesk', sans-serif;
+  line-height: 1.55;
   background: radial-gradient(circle at 20% 20%, rgba(56, 189, 248, 0.12), transparent 25%),
               radial-gradient(circle at 80% 0%, rgba(244, 63, 94, 0.12), transparent 30%),
               var(--bg);
@@ -64,7 +75,7 @@ body {
 }
 
 .page {
-  max-width: 1100px;
+  max-width: 1200px;
   margin: 0 auto;
   padding: 56px 20px 72px;
 }
@@ -73,6 +84,7 @@ body {
   display: flex;
   gap: 12px;
   margin: 0 0 18px;
+  flex-wrap: wrap;
 }
 
 .nav-links a {
@@ -80,9 +92,9 @@ body {
   text-decoration: none;
   padding: 8px 12px;
   border: 1px solid var(--border);
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.02);
-  transition: border-color 0.15s ease, background 0.15s ease;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
 }
 
 .nav-links a:hover {
@@ -102,12 +114,14 @@ header {
   align-items: center;
   gap: 16px;
   margin-bottom: 32px;
+  flex-wrap: wrap;
 }
 
 .header-actions {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
 .lang-switch {
@@ -125,7 +139,7 @@ header {
 }
 
 .lang-select {
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--panel-strong);
   border: 1px solid var(--border);
   border-radius: 10px;
   color: var(--text);
@@ -139,11 +153,11 @@ header {
 }
 
 .theme-toggle {
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--panel-strong);
   border: 1px solid var(--border);
   color: var(--text);
-  border-radius: 10px;
-  padding: 8px 12px;
+  border-radius: 12px;
+  padding: 9px 13px;
   font-weight: 600;
   cursor: pointer;
   box-shadow: var(--shadow);
@@ -172,11 +186,12 @@ h1 {
 
 .badge {
   padding: 10px 14px;
-  background: rgba(56, 189, 248, 0.15);
-  border: 1px solid rgba(56, 189, 248, 0.4);
+  background: rgba(70, 184, 255, 0.16);
+  border: 1px solid rgba(70, 184, 255, 0.45);
   color: var(--text);
   border-radius: 999px;
   font-weight: 600;
+  letter-spacing: 0.3px;
 }
 
 .badge.alert {
@@ -190,13 +205,14 @@ h1 {
   gap: 18px;
 }
 
+
 .card {
-  background: var(--panel);
+  background: linear-gradient(135deg, var(--panel) 0%, var(--panel-strong) 100%);
   border: 1px solid var(--border);
   border-radius: var(--card-radius);
   padding: 18px;
   box-shadow: var(--shadow);
-  transition: transform 0.15s ease, border-color 0.15s ease;
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .card:hover { transform: translateY(-2px); }
@@ -226,6 +242,7 @@ h1 {
   border-radius: var(--card-radius);
   box-shadow: var(--shadow);
   padding: 18px;
+  overflow: auto;
 }
 
 .fleet-controls {
@@ -353,6 +370,65 @@ th, td { padding: 10px; text-align: left; }
 th { color: var(--muted); font-weight: 500; }
 
 tbody tr:nth-child(odd) { background: rgba(255, 255, 255, 0.02); }
+
+button:focus-visible,
+select:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 2px;
+}
+
+.fade-in { animation: fadeIn 240ms ease forwards; opacity: 0; }
+@keyframes fadeIn { to { opacity: 1; transform: translateY(0); } from { opacity: 0; transform: translateY(8px); } }
+
+/* Skeleton loader for fleet cards */
+.skeleton {
+  background: linear-gradient(135deg, var(--panel) 0%, var(--panel-strong) 100%);
+  border: 1px solid var(--border);
+  border-radius: var(--card-radius);
+  padding: 16px;
+  position: relative;
+  overflow: hidden;
+  min-height: 110px;
+}
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent);
+  animation: shimmer 1.2s infinite;
+}
+.skeleton-line {
+  height: 12px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 8px;
+  margin-bottom: 10px;
+}
+.skeleton-line.wide { width: 70%; }
+.skeleton-line.mid { width: 55%; }
+.skeleton-line.short { width: 35%; }
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.inline-error {
+  display: none;
+  margin: 6px 0 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(244, 63, 94, 0.35);
+  background: rgba(244, 63, 94, 0.12);
+  color: #ffe7ed;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+@media (max-width: 820px) {
+  .actions-grid { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+  .value { font-size: 34px; }
+}
 
 @media (max-width: 640px) {
   header { flex-direction: column; align-items: flex-start; }

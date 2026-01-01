@@ -46,12 +46,14 @@
         <h2 id="fleet-table-title">Machines</h2>
         <span class="muted" id="fleet-meta">--</span>
       </div>
-      <div class="legend-status" style="margin-bottom:10px;font-size:13px;color:var(--muted);display:flex;gap:18px;flex-wrap:wrap">
+      <div class="legend-status" style="margin-bottom:10px;font-size:13px;color:var(--muted);display:flex;gap:18px;flex-wrap:wrap;align-items:center;">
         <span><span class="dot dot-ok"></span> OK</span>
         <span><span class="dot dot-warn"></span> Warn</span>
         <span><span class="dot dot-critical"></span> Critical</span>
         <span><span class="dot dot-expired"></span> Expired</span>
+        <span class="muted">· TTL {{ fleet_ttl_seconds }}s</span>
       </div>
+      <div id="fleet-error" class="inline-error" role="status" aria-live="polite"></div>
       <div class="fleet-controls">
         <label>Statut:
           <select id="filter-status" class="control-select">
@@ -98,6 +100,10 @@
     const filterStatus = document.getElementById('filter-status');
     const sortBy = document.getElementById('sort-by');
     const fleetTTL = parseInt('{{ fleet_ttl_seconds }}', 10) || 600;
+    const refreshBaseMs = 5000;
+    let refreshTimer = null;
+    let errorStreak = 0;
+    let loading = false;
     let fleetRawData = [];
     let t = dashboardI18n.get();
     let theme = localStorage.getItem('theme') === 'light' ? 'light' : 'dark';
@@ -136,6 +142,21 @@
       if (now - lastSeenTs > 600) return 'status-expired';
       if (status === 'warn') return 'status-warn';
       return 'status-ok';
+    }
+
+    function renderSkeleton(count = 6) {
+      fleetCards.innerHTML = '';
+      for (let i = 0; i < count; i++) {
+        const card = document.createElement('article');
+        card.className = 'skeleton fade-in';
+        card.style.animationDelay = (i * 0.06) + 's';
+        card.innerHTML = `
+          <div class="skeleton-line wide"></div>
+          <div class="skeleton-line mid"></div>
+          <div class="skeleton-line short"></div>
+        `;
+        fleetCards.appendChild(card);
+      }
     }
 
     function renderFleet(data) {
@@ -203,18 +224,42 @@
       renderFleet(data || []);
     }
 
+    function scheduleNext(delay) {
+      if (refreshTimer) clearTimeout(refreshTimer);
+      refreshTimer = setTimeout(refreshFleet, delay);
+    }
+
     function refreshFleet() {
+      if (loading) return; // évite les appels concurrents
+      loading = true;
+      const meta = document.getElementById('fleet-meta');
+      if (meta) meta.textContent = 'Chargement...';
+      renderSkeleton(4);
       authFetch('/api/fleet')
         .then((resp) => resp.json())
         .then((data) => {
+          errorStreak = 0;
           fleetRawData = data.data || [];
           applyFilterSortAndRender();
+          if (meta) meta.textContent = `${fleetRawData.length} machines`;
+          const errBox = document.getElementById('fleet-error');
+          if (errBox) errBox.style.display = 'none';
+          scheduleNext(refreshBaseMs);
         })
         .catch((err) => {
           console.error(err);
-          document.getElementById('fleet-meta').textContent = 'Erreur API';
+          errorStreak += 1;
+          if (meta) meta.textContent = 'Erreur API';
           showToast('Erreur de récupération de la flotte', 'error');
-        });
+          const errBox = document.getElementById('fleet-error');
+          if (errBox) {
+            errBox.textContent = 'Erreur API. Nouvelle tentative...';
+            errBox.style.display = 'block';
+          }
+          const backoff = Math.min(refreshBaseMs * Math.pow(2, errorStreak), 30000);
+          scheduleNext(backoff);
+        })
+        .finally(() => { loading = false; });
     }
 
     dashboardI18n.bindSelect(langSelect);
@@ -238,7 +283,7 @@
 
     setTheme(theme);
     refreshFleet();
-    setInterval(refreshFleet, 5000);
+    startAutoRefresh();
   </script>
 </body>
 </html>
