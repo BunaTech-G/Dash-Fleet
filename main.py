@@ -141,10 +141,14 @@ def init_admin():
 
 
 # --- Authentification minimale par mot de passe unique ---
-CONFIG_PATH = Path("config.json")
+BASE_DIR = Path(__file__).resolve().parent
+CONFIG_PATH = Path(os.environ.get("DASHBOARD_CONFIG") or (BASE_DIR / "config.json"))
 
 
 def _get_dashboard_password() -> str | None:
+    env_pwd = os.environ.get("DASHBOARD_PASSWORD")
+    if env_pwd:
+        return str(env_pwd)
     try:
         if CONFIG_PATH.exists():
             data = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
@@ -170,7 +174,7 @@ def require_password(view_func):
 def login():
     expected = _get_dashboard_password()
     if not expected:
-        flash("Mot de passe non configuré (config.json -> dashboard_password)")
+        flash("Mot de passe non configuré (config.json -> dashboard_password ou env DASHBOARD_PASSWORD)")
     if request.method == 'POST':
         password = request.form.get('password', '')
         next_url = request.args.get('next') or url_for('dashboard')

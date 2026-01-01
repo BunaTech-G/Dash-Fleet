@@ -136,7 +136,7 @@
 <body>
   <div class="card" role="main">
     <h1>Connexion</h1>
-    <p class="sub">Entrez le mot de passe du tableau de bord (config.json).</p>
+    <p class="sub">Entrez le mot de passe du tableau de bord (config.json). Si vous voyez un message "Mot de passe non configuré", vérifiez que config.json est présent et lisible sur le serveur.</p>
 
     {% with messages = get_flashed_messages() %}
       {% if messages %}
