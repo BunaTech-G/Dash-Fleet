@@ -1,119 +1,184 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fleet - Machines</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #0f172a;
-            color: #e2e8f0;
-            padding: 20px;
-        }
-        .container { max-width: 1200px; margin: 0 auto; }
-        h1 { margin-bottom: 30px; color: #fff; }
-        .machines {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 20px;
-        }
-        .card {
-            background: #1e293b;
-            border: 1px solid #334155;
-            border-radius: 8px;
-            padding: 20px;
-            transition: all 0.3s;
-        }
-        .card:hover { border-color: #64748b; }
-        .card-title { font-size: 18px; font-weight: bold; margin-bottom: 10px; color: #60a5fa; }
-        .card-meta { font-size: 13px; color: #94a3b8; margin: 8px 0; }
-        .card-value { font-weight: bold; color: #fff; }
-        .status-ok { color: #22c55e; }
-        .status-warn { color: #f59e0b; }
-        .status-critical { color: #ef4444; }
-        .status-expired { color: #6b7280; }
-        .score { font-size: 24px; font-weight: bold; margin: 15px 0; }
-        .empty { text-align: center; color: #94a3b8; padding: 40px; }
-        .loading { text-align: center; padding: 40px; }
-    </style>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fleet - Tableau de bord système</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/i18n.js"></script>
 </head>
 <body>
-    <div class="container">
-        <h1>🖥️ Santé des machines</h1>
-        <div id="machines" class="machines">
-            <div class="loading">Chargement...</div>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <main class="page">
+    <header>
+      <div>
+        <p class="eyebrow" id="fleet-eyebrow">Fleet</p>
+        <h1 id="fleet-title">Santé des postes</h1>
+        <p class="lede" id="fleet-subtitle">Vue centrale des machines reportées par les agents.</p>
+      </div>
+      <div class="header-actions">
+        <div class="lang-switch">
+          <label for="lang-select" id="lang-label">Langue</label>
+          <select id="lang-select" class="lang-select">
+            <option value="fr">FR</option>
+            <option value="en">EN</option>
+            <option value="es">ES</option>
+            <option value="ru">RU</option>
+          </select>
         </div>
+        <button class="theme-toggle" id="theme-toggle" aria-label="Changer le thème clair/sombre" tabindex="1">Mode sombre</button>
+      </div>
+    </header>
+
+    <nav class="nav-links">
+      <a href="/" id="nav-live">Temps réel</a>
+      <a href="/history" id="nav-history">Historique</a>
+      <a href="/fleet" class="active" id="nav-fleet">Fleet</a>
+      <a href="/help" id="nav-help">Aide</a>
+    </nav>
+
+    <section class="table-wrap">
+      <div class="table-header">
+        <h2 id="fleet-table-title">Machines</h2>
+        <span class="muted" id="fleet-meta">--</span>
+      </div>
+      <div id="fleet-error" class="inline-error" role="status" aria-live="polite"></div>
+      <div class="table-fleet" id="fleet-cards" aria-label="Liste des machines" tabindex="2"></div>
+    </section>
+
+    <div class="empty" id="empty-state" hidden>
+      <p id="empty-title">Aucune machine reportée.</p>
+      <p class="muted" id="empty-hint">Déployer un agent qui POST sur /api/fleet/report.</p>
     </div>
+  </main>
 
-    <script>
-        function getStatusClass(status) {
-            if (status === 'critical') return 'status-critical';
-            if (status === 'warn') return 'status-warn';
-            if (status === 'expired') return 'status-expired';
-            return 'status-ok';
-        }
+  <script>
+    function showToast(msg, type='info', duration=3200) {
+      const toast = document.getElementById('toast');
+      if (!toast) return;
+      toast.textContent = msg;
+      toast.style.background = type==='error' ? '#f43f5e' : (type==='success' ? '#22c55e' : 'var(--accent)');
+      toast.style.color = type==='error' ? '#fff' : '#04263a';
+      toast.style.display = 'block';
+      setTimeout(()=>{ toast.style.display = 'none'; }, duration);
+    }
 
-        function loadFleet() {
-            fetch('/api/fleet/public')
-                .then(r => {
-                    if (!r.ok) throw new Error(`HTTP ${r.status}`);
-                    return r.json();
-                })
-                .then(data => {
-                    const machines = document.getElementById('machines');
-                    const list = data.data || [];
-                    
-                    if (!list.length) {
-                        machines.innerHTML = '<div class="empty">Aucune machine reportée.</div>';
-                        return;
-                    }
+    const langSelect = document.getElementById('lang-select');
+    const themeToggle = document.getElementById('theme-toggle');
+    const fleetCards = document.getElementById('fleet-cards');
+    const fleetMeta = document.getElementById('fleet-meta');
+    let theme = localStorage.getItem('theme') === 'light' ? 'light' : 'dark';
 
-                    machines.innerHTML = list.map(entry => {
-                        const report = entry.report || {};
-                        const health = report.health || { score: 0, status: 'ok' };
-                        const now = Date.now() / 1000;
-                        const expired = (now - entry.ts > 600);
-                        const status = expired ? 'expired' : health.status;
-                        const lastSeen = new Date(entry.ts * 1000).toLocaleString();
+    function updateThemeButton() {
+      if (!themeToggle) return;
+      themeToggle.textContent = theme === 'dark' ? 'Mode clair' : 'Mode sombre';
+    }
 
-                        return `
-                            <div class="card">
-                                <div class="card-title">${entry.id || 'Machine'}</div>
-                                <div class="card-meta">
-                                    Status: <span class="${getStatusClass(status)}">${status.toUpperCase()}</span>
-                                </div>
-                                <div class="score ${getStatusClass(status)}">
-                                    ${health.score || 0}/100
-                                </div>
-                                <div class="card-meta">
-                                    <div>🖥️ CPU: <span class="card-value">${report.cpu_percent?.toFixed?.(1) || '--'}%</span></div>
-                                    <div>💾 RAM: <span class="card-value">${report.ram_percent?.toFixed?.(1) || '--'}%</span></div>
-                                    <div>📦 Disk: <span class="card-value">${report.disk_percent?.toFixed?.(1) || '--'}%</span></div>
-                                </div>
-                                <div class="card-meta">
-                                    ⏱️ Uptime: <span class="card-value">${report.uptime_hms || '--'}</span>
-                                </div>
-                                <div class="card-meta" style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #334155;">
-                                    Dernier: ${lastSeen}
-                                </div>
-                            </div>
-                        `;
-                    }).join('');
-                })
-                .catch(err => {
-                    document.getElementById('machines').innerHTML = 
-                        `<div class="empty">Erreur: ${err.message}</div>`;
-                });
-        }
+    function setTheme(nextTheme) {
+      theme = nextTheme === 'light' ? 'light' : 'dark';
+      document.body.classList.toggle('light', theme === 'light');
+      localStorage.setItem('theme', theme);
+      updateThemeButton();
+    }
 
-        // Charger au démarrage
-        loadFleet();
-        
-        // Rafraîchir toutes les 5 secondes
-        setInterval(loadFleet, 5000);
-    </script>
+    if (themeToggle) {
+      updateThemeButton();
+      themeToggle.addEventListener('click', () => setTheme(theme === 'dark' ? 'light' : 'dark'));
+    }
+
+    if (langSelect) {
+      langSelect.addEventListener('change', (e) => {
+        localStorage.setItem('lang', e.target.value);
+        location.reload();
+      });
+    }
+
+    function statusClass(status, lastSeenTs) {
+      const now = Date.now() / 1000;
+      if (status === 'critical') return 'status-critical';
+      if (now - lastSeenTs > 600) return 'status-expired';
+      if (status === 'warn') return 'status-warn';
+      return 'status-ok';
+    }
+
+    function renderSkeleton(count = 4) {
+      fleetCards.innerHTML = '';
+      for (let i = 0; i < count; i++) {
+        const card = document.createElement('article');
+        card.className = 'skeleton fade-in';
+        card.style.animationDelay = (i * 0.06) + 's';
+        card.innerHTML = `
+          <div class="skeleton-line wide"></div>
+          <div class="skeleton-line mid"></div>
+          <div class="skeleton-line short"></div>
+        `;
+        fleetCards.appendChild(card);
+      }
+    }
+
+    function renderFleet(data) {
+      fleetCards.innerHTML = '';
+      if (!data.length) {
+        document.getElementById('empty-state').hidden = false;
+        return;
+      }
+      document.getElementById('empty-state').hidden = true;
+
+      data.forEach((entry, i) => {
+        const report = entry.report || {};
+        const health = report.health || { score: 0, status: 'ok' };
+        const lastSeen = new Date(entry.ts * 1000).toLocaleString();
+        const now = Date.now() / 1000;
+        const expired = (now - entry.ts > 600);
+        const status = expired ? 'expired' : health.status;
+        const card = document.createElement('article');
+        card.className = `card ${statusClass(status, entry.ts)} fade-in`;
+        card.style.animationDelay = (i * 0.07) + 's';
+        card.setAttribute('aria-label', `Machine ${entry.id || 'machine'}`);
+        card.setAttribute('tabindex', 3 + i);
+        card.innerHTML = `
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+            <div class="label">${entry.id || 'Machine'}</div>
+            <span class="badge badge-score badge-${status} fade-in" style="animation-delay:${i*0.07+0.1}s">${health.score || 0}/100</span>
+          </div>
+          <div class="meta" style="margin-bottom:4px"><span class="dot dot-${status}"></span> ${status.toUpperCase()} · ${report.uptime_hms || ''}</div>
+          <div class="meta">CPU <b>${report.cpu_percent?.toFixed?.(1) || '--'}</b>% · RAM <b>${report.ram_percent?.toFixed?.(1) || '--'}</b>% · Disk <b>${report.disk_percent?.toFixed?.(1) || '--'}</b>%</div>
+          <div class="meta muted">Dernier: ${lastSeen}${expired ? ' ⚠️' : ''}</div>
+        `;
+        fleetCards.appendChild(card);
+      });
+    }
+
+    function scheduleNext(delay) {
+      setTimeout(refreshFleet, delay);
+    }
+
+    function refreshFleet() {
+      if (!fleetMeta) return;
+      fleetMeta.textContent = 'Chargement...';
+      renderSkeleton(4);
+      fetch('/api/fleet/public')
+        .then((resp) => resp.json())
+        .then((data) => {
+          const list = data.data || [];
+          renderFleet(list);
+          if (fleetMeta) fleetMeta.textContent = `${list.length || 0} machines`;
+          const errBox = document.getElementById('fleet-error');
+          if (errBox) errBox.style.display = 'none';
+          scheduleNext(5000);
+        })
+        .catch((err) => {
+          console.error(err);
+          if (fleetMeta) fleetMeta.textContent = 'Erreur API';
+          showToast('Erreur de récupération de la flotte', 'error');
+          scheduleNext(10000);
+        });
+    }
+
+    // Charger au démarrage
+    refreshFleet();
+  </script>
 </body>
 </html>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
