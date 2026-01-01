@@ -14,50 +14,7 @@ from pathlib import Path
 
 import psutil
 
-
-def _format_bytes_to_gib(value: float) -> float:
-    return round(value / (1024 ** 3), 2)
-
-
-def _format_hms(seconds: float) -> str:
-    hours, remainder = divmod(int(seconds), 3600)
-    minutes, secs = divmod(remainder, 60)
-    return f"{hours:02d}:{minutes:02d}:{secs:02d}"
-
-
-def _health_score(stats: dict) -> dict:
-    def clamp(x: float) -> float:
-        return max(0.0, min(1.0, x))
-
-    cpu = float(stats["cpu_percent"])
-    ram = float(stats["ram_percent"])
-    disk = float(stats["disk_percent"])
-
-    cpu_score = clamp(1 - max(0.0, (cpu - 50) / 50))
-    ram_score = clamp(1 - max(0.0, (ram - 60) / 40))
-    disk_score = clamp(1 - max(0.0, (disk - 70) / 30))
-
-    weights = {"cpu": 0.35, "ram": 0.35, "disk": 0.30}
-    overall = cpu_score * weights["cpu"] + ram_score * weights["ram"] + disk_score * weights["disk"]
-
-    score = round(overall * 100)
-    if score >= 80:
-        status = "ok"
-    elif score >= 60:
-        status = "warn"
-    else:
-        status = "critical"
-
-    return {
-        "score": score,
-        "status": status,
-        "components": {
-            "cpu": round(cpu_score * 100),
-            "ram": round(ram_score * 100),
-            "disk": round(disk_score * 100),
-        },
-    }
-
+from fleet_utils import format_bytes_to_gib, format_uptime_hms, calculate_health_score
 
 
 def get_machine_id() -> str:
@@ -75,15 +32,15 @@ def collect_agent_stats() -> dict:
         "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S"),
         "cpu_percent": float(cpu_percent),
         "ram_percent": float(ram.percent),
-        "ram_used_gib": float(_format_bytes_to_gib(ram.used)),
-        "ram_total_gib": float(_format_bytes_to_gib(ram.total)),
+        "ram_used_gib": float(format_bytes_to_gib(ram.used)),
+        "ram_total_gib": float(format_bytes_to_gib(ram.total)),
         "disk_percent": float(disk.percent),
-        "disk_used_gib": float(_format_bytes_to_gib(disk.used)),
-        "disk_total_gib": float(_format_bytes_to_gib(disk.total)),
+        "disk_used_gib": float(format_bytes_to_gib(disk.used)),
+        "disk_total_gib": float(format_bytes_to_gib(disk.total)),
         "uptime_seconds": float(uptime_seconds),
-        "uptime_hms": _format_hms(uptime_seconds),
+        "uptime_hms": format_uptime_hms(uptime_seconds),
     }
-    stats["health"] = _health_score(stats)
+    stats["health"] = calculate_health_score(stats)
     # Validation simple des métriques
     for k in ("cpu_percent", "ram_percent", "disk_percent"):
         if not isinstance(stats[k], (int, float)):

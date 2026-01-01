@@ -31,6 +31,13 @@ from functools import wraps
 from marshmallow import Schema, fields, ValidationError
 
 from db_utils import insert_fleet_report
+from fleet_utils import format_bytes_to_gib, format_uptime_hms, calculate_health_score
+from constants import (
+    CPU_ALERT, RAM_ALERT, FLEET_TTL_SECONDS as DEFAULT_FLEET_TTL,
+    WEBHOOK_MIN_SECONDS as DEFAULT_WEBHOOK_MIN_SECONDS,
+    SESSION_TIMEOUT as DEFAULT_SESSION_TIMEOUT
+)
+from logging_config import setup_logging
 
 
 app = Flask(__name__, template_folder="templates", static_folder="static")
@@ -226,29 +233,23 @@ Fonctionne en mode CLI ou via une petite UI web Flask.
 import argparse
 
 # Journalisation dans un fichier log
-LOG_PATH = Path("logs/api.log")
-LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
-logging.basicConfig(
-    filename=str(LOG_PATH),
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s %(message)s"
-)
+# Initialize logging using centralized configuration
+setup_logging()
 
-# Seuils d’alerte (pourcentage).
-CPU_ALERT = 80.0
-RAM_ALERT = 90.0
+# CPU_ALERT = 80.0  # importé de constants.py
+# RAM_ALERT = 90.0  # importé de constants.py
 
 DEFAULT_HISTORY_CSV = Path("logs/metrics.csv")
 DEFAULT_EXPORT_CSV = Path.home() / "Desktop" / "metrics.csv"
 DEFAULT_EXPORT_JSONL = Path.home() / "Desktop" / "metrics.jsonl"
 ACTION_TOKEN = os.environ.get("ACTION_TOKEN")  # optionnel, protège les actions si défini
 WEBHOOK_URL = os.environ.get("WEBHOOK_URL")  # optionnel, webhook si santé critique
-WEBHOOK_MIN_SECONDS = int(os.environ.get("WEBHOOK_MIN_SECONDS", "300"))
+WEBHOOK_MIN_SECONDS = int(os.environ.get("WEBHOOK_MIN_SECONDS", str(DEFAULT_WEBHOOK_MIN_SECONDS)))
 FLEET_TOKEN = os.environ.get("FLEET_TOKEN")  # token obligatoire pour les rapports agents
-FLEET_TTL_SECONDS = int(os.environ.get("FLEET_TTL_SECONDS", "600"))  # expiration des entrées fleet
+FLEET_TTL_SECONDS = int(os.environ.get("FLEET_TTL_SECONDS", str(DEFAULT_FLEET_TTL)))
 FLEET_STATE_PATH = Path("logs/fleet_state.json")
 FLEET_DB_PATH = Path("data/fleet.db")
-SESSION_TTL_SECONDS = int(os.environ.get("SESSION_TTL_SECONDS", str(60 * 60 * 8)))
+SESSION_TTL_SECONDS = int(os.environ.get("SESSION_TTL_SECONDS", str(DEFAULT_SESSION_TIMEOUT)))
 
 # Crée automatiquement un admin si la table est vide et que les variables d'env sont présentes.
 ensure_bootstrap_admin()
@@ -261,15 +262,13 @@ ensure_bootstrap_admin()
 # Force la migration de la base au démarrage
 
 def _format_bytes_to_gib(bytes_value: float) -> float:
-    """Convertit des bytes en Gio avec deux décimales."""
-    return round(bytes_value / (1024 ** 3), 2)
+    """DEPRECATED: Use fleet_utils.format_bytes_to_gib instead."""
+    return format_bytes_to_gib(bytes_value)
 
 
 def _format_uptime(seconds: float) -> str:
-    """Renvoie l’uptime au format H:M:S."""
-    hours, remainder = divmod(int(seconds), 3600)
-    minutes, secs = divmod(remainder, 60)
-    return f"{hours:02d}:{minutes:02d}:{secs:02d}"
+    """DEPRECATED: Use fleet_utils.format_uptime_hms instead."""
+    return format_uptime_hms(seconds)
 
 
 def _detect_alerts(cpu_percent: float, ram_percent: float) -> Dict[str, bool]:
@@ -280,45 +279,8 @@ def _detect_alerts(cpu_percent: float, ram_percent: float) -> Dict[str, bool]:
 
 
 def _health_score(stats: Dict[str, object]) -> Dict[str, object]:
-    """Calcule un score simple 0-100 et un statut (ok/warn/critical)."""
-
-    def clamp(x: float) -> float:
-        return max(0.0, min(1.0, x))
-
-    cpu = float(stats["cpu_percent"])
-    ram = float(stats["ram_percent"])
-    disk = float(stats["disk_percent"])
-
-    # Scores par composant (1 = parfait, 0 = mauvais)
-    cpu_score = clamp(1 - max(0.0, (cpu - 50) / 50))  # plein à 50%, tombe à 0 à 100%
-    ram_score = clamp(1 - max(0.0, (ram - 60) / 40))  # plein à 60%, tombe à 0 à 100%
-    disk_score = clamp(1 - max(0.0, (disk - 70) / 30))  # plein à 70%, 0 à 100%
-
-    # Pondérations simples
-    weights = {"cpu": 0.35, "ram": 0.35, "disk": 0.30}
-    overall = (
-        cpu_score * weights["cpu"]
-        + ram_score * weights["ram"]
-        + disk_score * weights["disk"]
-    )
-
-    score = round(overall * 100)
-    if score >= 80:
-        status = "ok"
-    elif score >= 60:
-        status = "warn"
-    else:
-        status = "critical"
-
-    return {
-        "score": score,
-        "status": status,
-        "components": {
-            "cpu": round(cpu_score * 100),
-            "ram": round(ram_score * 100),
-            "disk": round(disk_score * 100),
-        },
-    }
+    """DEPRECATED: Use fleet_utils.calculate_health_score instead."""
+    return calculate_health_score(stats)
 
 
 _LAST_WEBHOOK_TS = 0.0
@@ -1409,50 +1371,6 @@ def api_fleet_report():
     responses:
         200:
             description: Rapport accepté
-        400:
-            description: Erreur de validation
-        403:
-            description: Non autorisé
-    """
-    """
-    Crée une organisation et une clé API.
-    ---
-    tags:
-        - Orgs
-    parameters:
-        - in: body
-          name: body
-          required: true
-          schema:
-            type: object
-            properties:
-                name:
-                    type: string
-    responses:
-        200:
-            description: Organisation créée
-        400:
-            description: Erreur de validation
-        403:
-            description: Non autorisé
-    """
-    """
-    Exécute une action distante sur le serveur.
-    ---
-    tags:
-        - Actions
-    parameters:
-        - in: body
-          name: body
-          required: true
-          schema:
-            type: object
-            properties:
-                action:
-                    type: string
-    responses:
-        200:
-            description: Action exécutée
         400:
             description: Erreur de validation
         403:

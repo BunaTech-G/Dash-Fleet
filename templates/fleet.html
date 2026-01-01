@@ -276,7 +276,7 @@
       fleetMeta.textContent = 'Chargement...';
       renderSkeleton();
 
-      authFetch('/api/fleet')
+      fetch('/api/fleet/public')
         .then((resp) => {
           if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
           return resp.json();
