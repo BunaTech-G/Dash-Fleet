@@ -206,6 +206,14 @@ class MetricsSchema(Schema):
     cpu_percent = fields.Float(required=True)
     ram_percent = fields.Float(required=True)
     disk_percent = fields.Float(required=True)
+    timestamp = fields.Str(required=False)
+    ram_used_gib = fields.Float(required=False)
+    ram_total_gib = fields.Float(required=False)
+    disk_used_gib = fields.Float(required=False)
+    disk_total_gib = fields.Float(required=False)
+    uptime_seconds = fields.Float(required=False)
+    uptime_hms = fields.Str(required=False)
+    health = fields.Dict(required=False)
 
 
 
