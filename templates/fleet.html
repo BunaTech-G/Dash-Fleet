@@ -30,82 +30,115 @@
     <section class="table-wrap">
       <div class="table-header">
         <h2>Machines</h2>
-        <span class="muted" id="machine-count">0 machines</span>
+        <span class="muted" id="machine-count">Chargement...</span>
       </div>
       <div class="table-fleet" id="fleet-cards"></div>
     </section>
-
-    <div class="empty" id="empty-state" hidden>
-      <p>Aucune machine reportée.</p>
-    </div>
   </main>
 
   <script>
+    // ===== THEME =====
     let theme = localStorage.getItem('theme') === 'light' ? 'light' : 'dark';
     const themeToggle = document.getElementById('theme-toggle');
 
-    function setTheme(nextTheme) {
-      theme = nextTheme === 'light' ? 'light' : 'dark';
+    function updateTheme() {
       document.body.classList.toggle('light', theme === 'light');
-      localStorage.setItem('theme', theme);
       themeToggle.textContent = theme === 'dark' ? 'Mode clair' : 'Mode sombre';
     }
 
-    setTheme(theme);
-    themeToggle.addEventListener('click', () => setTheme(theme === 'dark' ? 'light' : 'dark'));
+    updateTheme();
+    themeToggle.addEventListener('click', () => {
+      theme = theme === 'dark' ? 'light' : 'dark';
+      localStorage.setItem('theme', theme);
+      updateTheme();
+    });
 
-    function renderFleet(data) {
-      const fleetCards = document.getElementById('fleet-cards');
-      const emptyState = document.getElementById('empty-state');
-      const machineCount = document.getElementById('machine-count');
-      
-      if (!data || data.length === 0) {
-        fleetCards.innerHTML = '';
-        emptyState.hidden = false;
-        machineCount.textContent = '0 machines';
+    // ===== FLEET DATA =====
+    let fleetData = [];
+    let isLoading = false;
+    let refreshInterval = null;
+
+    function displayFleet() {
+      const container = document.getElementById('fleet-cards');
+      const counter = document.getElementById('machine-count');
+
+      if (!fleetData || fleetData.length === 0) {
+        container.innerHTML = '<div class="empty" style="margin:0;padding:16px;">Aucune machine.</div>';
+        counter.textContent = '0 machines';
         return;
       }
 
-      emptyState.hidden = true;
-      machineCount.textContent = `${data.length} machine${data.length > 1 ? 's' : ''}`;
+      counter.textContent = `${fleetData.length} machine${fleetData.length > 1 ? 's' : ''}`;
       
-      fleetCards.innerHTML = data.map((entry, i) => {
+      let html = '';
+      for (let i = 0; i < fleetData.length; i++) {
+        const entry = fleetData[i];
         const report = entry.report || {};
         const health = report.health || { score: 0, status: 'ok' };
+        const machineId = entry.id || entry.machine_id || `Machine ${i + 1}`;
+        
         const now = Date.now() / 1000;
         const expired = (now - entry.ts > 600);
-        const status = expired ? 'expired' : health.status;
+        const status = expired ? 'expired' : (health.status || 'ok');
+        
         const lastSeen = new Date(entry.ts * 1000).toLocaleString();
+        const cpu = (report.cpu_percent || 0).toFixed(1);
+        const ram = (report.ram_percent || 0).toFixed(1);
+        const disk = (report.disk_percent || 0).toFixed(1);
+        const uptime = report.uptime_hms || '--';
+        const score = health.score || 0;
 
-        return `
+        html += `
           <article class="card status-${status}">
             <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
-              <div class="label">${entry.id || 'Machine'}</div>
-              <span class="badge badge-score badge-${status}">${health.score || 0}/100</span>
+              <div class="label">${machineId}</div>
+              <span class="badge badge-score badge-${status}">${score}/100</span>
             </div>
-            <div class="meta"><span class="dot dot-${status}"></span> ${status.toUpperCase()} · ${report.uptime_hms || '--'}</div>
-            <div class="meta">🖥️ CPU <b>${(report.cpu_percent || 0).toFixed(1)}</b>% · 💾 RAM <b>${(report.ram_percent || 0).toFixed(1)}</b>% · 📦 Disk <b>${(report.disk_percent || 0).toFixed(1)}</b>%</div>
-            <div class="meta muted">Dernier: ${lastSeen}${expired ? ' ⚠️' : ''}</div>
+            <div class="meta">
+              <span class="dot dot-${status}"></span> 
+              ${status.toUpperCase()} · ${uptime}
+            </div>
+            <div class="meta">
+              🖥️ CPU <b>${cpu}%</b> · 💾 RAM <b>${ram}%</b> · 📦 Disk <b>${disk}%</b>
+            </div>
+            <div class="meta muted">
+              Dernier: ${lastSeen}${expired ? ' ⚠️' : ''}
+            </div>
           </article>
         `;
-      }).join('');
+      }
+      
+      container.innerHTML = html;
     }
 
-    function loadFleet() {
+    function fetchFleet() {
+      if (isLoading) return;
+      isLoading = true;
+
       fetch('/api/fleet/public')
-        .then(r => r.json())
-        .then(data => renderFleet(data.data || []))
-        .catch(err => {
-          console.error('Erreur:', err);
-          document.getElementById('fleet-cards').innerHTML = '<div class="empty" style="margin:0;padding:16px;">Erreur de chargement</div>';
+        .then(response => {
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          return response.json();
+        })
+        .then(data => {
+          fleetData = data.data || [];
+          displayFleet();
+        })
+        .catch(error => {
+          console.error('Erreur fleet:', error);
+          document.getElementById('fleet-cards').innerHTML = '<div class="empty" style="margin:0;padding:16px;">Erreur: ' + error.message + '</div>';
+        })
+        .finally(() => {
+          isLoading = false;
         });
     }
 
-    // Charger au démarrage
-    loadFleet();
-    
+    // Charger une première fois
+    fetchFleet();
+
     // Rafraîchir toutes les 5 secondes
-    setInterval(loadFleet, 5000);
+    if (refreshInterval) clearInterval(refreshInterval);
+    refreshInterval = setInterval(fetchFleet, 5000);
   </script>
 </body>
 </html>
