@@ -21,11 +21,15 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
-# Ask for machine name
-read -p "Entrez le nom de la machine (ex: kali-01): " MACHINE_ID
+# Get machine hostname automatically
+DEFAULT_MACHINE_ID=$(hostname)
+
+echo "Nom de machine détecté: $DEFAULT_MACHINE_ID"
+read -p "Appuyez sur Entrée pour utiliser ce nom, ou tapez un autre nom: " MACHINE_ID
+
+# Use default if empty
 if [ -z "$MACHINE_ID" ]; then
-    echo "ERREUR: Vous devez entrer un nom de machine!"
-    exit 1
+    MACHINE_ID="$DEFAULT_MACHINE_ID"
 fi
 
 echo ""

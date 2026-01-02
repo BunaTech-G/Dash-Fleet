@@ -29,31 +29,51 @@ if %ERRORLEVEL% neq 0 (
     echo Python n'est pas installe. Installation automatique...
     echo.
     
-    REM Tenter d'installer via winget (Windows 10/11)
+    REM Methode 1: Tenter via winget (Windows 10/11 recent)
+    echo Tentative via winget...
     winget install Python.Python.3.11 --silent --accept-package-agreements --accept-source-agreements >nul 2>&1
     
     if %ERRORLEVEL% neq 0 (
+        echo Winget non disponible. Telechargement direct...
         echo.
-        echo ERREUR: Impossible d'installer Python automatiquement.
+        
+        REM Methode 2: Telecharger et installer directement
+        set "PYTHON_INSTALLER=%TEMP%\python-installer.exe"
+        echo Telechargement de Python 3.11...
+        powershell -NoProfile -Command "Invoke-WebRequest -Uri 'https://www.python.org/ftp/python/3.11.7/python-3.11.7-amd64.exe' -OutFile '%PYTHON_INSTALLER%'"
+        
+        if exist "%PYTHON_INSTALLER%" (
+            echo Installation de Python (cela peut prendre 2-3 minutes)...
+            "%PYTHON_INSTALLER%" /quiet InstallAllUsers=1 PrependPath=1 Include_test=0
+            
+            echo Nettoyage...
+            del "%PYTHON_INSTALLER%"
+            
+            REM Rafraichir PATH
+            for /f "tokens=2*" %%a in ('reg query "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Environment" /v Path') do set "SysPath=%%b"
+            for /f "tokens=2*" %%a in ('reg query "HKCU\Environment" /v Path') do set "UserPath=%%b"
+            set "PATH=%SysPath%;%UserPath%"
+            
+            echo.
+            echo Python installe avec succes!
+            echo.
+        ) else (
+            echo.
+            echo ERREUR: Impossible de telecharger Python.
+            echo.
+            echo Solution manuelle:
+            echo 1. Allez sur https://www.python.org/downloads/
+            echo 2. Telechargez Python 3.11 ou superieur
+            echo 3. IMPORTANT: Cochez "Add Python to PATH" pendant l'installation
+            echo 4. Relancez ce script apres l'installation
+            echo.
+            pause
+            exit /b 1
+        )
+    ) else (
+        echo Python installe via winget avec succes!
         echo.
-        echo Solution manuelle:
-        echo 1. Allez sur https://www.python.org/downloads/
-        echo 2. Telechargez Python 3.11 ou superieur
-        echo 3. IMPORTANT: Cochez "Add Python to PATH" pendant l'installation
-        echo 4. Relancez ce script apres l'installation
-        echo.
-        pause
-        exit /b 1
     )
-    
-    echo Python installe avec succes!
-    echo Redemarrage de la session pour actualiser le PATH...
-    echo.
-    
-    REM Rafraichir les variables d'environnement
-    for /f "tokens=2*" %%a in ('reg query "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Environment" /v Path') do set "SysPath=%%b"
-    for /f "tokens=2*" %%a in ('reg query "HKCU\Environment" /v Path') do set "UserPath=%%b"
-    set "PATH=%SysPath%;%UserPath%"
 )
 REM Ask for machine name
 set /p MACHINE_ID="Entrez le nom de la machine (ex: wclient3): "
