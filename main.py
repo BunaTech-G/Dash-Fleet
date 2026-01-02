@@ -1,6 +1,7 @@
 # ALWAYS keep this import as the very first line:
 
 from __future__ import annotations
+import argparse
 
 import csv
 import datetime as dt
@@ -22,13 +23,12 @@ from pathlib import Path
 from typing import Dict, Iterable
 
 import psutil
-import requests
 from flask import Flask, request, jsonify, render_template, redirect, url_for, session, flash
 from flasgger import Swagger
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from functools import wraps
-from marshmallow import Schema, fields, ValidationError
+from marshmallow import ValidationError
 
 from db_utils import insert_fleet_report
 from fleet_utils import format_bytes_to_gib, format_uptime_hms, calculate_health_score
@@ -199,11 +199,12 @@ def login():
 def logout():
     session.clear()
     return redirect(url_for('login'))
+
+
 """Tableau de bord système : CPU, RAM, disque et uptime.
 Fonctionne en mode CLI ou via une petite UI web Flask.
 """
 
-import argparse
 
 # Journalisation dans un fichier log
 # Initialize logging using centralized configuration
@@ -234,6 +235,7 @@ ensure_bootstrap_admin()
 
 # Force la migration de la base au démarrage
 
+
 def _detect_alerts(cpu_percent: float, ram_percent: float) -> Dict[str, bool]:
     return {
         "cpu": cpu_percent >= CPU_ALERT,
@@ -243,6 +245,8 @@ def _detect_alerts(cpu_percent: float, ram_percent: float) -> Dict[str, bool]:
 
 _LAST_WEBHOOK_TS = 0.0
 FLEET_STATE: Dict[str, Dict[str, object]] = {}
+
+
 def _load_fleet_state() -> None:
     """Recharge l'état fleet depuis la base SQLite si présente, sinon depuis le JSON (best effort)."""
     global FLEET_STATE
@@ -652,7 +656,7 @@ def _action_clear_event_logs() -> Dict[str, object]:
     if not _is_windows():
         return {"ok": False, "message": "Action Windows uniquement"}
     result = _run_subprocess(["powershell", "-Command",
-        "Clear-EventLog -LogName Application,System -Confirm:$false"])
+                              "Clear-EventLog -LogName Application,System -Confirm:$false"])
     return result
 
 
@@ -721,7 +725,6 @@ def _ensure_db_schema() -> None:
     except Exception as e:
         logging.error(f"Erreur lors de la création du schéma DB : {e}")
         return
-        
 
 
 def _create_default_org_from_env() -> None:
@@ -1142,12 +1145,11 @@ def api_revoke_key():
         return jsonify({"error": "db error"}), 500
 
 
-
-
 @app.route("/admin/orgs")
 @require_password
 def admin_orgs():
     return render_template("admin_orgs.html")
+
 
 @app.route("/admin/tokens")
 @require_password
@@ -1295,7 +1297,7 @@ def download_agent(token: str):
     path = _consume_download_token(token)
     if path:
         try:
-            return app.send_static_file(os.path.relpath(path, start='static') )
+            return app.send_static_file(os.path.relpath(path, start='static'))
         except Exception:
             # fallback: use flask send_file
             from flask import send_file
@@ -1433,7 +1435,7 @@ def api_fleet_public():
 def api_fleet_ping():
     """
     Lightweight agent heartbeat endpoint.
-    
+
     Agents send lightweight ping to confirm connectivity.
     No metrics, just confirmation that agent is alive.
     """
@@ -1445,15 +1447,14 @@ def api_fleet_ping():
     try:
         payload = request.get_json(force=True)
         machine_id = payload.get("machine_id", "unknown")
-        hardware_id = payload.get("hardware_id")
         timestamp = payload.get("timestamp", time.time())
-    except Exception as e:
-        logging.error(f"Heartbeat parse error: {e}")
+    except Exception as exc:
+        logging.error(f"Heartbeat parse error: {exc}")
         return jsonify({"error": "Invalid JSON"}), 400
-    
+
     try:
         store_key = f"{org_id}:{machine_id}"
-        
+
         # Update heartbeat timestamp
         if store_key in FLEET_STATE:
             FLEET_STATE[store_key]["last_ping"] = time.time()
@@ -1468,17 +1469,17 @@ def api_fleet_ping():
                 "status": "online",
                 "report": {}
             }
-        
+
         _save_fleet_state()
-        
+
         logging.info(f"Heartbeat received from {machine_id} ({org_id})")
-        
+
         return jsonify({
             "ok": True,
             "timestamp": time.time(),
             "server_time_offset": time.time() - timestamp
         })
-    
+
     except Exception as e:
         logging.error(f"Heartbeat processing error: {e}")
         return jsonify({"error": str(e)}), 500
@@ -1495,28 +1496,28 @@ def queue_action():
     ok, org_id = _check_org_key()
     if not ok:
         return jsonify({"error": "Unauthorized"}), 403
-    
+
     try:
         payload = request.get_json(force=True)
         machine_id = payload.get("machine_id")
         action_type = payload.get("action_type")  # "message", "restart", "reboot"
         action_data = payload.get("data", {})     # Action-specific data
-        
+
         if not machine_id or not action_type:
             return jsonify({"error": "Missing machine_id or action_type"}), 400
-        
+
         # Validate action_type
         valid_types = ["message", "restart", "reboot"]
         if action_type not in valid_types:
             return jsonify({"error": f"Invalid action_type. Must be one of: {valid_types}"}), 400
-    
+
     except Exception as e:
         logging.error(f"Queue action parse error: {e}")
         return jsonify({"error": "Invalid JSON"}), 400
-    
+
     try:
-        action_id = f"{org_id}:{machine_id}:{int(time.time()*1000)}"
-        
+        action_id = f"{org_id}:{machine_id}:{int(time.time() * 1000)}"
+
         conn = sqlite3.connect(str(FLEET_DB_PATH))
         cursor = conn.cursor()
         cursor.execute('''
@@ -1535,10 +1536,10 @@ def queue_action():
         ))
         conn.commit()
         conn.close()
-        
+
         logging.info(f"Action queued: {action_id} ({action_type}) for {machine_id}")
         return jsonify({"ok": True, "action_id": action_id}), 201
-        
+
     except Exception as e:
         logging.error(f"Queue action failed: {e}")
         return jsonify({"error": str(e)}), 500
@@ -1551,12 +1552,12 @@ def get_pending_actions():
     ok, org_id = _check_org_key()
     if not ok:
         return jsonify({"error": "Unauthorized"}), 403
-    
+
     try:
         machine_id = request.args.get("machine_id")
         if not machine_id:
             return jsonify({"error": "machine_id query param required"}), 400
-        
+
         conn = sqlite3.connect(str(FLEET_DB_PATH))
         cursor = conn.cursor()
         cursor.execute('''
@@ -1566,25 +1567,25 @@ def get_pending_actions():
             ORDER BY created_at ASC
             LIMIT 10
         ''', (org_id, machine_id))
-        
+
         actions = []
         for row in cursor.fetchall():
             try:
                 action_data = json.loads(row[2])
-            except:
+            except BaseException:
                 action_data = {}
-            
+
             actions.append({
                 "action_id": row[0],
                 "type": row[1],
                 "data": action_data
             })
-        
+
         conn.close()
-        
+
         logging.debug(f"Pending actions for {machine_id}: {len(actions)}")
         return jsonify({"actions": actions})
-        
+
     except Exception as e:
         logging.error(f"Get pending actions failed: {e}")
         return jsonify({"error": str(e)}), 500
@@ -1597,23 +1598,23 @@ def report_action_result():
     ok, org_id = _check_org_key()
     if not ok:
         return jsonify({"error": "Unauthorized"}), 403
-    
+
     try:
         payload = request.get_json(force=True)
         action_id = payload.get("action_id")
         status = payload.get("status")  # "done" or "error"
         result = payload.get("result", "")
-        
+
         if not action_id or not status:
             return jsonify({"error": "Missing action_id or status"}), 400
-        
+
         if status not in ["done", "error"]:
             return jsonify({"error": "Invalid status. Must be 'done' or 'error'"}), 400
-    
+
     except Exception as e:
         logging.error(f"Report action parse error: {e}")
         return jsonify({"error": "Invalid JSON"}), 400
-    
+
     try:
         conn = sqlite3.connect(str(FLEET_DB_PATH))
         cursor = conn.cursor()
@@ -1624,10 +1625,10 @@ def report_action_result():
         ''', (status, result, time.time(), action_id, org_id))
         conn.commit()
         conn.close()
-        
+
         logging.info(f"Action {action_id} reported as {status}: {result}")
         return jsonify({"ok": True})
-        
+
     except Exception as e:
         logging.error(f"Report action result failed: {e}")
         return jsonify({"error": str(e)}), 500
@@ -1695,6 +1696,7 @@ def run_cli(interval: float, export_csv_path: Path | None, export_json_path: Pat
             time.sleep(interval)
     except KeyboardInterrupt:
         print("\nArrêté.")
+
 
 def start_background_export(interval: float, export_csv_path: Path | None, export_json_path: Path | None) -> None:
     """Démarre un export en tâche de fond pendant que Flask tourne."""
@@ -1785,10 +1787,9 @@ def main() -> None:
         # Start background session cleaner
         try:
             # allow disabling public read mode via env
-            PUBLIC_READ = os.environ.get("PUBLIC_READ", "false").lower() in ("1", "true", "yes")
             start_session_cleaner(interval=60)
-        except Exception as e:
-            logging.error(f"Erreur lancement session cleaner : {e}")
+        except Exception as exc:
+            logging.error(f"Erreur lancement session cleaner : {exc}")
         # (L'ouverture automatique du navigateur est désactivée sur Render)
         app.run(host=args.host, port=args.port, debug=False)
     else:

@@ -5,7 +5,6 @@ Handles SQLite operations for fleet reporting.
 
 import sqlite3
 import json
-import time
 import logging
 
 
@@ -21,7 +20,7 @@ def insert_fleet_report(
 ):
     """
     Insert or update a fleet report in both memory and SQLite.
-    
+
     Args:
         store_key: Composite key "org_id:machine_id"
         machine_id: Machine identifier
@@ -41,10 +40,10 @@ def insert_fleet_report(
         'client': client_ip,
         'org_id': org_id
     }
-    
+
     # Persist to disk (best-effort)
     save_fn()
-    
+
     # Persist to SQLite
     try:
         conn = sqlite3.connect('data/fleet.db')
@@ -62,7 +61,7 @@ def insert_fleet_report(
 def _save_fleet_state(fleet_state: dict, state_path: str):
     """
     Save fleet state to JSON file.
-    
+
     Args:
         fleet_state: In-memory fleet state dictionary
         state_path: Path to JSON file

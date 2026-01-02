@@ -27,6 +27,7 @@ def get_machine_id() -> str:
     """Retourne un identifiant unique pour la machine (hostname par défaut)."""
     return socket.gethostname()
 
+
 def collect_agent_stats() -> dict:
     """Collecte les métriques système principales et les retourne sous forme de dict."""
     cpu_percent = psutil.cpu_percent(interval=0.3)
@@ -45,7 +46,7 @@ def collect_agent_stats() -> dict:
         "disk_total_gib": float(format_bytes_to_gib(disk.total)),
         "uptime_seconds": float(uptime_seconds),
         "uptime_hms": format_uptime_hms(uptime_seconds),
-        
+
         # System information metadata
         "system": {
             "os": platform.system(),
@@ -62,7 +63,6 @@ def collect_agent_stats() -> dict:
         if not isinstance(stats[k], (int, float)):
             stats[k] = 0.0
     return stats
-
 
 
 def post_report(url: str, token: str, machine_id: str, report: dict) -> tuple[bool, str]:
@@ -94,12 +94,12 @@ def send_heartbeat(server: str, token: str, machine_id: str, hardware_id: str) -
     url_ping = server.rstrip("/") + "/api/fleet/ping"
     headers = {"Content-Type": "application/json", "Authorization": f"Bearer {token}"}
     req = urllib.request.Request(url_ping, data=data, headers=headers, method="POST")
-    
+
     try:
         with urllib.request.urlopen(req, timeout=5) as resp:
             ok = 200 <= resp.getcode() < 300
             return ok
-    except Exception as e:
+    except Exception:
         return False
 
 
@@ -111,7 +111,7 @@ def get_pending_actions(server: str, token: str, machine_id: str) -> list:
     """Poll for pending actions."""
     url = f"{server.rstrip('/')}/api/actions/pending?machine_id={machine_id}"
     headers = {"Authorization": f"Bearer {token}"}
-    
+
     try:
         req = urllib.request.Request(url, headers=headers, method="GET")
         with urllib.request.urlopen(req, timeout=5) as resp:
@@ -126,18 +126,18 @@ def execute_action(action: dict) -> tuple[bool, str]:
     """Execute an action and return (success, result_message)."""
     action_type = action.get("type")
     data = action.get("data", {})
-    
+
     if action_type == "message":
         message = data.get("message", "No message")
         title = data.get("title", "DashFleet")
         return execute_message(message, title)
-    
+
     elif action_type == "restart":
         return execute_restart()
-    
+
     elif action_type == "reboot":
         return execute_reboot()
-    
+
     else:
         return False, f"Unknown action type: {action_type}"
 
@@ -151,7 +151,7 @@ def execute_message(message: str, title: str = "DashFleet") -> tuple[bool, str]:
                 0x1000 | 0x40  # MB_SYSTEMMODAL | MB_ICONINFORMATION
             )
             return True, "Message displayed (Windows)"
-        
+
         elif platform.system() == "Linux":
             try:
                 subprocess.run(
@@ -160,7 +160,7 @@ def execute_message(message: str, title: str = "DashFleet") -> tuple[bool, str]:
                     capture_output=True
                 )
                 return True, "Notification sent (notify-send)"
-            except:
+            except BaseException:
                 try:
                     subprocess.run(
                         ["zenity", "--info", "--title", title, "--text", message],
@@ -168,9 +168,9 @@ def execute_message(message: str, title: str = "DashFleet") -> tuple[bool, str]:
                         capture_output=True
                     )
                     return True, "Dialog shown (zenity)"
-                except:
+                except BaseException:
                     return False, "No notification system found (install notify-send or zenity)"
-        
+
         elif platform.system() == "Darwin":  # macOS
             try:
                 cmd = f'osascript -e \'display notification "{message}" with title "{title}\"\''
@@ -178,10 +178,10 @@ def execute_message(message: str, title: str = "DashFleet") -> tuple[bool, str]:
                 return True, "Notification sent (macOS)"
             except Exception as e:
                 return False, str(e)
-        
+
         else:
             return False, f"Unsupported OS: {platform.system()}"
-    
+
     except Exception as e:
         return False, f"Message execution failed: {str(e)}"
 
@@ -210,7 +210,7 @@ def execute_reboot() -> tuple[bool, str]:
 
 
 def report_action_result(server: str, token: str, action_id: str, 
-                        status: str, result: str) -> bool:
+                         status: str, result: str) -> bool:
     """Report action execution result to server."""
     url = f"{server.rstrip('/')}/api/actions/report"
     payload = {
@@ -223,7 +223,7 @@ def report_action_result(server: str, token: str, action_id: str,
         "Content-Type": "application/json", 
         "Authorization": f"Bearer {token}"
     }
-    
+
     try:
         req = urllib.request.Request(url, data=data, headers=headers, method="POST")
         with urllib.request.urlopen(req, timeout=5) as resp:
@@ -282,7 +282,7 @@ def main() -> None:
 
     url = server.rstrip("/") + path
     hardware_id = hex(uuid.getnode())
-    
+
     log_line(f"Agent démarré -> {url}")
     log_line(f"id={machine_id}, intervalle={interval}s, hardware_id={hardware_id}")
 
@@ -297,14 +297,14 @@ def main() -> None:
             log_line(f"[{time.strftime('%H:%M:%S')}] {status} {msg} | {short} | Score {report['health']['score']}/100")
         else:
             log_line(f"[{time.strftime('%H:%M:%S')}] {status} {msg} | ERREUR d'envoi | {short}")
-        
+
         # Every 5 cycles (5 × interval), send heartbeat
         cycle += 1
         if cycle % 5 == 0:
             hb_ok = send_heartbeat(server, token, machine_id, hardware_id)
             if not hb_ok:
                 log_line(f"[{time.strftime('%H:%M:%S')}] Heartbeat FAILED")
-        
+
         # Poll for actions every ~30 seconds (every 3 cycles if interval=10s)
         action_poll_counter += 1
         if action_poll_counter >= 3:
@@ -319,9 +319,9 @@ def main() -> None:
                 except Exception as e:
                     log_line(f"[{time.strftime('%H:%M:%S')}] Action {action_id} failed: {e}")
                     report_action_result(server, token, action_id, "error", str(e))
-            
+
             action_poll_counter = 0
-        
+
         # Si le serveur est injoignable, on attend mais on ne quitte pas
         time.sleep(max(1.0, interval))
 
