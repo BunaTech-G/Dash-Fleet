@@ -22,6 +22,12 @@ import psutil
 
 from fleet_utils import format_bytes_to_gib, format_uptime_hms, calculate_health_score
 
+try:
+    from PIL import Image, ImageDraw
+    HAS_PIL = True
+except ImportError:
+    HAS_PIL = False
+
 
 def get_machine_id() -> str:
     """Retourne un identifiant unique pour la machine (hostname par défaut)."""
@@ -81,6 +87,20 @@ def post_report(url: str, token: str, machine_id: str, report: dict) -> tuple[bo
         return False, f"URLError {exc.reason}"
     except Exception as exc:
         return False, str(exc)
+
+
+def create_tray_icon(icon_size: int = 64) -> Image.Image:
+    """Create a simple DashFleet tray icon (blue square with 'D')."""
+    img = Image.new("RGB", (icon_size, icon_size), color=(13, 22, 40))  # Dark blue
+    draw = ImageDraw.Draw(img)
+    # Draw white 'D' in center
+    text_bbox = draw.textbbox((0, 0), "D", font=None)
+    text_width = text_bbox[2] - text_bbox[0]
+    text_height = text_bbox[3] - text_bbox[1]
+    x = (icon_size - text_width) // 2
+    y = (icon_size - text_height) // 2
+    draw.text((x, y), "D", fill=(255, 255, 255))
+    return img
 
 
 def send_heartbeat(server: str, token: str, machine_id: str, hardware_id: str) -> bool:
@@ -281,22 +301,30 @@ def main() -> None:
             except Exception:
                 pass
 
-    # Import and start tray icon if requested (Windows only)
-    tray_icon = None
-    if args.tray:
+    # ===== TRAY ICON SETUP (Windows) =====
+    tray_manager = None
+    if args.tray and sys.platform == "win32":
         try:
-            from fleet_agent_windows_tray import run_tray_icon
+            from fleet_agent_windows_tray import run_tray_icon, TrayAgent
             import threading
+            
+            # Create tray agent manager
+            tray_manager = TrayAgent(machine_id=machine_id, log_file=log_path)
             
             # Run tray in background thread
             tray_thread = threading.Thread(
-                target=lambda: run_tray_icon(collect_agent_stats),
+                target=lambda: run_tray_icon(
+                    agent_stats_fn=collect_agent_stats,
+                    machine_id=machine_id,
+                    log_file=log_path
+                ),
                 daemon=True
             )
             tray_thread.start()
-            log_line("[TRAY] Icône systray démarrée (cliquez sur l'icône en bas à droite)")
-        except ImportError:
-            log_line("[TRAY] ⚠️  pystray/pillow non installés. Installez: pip install pystray pillow")
+            log_line(f"[TRAY] Icône systray démarrée (cliquez sur l'icône DashFleet)")
+        except ImportError as e:
+            log_line(f"[TRAY] ⚠️  pystray/pillow non installés: {e}")
+            log_line(f"[TRAY] Installez: pip install pystray pillow")
         except Exception as e:
             log_line(f"[TRAY] ⚠️  Erreur tray: {e}")
 
@@ -305,10 +333,18 @@ def main() -> None:
 
     log_line(f"Agent démarré -> {url}")
     log_line(f"id={machine_id}, intervalle={interval}s, hardware_id={hardware_id}")
+    if args.tray and sys.platform == "win32":
+        log_line(f"[TRAY] 🖥️  Icône système disponible (Windows systray)")
 
     cycle = 0
     action_poll_counter = 0
     while True:
+        # Check pause state from tray manager
+        if tray_manager and tray_manager.is_paused():
+            log_line(f"[{time.strftime('%H:%M:%S')}] ⏸️  Agent PAUSED (via tray menu)")
+            time.sleep(1)
+            continue
+
         report = collect_agent_stats()
         ok, msg = post_report(url, token, machine_id, report)
         status = "OK" if ok else "KO"

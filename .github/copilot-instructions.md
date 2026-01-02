@@ -219,6 +219,80 @@ expired = [m for m in machines if now_ts - m['ts'] > FLEET_TTL_SECONDS]
 - No pagination on fleet endpoints (acceptable for <1000 machines)
 - psutil metrics collection in agents takes ~0.3s CPU sampling
 
+## Agent System Tray Icon (Windows) - NEW Jan 2026
+
+### Feature Overview
+Fleet Agent now supports a Windows system tray icon that displays:
+- **Real-time metrics** (CPU, RAM, Disk %) in tooltip
+- **Health status** (OK/WARN/CRITICAL) with color-coded icon
+- **Pause/Resume** controls for metric collection (via right-click menu)
+- **Logs viewer** - Quick access to agent log file
+- **Graceful shutdown** via menu
+
+### Implementation Details
+
+**File Structure**:
+- `fleet_agent.py` - Main agent (CLI entry point, metric collection loop)
+- `fleet_agent_windows_tray.py` - Tray icon UI logic (TrayAgent class + run_tray_icon function)
+- Requirements: `pystray>=0.19`, `pillow>=9.0` (PIL for icon drawing)
+
+**Usage**:
+```powershell
+# Run agent with tray icon visible
+python fleet_agent.py --server http://dashfleet.local --token api_xxx --tray
+
+# Or via config.json
+# (tray can be triggered via command-line flag)
+```
+
+**Architecture**:
+```python
+# Main agent loop checks pause state from TrayAgent
+if tray_manager and tray_manager.is_paused():
+    log_line(f"Agent PAUSED (via tray menu)")
+    time.sleep(1)
+    continue
+
+# Tray runs in background thread (daemon)
+# Updates icon/menu every 5 seconds from agent stats
+# Thread-safe state via threading.Lock()
+```
+
+**Menu Items**:
+- 🖥️ **Machine ID** (display only, shows hostname)
+- ⏸️/**▶️ Pause/Resume Agent** (toggle pause state)
+- 📋 **View Logs** (opens log file in default editor)
+- ❌ **Quit** (graceful shutdown)
+
+**Icon Design**:
+- 64×64 px PIL Image
+- Status colors: Green (OK), Yellow (WARN), Red (CRITICAL), Gray (PAUSED)
+- Pause indicator: Red bars overlay when paused
+
+**Compiled Executable**:
+- `dist/fleet_agent.exe` (19.7 MB, built with PyInstaller)
+- Single-file executable with all dependencies bundled (pystray, PIL, psutil, requests)
+- Windows Task Scheduler integration ready for auto-launch at startup
+
+### Testing
+```powershell
+# Syntax check
+python -m py_compile fleet_agent.py fleet_agent_windows_tray.py
+
+# Run with tray (Windows only)
+python fleet_agent.py --server http://localhost:5000 --token test_token --machine-id test-pc --tray
+
+# Verify icon appears in system tray (bottom-right corner on Windows)
+# Right-click icon to access menu
+# Click "Pause" to test pause state (agent stops reporting metrics)
+# Click "Resume" to restart metrics collection
+```
+
+### Known Limitations
+- Windows only (tray requires `pystray` which is Windows-specific; cross-platform coming later)
+- Pause state is not persisted (resets on agent restart)
+- Logs viewer depends on system default text editor (Notepad on Windows)
+
 ---
 
-**Last Updated**: 2026-01-02 (Post-refactoring with fleet_utils, constants, logging_config modules)
+**Last Updated**: 2026-01-02 (Tray icon feature + tests auto-execution + status management complete)
