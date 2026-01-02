@@ -19,6 +19,7 @@ import urllib.error
 import urllib.request
 import zipfile
 import hmac
+import requests
 from pathlib import Path
 from typing import Dict, Iterable
 
@@ -36,7 +37,10 @@ from constants import (
     CPU_ALERT, RAM_ALERT, FLEET_TTL_SECONDS as DEFAULT_FLEET_TTL,
     OFFLINE_THRESHOLD_SECONDS,
     WEBHOOK_MIN_SECONDS as DEFAULT_WEBHOOK_MIN_SECONDS,
-    SESSION_TIMEOUT as DEFAULT_SESSION_TIMEOUT
+    SESSION_TIMEOUT as DEFAULT_SESSION_TIMEOUT,
+    DB_PATH,
+    FLEET_STATE_JSON_PATH,
+    METRICS_CSV_PATH,
 )
 from logging_config import setup_logging
 from schemas import report_schema, metrics_schema
@@ -45,7 +49,9 @@ from schemas import report_schema, metrics_schema
 app = Flask(__name__, template_folder="templates", static_folder="static")
 
 _secret = os.environ.get('SECRET_KEY')
-if not _secret and os.environ.get('ALLOW_DEV_INSECURE') == '1':
+allow_dev = os.environ.get('ALLOW_DEV_INSECURE') == '1' or 'PYTEST_CURRENT_TEST' in os.environ
+if not _secret and allow_dev:
+    logging.warning("SECRET_KEY manquant : utilisation d'une clé de développement (ALLOW_DEV_INSECURE ou tests)")
     _secret = 'dev-secret-key'
 if not _secret:
     raise RuntimeError("SECRET_KEY manquant : définissez-le ou ALLOW_DEV_INSECURE=1 pour un dev local.")
@@ -214,7 +220,7 @@ setup_logging()
 # CPU_ALERT = 80.0  # importé de constants.py
 # RAM_ALERT = 90.0  # importé de constants.py
 
-DEFAULT_HISTORY_CSV = Path("logs/metrics.csv")
+DEFAULT_HISTORY_CSV = Path(METRICS_CSV_PATH)
 DEFAULT_EXPORT_CSV = Path.home() / "Desktop" / "metrics.csv"
 DEFAULT_EXPORT_JSONL = Path.home() / "Desktop" / "metrics.jsonl"
 ACTION_TOKEN = os.environ.get("ACTION_TOKEN")  # optionnel, protège les actions si défini
@@ -223,8 +229,8 @@ WEBHOOK_MIN_SECONDS = int(os.environ.get("WEBHOOK_MIN_SECONDS", str(DEFAULT_WEBH
 FLEET_TOKEN = os.environ.get("FLEET_TOKEN")  # token obligatoire pour les rapports agents
 FLEET_TTL_SECONDS = int(os.environ.get("FLEET_TTL_SECONDS", str(DEFAULT_FLEET_TTL)))
 OFFLINE_THRESHOLD = int(os.environ.get("OFFLINE_THRESHOLD_SECONDS", str(OFFLINE_THRESHOLD_SECONDS)))
-FLEET_STATE_PATH = Path("logs/fleet_state.json")
-FLEET_DB_PATH = Path("data/fleet.db")
+FLEET_STATE_PATH = Path(FLEET_STATE_JSON_PATH)
+FLEET_DB_PATH = Path(DB_PATH)
 SESSION_TTL_SECONDS = int(os.environ.get("SESSION_TTL_SECONDS", str(DEFAULT_SESSION_TIMEOUT)))
 
 # Crée automatiquement un admin si la table est vide et que les variables d'env sont présentes.
@@ -256,53 +262,59 @@ def _load_fleet_state() -> None:
     try:
         if FLEET_STATE_PATH.exists():
             try:
-                if not FLEET_DB_PATH.exists():
-                    # create DB and import JSON entries
+                raw = FLEET_STATE_PATH.read_text(encoding='utf-8') or '{}'
+                data = json.loads(raw)
+            except Exception as e:
+                logging.error(f"Erreur lecture backup JSON fleet : {e}")
+                data = {}
+
+            if isinstance(data, dict) and data:
+                conn = None
+                try:
+                    db_exists = FLEET_DB_PATH.exists()
                     conn = sqlite3.connect(str(FLEET_DB_PATH))
                     cur = conn.cursor()
-                    cur.execute('CREATE TABLE IF NOT EXISTS fleet (id TEXT PRIMARY KEY, report TEXT, ts REAL, client TEXT)')
-                    raw = FLEET_STATE_PATH.read_text(encoding='utf-8') or '{}'
-                    data = json.loads(raw)
-                    if isinstance(data, dict):
-                        for mid, entry in data.items():
-                            report_json = json.dumps(entry.get('report', {}), ensure_ascii=False)
-                            ts = entry.get('ts', time.time())
-                            client = entry.get('client')
-                            sql = (
-                                'INSERT OR REPLACE INTO fleet (id, report, ts, client) '
-                                'VALUES (?, ?, ?, ?)'
-                            )
-                            params = (str(mid), report_json, ts, client)
-                            cur.execute(sql, params)
+                    cur.execute(
+                        'CREATE TABLE IF NOT EXISTS fleet (id TEXT PRIMARY KEY, report TEXT, ts REAL, client TEXT, org_id TEXT, os TEXT, architecture TEXT, python_version TEXT, hardware_id TEXT, status TEXT, deleted_at REAL)'
+                    )
+                    for mid, entry in data.items():
+                        if not isinstance(entry, dict):
+                            continue
+                        machine_id = str(entry.get('machine_id') or entry.get('id') or mid)
+                        org_id = entry.get('org_id') or ('org_default' if FLEET_TOKEN else None)
+                        store_key = f"{org_id}:{machine_id}" if org_id else str(mid)
+                        report = entry.get('report', {}) or {}
+                        report_json = json.dumps(report, ensure_ascii=False)
+                        ts = entry.get('ts', time.time())
+                        client = entry.get('client')
+                        system_info = report.get('system') or {}
+                        os_name = entry.get('os') or system_info.get('os') or 'Unknown'
+                        architecture = entry.get('architecture') or system_info.get('architecture') or 'Unknown'
+                        python_version = entry.get('python_version') or system_info.get('python_version') or 'Unknown'
+                        hardware_id = entry.get('hardware_id') or system_info.get('hardware_id') or 'Unknown'
+                        status = entry.get('status') or 'ONLINE'
+                        deleted_at = entry.get('deleted_at')
+
+                        if db_exists:
+                            cur.execute('SELECT ts FROM fleet WHERE id = ?', (store_key,))
+                            row = cur.fetchone()
+                            existing_ts = row[0] if row and row[0] is not None else None
+                            if existing_ts is not None and existing_ts >= ts:
+                                continue
+
+                        cur.execute(
+                            'INSERT OR REPLACE INTO fleet (id, report, ts, client, org_id, os, architecture, python_version, hardware_id, status, deleted_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                            (store_key, report_json, ts, client, org_id, os_name, architecture, python_version, hardware_id, status, deleted_at),
+                        )
                     conn.commit()
-                    conn.close()
-                else:
-                    # merge newer entries from JSON into existing DB
-                    try:
-                        raw = FLEET_STATE_PATH.read_text(encoding='utf-8') or '{}'
-                        data = json.loads(raw)
-                        if isinstance(data, dict):
-                            conn = sqlite3.connect(str(FLEET_DB_PATH))
-                            cur = conn.cursor()
-                            for mid, entry in data.items():
-                                ts = entry.get('ts', 0)
-                                cur.execute('SELECT ts FROM fleet WHERE id = ?', (mid,))
-                                row = cur.fetchone()
-                                if not row or ts > (row[0] or 0):
-                                    report_json = json.dumps(entry.get('report', {}), ensure_ascii=False)
-                                    client = entry.get('client')
-                                    sql = (
-                                        'INSERT OR REPLACE INTO fleet (id, report, ts, client) '
-                                        'VALUES (?, ?, ?, ?)'
-                                    )
-                                    params = (str(mid), report_json, ts, client)
-                                    cur.execute(sql, params)
-                            conn.commit()
+                except Exception as e:
+                    logging.error(f"Erreur migration JSON->DB fleet : {e}")
+                finally:
+                    if conn is not None:
+                        try:
                             conn.close()
-                    except Exception as e:
-                        logging.error(f"Erreur lors de la fusion JSON->DB fleet : {e}")
-            except Exception as e:
-                logging.error(f"Erreur migration JSON->DB fleet : {e}")
+                        except Exception:
+                            pass
     except Exception as e:
         logging.error(f"Erreur lors du chargement de l'état fleet : {e}")
 
@@ -758,6 +770,23 @@ def _ensure_db_schema() -> None:
         cur.execute(
             'CREATE TABLE IF NOT EXISTS download_tokens (token TEXT PRIMARY KEY, path TEXT, created_at REAL, expires_at REAL, used INTEGER DEFAULT 0)'
         )
+        # actions queue for remote commands
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS actions (
+                id TEXT PRIMARY KEY,
+                org_id TEXT,
+                machine_id TEXT,
+                action_type TEXT,
+                payload TEXT,
+                status TEXT,
+                created_by TEXT,
+                created_at REAL,
+                executed_at REAL,
+                result TEXT
+            )
+            """
+        )
         # attempt to add org_id column if missing (sqlite ignores if exists on many versions, so safe)
         try:
             cur.execute('ALTER TABLE fleet ADD COLUMN org_id TEXT')
@@ -958,9 +987,9 @@ def api_config():
         "REFRESH_INTERVAL_MS": 5000,
         "API_VERSION": "1.0.0",
         "FEATURES": {
-            "messaging": False,
-            "commands": False,
-            "heartbeat": False,
+            "messaging": True,
+            "commands": True,
+            "heartbeat": True,
         }
     })
 
@@ -1846,12 +1875,10 @@ def api_history():
     return jsonify({"count": len(history), "data": history})
 
 
-def run_cli(interval: float, export_csv_path: Path | None, export_json_path: Path | None) -> None:
-    import requests
+def run_cli(interval: float, export_csv_path: Path | None, export_json_path: Path | None, server_url: str | None, api_key: str | None) -> None:
     print("Surveillance en cours. Ctrl+C pour arrêter. \n")
-    args = parse_args()
-    server_url = getattr(args, 'server', "http://127.0.0.1:5000")
-    api_key = os.environ.get("FLEET_API_KEY")
+    server_url = server_url or os.environ.get("FLEET_SERVER", "http://127.0.0.1:5000")
+    api_key = api_key or os.environ.get("FLEET_API_KEY")
     try:
         while True:
             stats = collect_stats()
@@ -1976,7 +2003,7 @@ def main() -> None:
         # (L'ouverture automatique du navigateur est désactivée sur Render)
         app.run(host=args.host, port=args.port, debug=False)
     else:
-        run_cli(args.interval, args.export_csv, args.export_jsonl)
+        run_cli(args.interval, args.export_csv, args.export_jsonl, args.server, os.environ.get("FLEET_API_KEY"))
 
 
 if __name__ == "__main__":
