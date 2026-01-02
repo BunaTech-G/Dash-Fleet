@@ -4,10 +4,14 @@
 - Utilise FLEET_TOKEN pour l'authentification.
 """
 import argparse
+import ctypes
 import json
+import logging
 import os
 import platform
 import socket
+import subprocess
+import sys
 import time
 import urllib.error
 import urllib.request
@@ -99,6 +103,135 @@ def send_heartbeat(server: str, token: str, machine_id: str, hardware_id: str) -
         return False
 
 
+# ============================================================================
+# ACTION HANDLERS (Phase 4)
+# ============================================================================
+
+def get_pending_actions(server: str, token: str, machine_id: str) -> list:
+    """Poll for pending actions."""
+    url = f"{server.rstrip('/')}/api/actions/pending?machine_id={machine_id}"
+    headers = {"Authorization": f"Bearer {token}"}
+    
+    try:
+        req = urllib.request.Request(url, headers=headers, method="GET")
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            data = json.loads(resp.read())
+            return data.get("actions", [])
+    except Exception as e:
+        logging.debug(f"Get pending actions failed: {e}")
+        return []
+
+
+def execute_action(action: dict) -> tuple[bool, str]:
+    """Execute an action and return (success, result_message)."""
+    action_type = action.get("type")
+    data = action.get("data", {})
+    
+    if action_type == "message":
+        message = data.get("message", "No message")
+        title = data.get("title", "DashFleet")
+        return execute_message(message, title)
+    
+    elif action_type == "restart":
+        return execute_restart()
+    
+    elif action_type == "reboot":
+        return execute_reboot()
+    
+    else:
+        return False, f"Unknown action type: {action_type}"
+
+
+def execute_message(message: str, title: str = "DashFleet") -> tuple[bool, str]:
+    """Display a message box (OS-specific)."""
+    try:
+        if platform.system() == "Windows":
+            ctypes.windll.user32.MessageBoxW(
+                0, message, title, 
+                0x1000 | 0x40  # MB_SYSTEMMODAL | MB_ICONINFORMATION
+            )
+            return True, "Message displayed (Windows)"
+        
+        elif platform.system() == "Linux":
+            try:
+                subprocess.run(
+                    ["notify-send", title, message],
+                    timeout=5,
+                    capture_output=True
+                )
+                return True, "Notification sent (notify-send)"
+            except:
+                try:
+                    subprocess.run(
+                        ["zenity", "--info", "--title", title, "--text", message],
+                        timeout=5,
+                        capture_output=True
+                    )
+                    return True, "Dialog shown (zenity)"
+                except:
+                    return False, "No notification system found (install notify-send or zenity)"
+        
+        elif platform.system() == "Darwin":  # macOS
+            try:
+                cmd = f'osascript -e \'display notification "{message}" with title "{title}\"\''
+                os.system(cmd)
+                return True, "Notification sent (macOS)"
+            except Exception as e:
+                return False, str(e)
+        
+        else:
+            return False, f"Unsupported OS: {platform.system()}"
+    
+    except Exception as e:
+        return False, f"Message execution failed: {str(e)}"
+
+
+def execute_restart() -> tuple[bool, str]:
+    """Restart the agent process."""
+    try:
+        logging.info("Restarting agent...")
+        os.execvp(sys.executable, [sys.executable] + sys.argv)
+        return True, "Agent restarted"
+    except Exception as e:
+        return False, f"Restart failed: {str(e)}"
+
+
+def execute_reboot() -> tuple[bool, str]:
+    """Reboot the machine."""
+    try:
+        if platform.system() == "Windows":
+            subprocess.run(["shutdown", "/r", "/t", "60"], check=True)
+            return True, "Reboot scheduled (60 seconds)"
+        else:
+            subprocess.run(["sudo", "shutdown", "-r", "+1"], check=True)
+            return True, "Reboot scheduled (1 minute)"
+    except Exception as e:
+        return False, f"Reboot command failed: {str(e)}"
+
+
+def report_action_result(server: str, token: str, action_id: str, 
+                        status: str, result: str) -> bool:
+    """Report action execution result to server."""
+    url = f"{server.rstrip('/')}/api/actions/report"
+    payload = {
+        "action_id": action_id,
+        "status": status,
+        "result": result
+    }
+    data = json.dumps(payload).encode("utf-8")
+    headers = {
+        "Content-Type": "application/json", 
+        "Authorization": f"Bearer {token}"
+    }
+    
+    try:
+        req = urllib.request.Request(url, data=data, headers=headers, method="POST")
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            return 200 <= resp.getcode() < 300
+    except Exception as e:
+        logging.error(f"Report action result failed: {e}")
+        return False
+
 
 def load_config(path: str | Path) -> dict:
     p = Path(path)
@@ -154,6 +287,7 @@ def main() -> None:
     log_line(f"id={machine_id}, intervalle={interval}s, hardware_id={hardware_id}")
 
     cycle = 0
+    action_poll_counter = 0
     while True:
         report = collect_agent_stats()
         ok, msg = post_report(url, token, machine_id, report)
@@ -170,6 +304,23 @@ def main() -> None:
             hb_ok = send_heartbeat(server, token, machine_id, hardware_id)
             if not hb_ok:
                 log_line(f"[{time.strftime('%H:%M:%S')}] Heartbeat FAILED")
+        
+        # Poll for actions every ~30 seconds (every 3 cycles if interval=10s)
+        action_poll_counter += 1
+        if action_poll_counter >= 3:
+            actions = get_pending_actions(server, token, machine_id)
+            for action in actions:
+                action_id = action.get("action_id")
+                try:
+                    success, result = execute_action(action)
+                    status_report = "done" if success else "error"
+                    report_action_result(server, token, action_id, status_report, result)
+                    log_line(f"[{time.strftime('%H:%M:%S')}] Action {action_id} executed: {result}")
+                except Exception as e:
+                    log_line(f"[{time.strftime('%H:%M:%S')}] Action {action_id} failed: {e}")
+                    report_action_result(server, token, action_id, "error", str(e))
+            
+            action_poll_counter = 0
         
         # Si le serveur est injoignable, on attend mais on ne quitte pas
         time.sleep(max(1.0, interval))
