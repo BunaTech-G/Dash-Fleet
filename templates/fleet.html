@@ -48,12 +48,37 @@
         <span class="muted" id="fleet-meta">-</span>
       </div>
 
+      <!-- Installation Guide Banner -->
+      <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 16px; font-size: 13px; line-height: 1.6;">
+        <div style="display: flex; align-items: start; gap: 12px; margin-bottom: 12px;">
+          <span style="font-size: 18px; line-height: 1;">📦</span>
+          <div>
+            <strong id="install-title">Installation Agent DashFleet</strong>
+            <p class="muted" style="margin: 4px 0 0 0;" id="install-hint">Déployez rapidement sur Windows/Linux avec ces commandes one-liner :</p>
+          </div>
+        </div>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px;">
+          <button class="install-btn" onclick="copyToClipboard('windows-install')" data-os="windows" style="background: #0078d4; color: white; padding: 8px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600;">
+            📍 Windows (copier)
+          </button>
+          <button class="install-btn" onclick="copyToClipboard('linux-install')" data-os="linux" style="background: #FCC624; color: #000; padding: 8px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600;">
+            🐧 Linux/Kali (copier)
+          </button>
+          <button class="install-btn" onclick="showInstallGuide()" style="background: var(--accent); color: #04263a; padding: 8px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600;">
+            ❓ Guide complet
+          </button>
+        </div>
+        <!-- Hidden installation commands -->
+        <pre id="windows-install" style="display: none;">Invoke-WebRequest -Uri "https://raw.githubusercontent.com/BunaTech-G/Dash-Fleet/fix/pyproject-exclude/deploy/install_dashfleet_oneliner.ps1" -OutFile "$env:TEMP\install.ps1"; & "$env:TEMP\install.ps1" -ApiKey "d2f6f9a8-3c7e-4c1f-9b0f-123456789abc"</pre>
+        <pre id="linux-install" style="display: none;">curl -sSL https://raw.githubusercontent.com/BunaTech-G/Dash-Fleet/fix/pyproject-exclude/deploy/install_dashfleet_linux_oneliner.sh | sudo bash -s -- -k d2f6f9a8-3c7e-4c1f-9b0f-123456789abc</pre>
+      </div>
+
       <!-- Status Legend -->
       <div class="legend-status" style="margin-bottom: 12px; font-size: 13px; color: var(--muted); display: flex; gap: 18px; flex-wrap: wrap; align-items: center;">
-        <span><span class="dot dot-ok"></span> OK</span>
-        <span><span class="dot dot-warn"></span> Avertissement</span>
-        <span><span class="dot dot-critical"></span> Critique</span>
-        <span><span class="dot dot-expired"></span> Expiré</span>
+        <span><span class="dot dot-ok"></span> OK (Score ≥80)</span>
+        <span><span class="dot dot-warn"></span> Avertissement (60-79)</span>
+        <span><span class="dot dot-critical"></span> Critique (&lt;60)</span>
+        <span><span class="dot dot-expired"></span> Expiré (&gt;24h)</span>
       </div>
 
       <!-- Error Box -->
@@ -86,7 +111,7 @@
       <!-- Empty State -->
       <div class="empty" id="empty-state" hidden>
         <p id="empty-title">Aucune machine reportée.</p>
-        <p class="muted" id="empty-hint">Déployer un agent qui POST sur /api/fleet/report.</p>
+        <p class="muted" id="empty-hint">Déployez un agent avec les commandes ci-dessus (section Installation Agent).</p>
       </div>
     </section>
   </main>
@@ -94,7 +119,7 @@
   <script src="/static/fleet-auth.js"></script>
   <script>
     // ===== CONFIGURATION =====
-    const FLEET_TTL = 600; // 10 minutes
+    const FLEET_TTL = 86400; // 24 heures (1 jour)
     const REFRESH_INTERVAL = 5000; // 5 secondes
     const SKELETON_COUNT = 4;
 
@@ -127,6 +152,23 @@
       setTimeout(() => { toast.style.display = 'none'; }, duration);
     }
 
+    function copyToClipboard(elementId) {
+      const element = document.getElementById(elementId);
+      if (!element) return;
+      
+      const text = element.textContent || element.innerText;
+      navigator.clipboard.writeText(text).then(() => {
+        showToast('✅ Commande copiée!', 'success');
+      }).catch(() => {
+        showToast('❌ Erreur de copie', 'error');
+      });
+    }
+
+    function showInstallGuide() {
+      const os = navigator.platform.toLowerCase().includes('win') ? 'Windows' : 'Linux';
+      alert(`Installation Agent DashFleet - ${os}\n\nConsultez:\nhttps://github.com/BunaTech-G/Dash-Fleet/blob/fix/pyproject-exclude/deploy/INSTALL_QUICK_START.md\n\nOu pour Linux:\nhttps://github.com/BunaTech-G/Dash-Fleet/blob/fix/pyproject-exclude/deploy/INSTALL_QUICK_START_LINUX.md`);
+    }
+
     function updateThemeButton() {
       if (!themeToggle) return;
       themeToggle.textContent = theme === 'dark' ? (t.themeLight || 'Mode clair') : (t.themeDark || 'Mode sombre');
@@ -152,7 +194,9 @@
       document.getElementById('label-filter').textContent = t.filterLabel || 'Statut:';
       document.getElementById('label-sort').textContent = t.sortLabel || 'Trier par:';
       document.getElementById('empty-title').textContent = t.emptyFleet || 'Aucune machine reportée.';
-      document.getElementById('empty-hint').textContent = t.emptyFleetHint || 'Déployer un agent qui POST sur /api/fleet/report.';
+      document.getElementById('empty-hint').textContent = t.emptyFleetHint || 'Déployez un agent avec les commandes ci-dessus (section Installation Agent).';
+      document.getElementById('install-title').textContent = t.installTitle || 'Installation Agent DashFleet';
+      document.getElementById('install-hint').textContent = t.installHint || 'Déployez rapidement sur Windows/Linux avec ces commandes one-liner :';
       updateThemeButton();
     }
 
@@ -189,15 +233,22 @@
       }
 
       emptyState.hidden = true;
-      fleetMeta.textContent = `${data.length} machine${data.length !== 1 ? 's' : ''}`;
+      fleetMeta.textContent = `${data.length} machine${data.length !== 1 ? 's' : ''} · TTL 24h`;
 
       data.forEach((entry, i) => {
         const report = entry.report || {};
         const health = report.health || { score: 0, status: 'ok' };
         const now = Date.now() / 1000;
-        const expired = (now - entry.ts > FLEET_TTL);
+        const ageSeconds = now - entry.ts;
+        const expired = (ageSeconds > FLEET_TTL);
         const status = expired ? 'expired' : (health.status || 'ok');
         const lastSeen = new Date(entry.ts * 1000).toLocaleString();
+        
+        // Calculate time remaining before expiration
+        const timeRemaining = Math.max(0, FLEET_TTL - ageSeconds);
+        const hoursRemaining = Math.floor(timeRemaining / 3600);
+        const minutesRemaining = Math.floor((timeRemaining % 3600) / 60);
+        const expiresIn = hoursRemaining > 0 ? `${hoursRemaining}h ${minutesRemaining}m` : `${minutesRemaining}m`;
 
         const card = document.createElement('article');
         card.className = `card ${getStatusClass(status, entry.ts)} fade-in`;
@@ -217,13 +268,13 @@
             <span class="badge badge-score badge-${status}">${score}/100</span>
           </div>
           <div class="meta" style="margin-bottom: 4px;">
-            <span class="dot dot-${status}"></span> ${status.toUpperCase()} · ${uptime}
+            <span class="dot dot-${status}"></span> ${status.toUpperCase()} · Uptime: ${uptime}
           </div>
           <div class="meta">
             CPU <b>${cpu}%</b> · RAM <b>${ram}%</b> · Disk <b>${disk}%</b>
           </div>
           <div class="meta muted">
-            ${lastSeen}${expired ? ' ⚠️' : ''}
+            Dernier rapport: ${lastSeen}${expired ? ' ⚠️ EXPIRÉ' : ` (${expiresIn} restant)`}
           </div>
         `;
         fleetCards.appendChild(card);
