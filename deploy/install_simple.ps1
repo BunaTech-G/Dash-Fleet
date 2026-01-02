@@ -79,16 +79,19 @@ try {
 
 # Créer le fichier de configuration
 Write-Host "Création du fichier de configuration..." -ForegroundColor Yellow
-$Config = @{
-    server = $ServerUrl
-    path = "/api/fleet/report"
-    token = $ApiKey
-    interval = 30
-    machine_id = $MachineId
-    log_file = "$LogsDir\agent.log"
-} | ConvertTo-Json
+$ConfigContent = @"
+{
+    "server": "$ServerUrl",
+    "path": "/api/fleet/report",
+    "token": "$ApiKey",
+    "interval": 30,
+    "machine_id": "$MachineId",
+    "log_file": "$($LogsDir -replace '\\', '\\')\agent.log"
+}
+"@
 
-$Config | Out-File -FilePath $ConfigFile -Encoding UTF8
+# Écrire sans BOM UTF-8
+[System.IO.File]::WriteAllText($ConfigFile, $ConfigContent, (New-Object System.Text.UTF8Encoding $false))
 Write-Host "✅ Configuration créée" -ForegroundColor Green
 
 # Créer une tâche planifiée
