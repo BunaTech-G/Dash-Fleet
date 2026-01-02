@@ -118,9 +118,22 @@
 
   <script src="/static/fleet-auth.js"></script>
   <script>
+    // ===== LOAD CONFIG FROM SERVER =====
+    let FLEET_TTL = 86400;  // Default fallback (24 hours)
+    let REFRESH_INTERVAL = 5000;  // Default fallback (5 seconds)
+
+    fetch('/api/config')
+      .then(r => r.json())
+      .then(config => {
+        FLEET_TTL = config.FLEET_TTL_SECONDS;
+        REFRESH_INTERVAL = config.REFRESH_INTERVAL_MS;
+        console.log(`Fleet TTL: ${FLEET_TTL}s, Refresh: ${REFRESH_INTERVAL}ms`);
+      })
+      .catch(err => {
+        console.warn('Could not load config, using defaults', err);
+      });
+
     // ===== CONFIGURATION =====
-    const FLEET_TTL = 86400; // 24 heures (1 jour)
-    const REFRESH_INTERVAL = 5000; // 5 secondes
     const SKELETON_COUNT = 4;
 
     // ===== DOM ELEMENTS =====

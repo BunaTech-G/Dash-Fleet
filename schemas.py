@@ -33,6 +33,7 @@ class MetricsSchema(Schema):
         uptime_seconds (float, optional): System uptime in seconds
         uptime_hms (str, optional): Human-readable uptime (H:M:S)
         health (dict, optional): Health score and status
+        system (dict, optional): System information (OS, version, architecture, etc.)
     """
     cpu_percent = fields.Float(required=True)
     ram_percent = fields.Float(required=True)
@@ -45,6 +46,7 @@ class MetricsSchema(Schema):
     uptime_seconds = fields.Float(required=False)
     uptime_hms = fields.Str(required=False)
     health = fields.Dict(required=False)
+    system = fields.Dict(required=False)
 
 
 # Instantiate schemas for use in endpoints
