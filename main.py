@@ -958,6 +958,12 @@ def fleet_page() -> str:
     return render_template("fleet.html")
 
 
+@app.route("/fleet/login")
+def fleet_login_page() -> str:
+    """Page de connexion avec clé API pour le dashboard fleet"""
+    return render_template("fleet_login.html")
+
+
 @app.route("/help")
 @require_password
 def help_page() -> str:

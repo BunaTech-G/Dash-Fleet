@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connexion DashFleet</title>
+    <style>
+        body {
+            font-family: 'Space Grotesk', system-ui, sans-serif;
+            background: linear-gradient(135deg, #0d1628 0%, #1a2942 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+            color: #e2e8f0;
+        }
+        .login-box {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 40px;
+            width: 400px;
+            max-width: 90%;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+        }
+        h1 {
+            margin: 0 0 24px 0;
+            font-size: 28px;
+            font-weight: 600;
+            text-align: center;
+            color: #60a5fa;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #cbd5e1;
+        }
+        input {
+            width: 100%;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            color: #e2e8f0;
+            font-size: 14px;
+            font-family: monospace;
+            box-sizing: border-box;
+            margin-bottom: 20px;
+        }
+        input:focus {
+            outline: none;
+            border-color: #60a5fa;
+            background: rgba(255, 255, 255, 0.12);
+        }
+        button {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
+        }
+        button:active {
+            transform: translateY(0);
+        }
+        .message {
+            margin-top: 16px;
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+            font-size: 14px;
+            display: none;
+        }
+        .message.success {
+            background: rgba(16, 185, 129, 0.2);
+            border: 1px solid rgba(16, 185, 129, 0.4);
+            color: #34d399;
+        }
+        .message.error {
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid rgba(239, 68, 68, 0.4);
+            color: #f87171;
+        }
+        .hint {
+            margin-top: 16px;
+            font-size: 13px;
+            color: #94a3b8;
+            text-align: center;
+        }
+        .hint code {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-box">
+        <h1>🔑 Connexion DashFleet</h1>
+        <form id="loginForm">
+            <label for="apiKey">Clé API</label>
+            <input type="text" id="apiKey" placeholder="api_xxx ou d2f6f9a8-3c7e-4c1f-9b0f-..." autocomplete="off" required>
+            <button type="submit">Se connecter</button>
+        </form>
+        <div id="message" class="message"></div>
+        <div class="hint">
+            Pour obtenir une clé API:<br>
+            <code>ssh root@dash-fleet.com</code><br>
+            <code>cd /opt/dashfleet && python3 scripts/create_org.sh "Mon Org"</code>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('loginForm');
+        const apiKeyInput = document.getElementById('apiKey');
+        const message = document.getElementById('message');
+
+        // Check if already logged in
+        const existingKey = sessionStorage.getItem('api_key');
+        if (existingKey) {
+            message.textContent = '✅ Déjà connecté! Redirection...';
+            message.className = 'message success';
+            message.style.display = 'block';
+            setTimeout(() => {
+                window.location.href = '/fleet';
+            }, 1500);
+        }
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const apiKey = apiKeyInput.value.trim();
+            
+            if (!apiKey) {
+                showMessage('Veuillez entrer une clé API', 'error');
+                return;
+            }
+
+            // Test the API key
+            try {
+                const response = await fetch('/api/fleet', {
+                    headers: {
+                        'Authorization': `Bearer ${apiKey}`
+                    }
+                });
+
+                if (response.ok) {
+                    // Valid key, store it
+                    sessionStorage.setItem('api_key', apiKey);
+                    showMessage('✅ Connexion réussie! Redirection...', 'success');
+                    setTimeout(() => {
+                        window.location.href = '/fleet';
+                    }, 1500);
+                } else if (response.status === 403) {
+                    showMessage('❌ Clé API invalide ou révoquée', 'error');
+                } else {
+                    showMessage(`❌ Erreur ${response.status}`, 'error');
+                }
+            } catch (error) {
+                showMessage('❌ Erreur de connexion au serveur', 'error');
+                console.error(error);
+            }
+        });
+
+        function showMessage(text, type) {
+            message.textContent = text;
+            message.className = `message ${type}`;
+            message.style.display = 'block';
+        }
+    </script>
+</body>
+</html>
