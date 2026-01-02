@@ -25,3 +25,13 @@ __pycache__/
 tmp_*.html
 insert_token.py
 list_tables.py
+
+# CRITICAL: Data & Logs must NEVER be committed
+data/fleet.db
+data/*.db
+logs/api.log
+logs/fleet_state.json
+logs/metrics.csv
+logs/*.log
+logs/*.json
+logs/*.csv
