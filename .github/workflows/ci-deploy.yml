@@ -38,7 +38,7 @@ jobs:
           pip install flake8
 
       - name: Lint (flake8)
-        run: flake8 .
+        run: flake8 . --config=.flake8
 
   test:
     runs-on: ubuntu-latest
