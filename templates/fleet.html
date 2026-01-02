@@ -78,7 +78,9 @@
         <span><span class="dot dot-ok"></span> OK (Score ≥80)</span>
         <span><span class="dot dot-warn"></span> Avertissement (60-79)</span>
         <span><span class="dot dot-critical"></span> Critique (&lt;60)</span>
-        <span><span class="dot dot-expired"></span> Expiré (&gt;24h)</span>
+        <span><span class="dot dot-offline"></span> Offline (&gt;10 min)</span>
+        <span><span class="dot dot-expired"></span> Expiré (&gt;24h TTL)</span>
+        <span><span class="dot dot-offline" style="opacity:0.6;"></span> Deleted (grisé)</span>
       </div>
 
       <!-- Fleet Toolbar (Phase 6) -->
@@ -331,11 +333,14 @@
       updateThemeButton();
     }
 
-    function getStatusClass(status, lastSeenTs) {
-      const now = Date.now() / 1000;
-      if (now - lastSeenTs > FLEET_TTL) return 'status-expired';
+    function getStatusClass(status, lastSeenTs, isOffline = false, isDeleted = false) {
+      if (isDeleted) return 'status-deleted';
+      if (status === 'offline' || isOffline) return 'status-offline';
+      if (status === 'expired') return 'status-expired';
       if (status === 'critical') return 'status-critical';
       if (status === 'warn') return 'status-warn';
+      const now = Date.now() / 1000;
+      if (now - lastSeenTs > FLEET_TTL) return 'status-expired';
       return 'status-ok';
     }
 
@@ -383,7 +388,9 @@
         const ageSeconds = now - entry.ts;
         const isOffline = entry.offline === true;
         const expired = isOffline || (ageSeconds > FLEET_TTL);
-        const status = isOffline ? 'offline' : (expired ? 'expired' : (health.status || 'ok'));
+        const status = entry.status ? entry.status.toLowerCase() : (isOffline ? 'offline' : (expired ? 'expired' : (health.status || 'ok')));
+        const isDeleted = status === 'deleted';
+        const deletedBadge = isDeleted ? '<span class="badge badge-deleted" style="margin-left:6px;">DELETED</span>' : '';
         const lastSeen = new Date(entry.ts * 1000).toLocaleString();
         
         // Calculate time remaining before expiration or show offline duration
@@ -396,6 +403,11 @@
         const expiresIn = isOffline 
           ? (hoursOffline > 0 ? `Éteint depuis ${hoursOffline}h ${minutesOffline}m` : `Éteint depuis ${minutesOffline}m`)
           : (hoursRemaining > 0 ? `${hoursRemaining}h ${minutesRemaining}m` : `${minutesRemaining}m`);
+
+          const deleteButtons = isDeleted
+           ? `<button class="action-btn" onclick="restoreMachine('${machineId}')" style="flex:1; padding: 10px 12px; background: var(--panel-strong); border: 1px solid var(--border); color: var(--text); border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600;">↩️ Restaurer</button>
+             <button class="action-btn" onclick="purgeMachine('${machineId}')" style="flex:1; padding: 10px 12px; background: #7f1d1d; border: 1px solid #b91c1c; color: #fef2f2; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 700;">🗑️ Supprimer définitivement</button>`
+           : `<button class="action-btn" onclick="deleteMachine('${machineId}')" style="flex:1; padding: 10px 12px; background: #111827; border: 1px solid #4b5563; color: #e5e7eb; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600;">🗑️ Supprimer</button>`;
 
         const cpu = report.cpu_percent?.toFixed?.(1) || '--';
         const ram = report.ram_percent?.toFixed?.(1) || '--';
@@ -416,18 +428,18 @@
 
         const newHTML = `
           <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;">
-            <div class="label" title="${machineId}" style="flex: 1; min-width: 120px;">🖥️ ${machineId}</div>
+            <div class="label" title="${machineId}" style="flex: 1; min-width: 120px;">🖥️ ${machineId} ${deletedBadge}</div>
             <button class="copy-btn" onclick="copyToClipboardFn('${machineId}')" title="Copy machine ID" style="padding: 4px 8px; background: var(--panel-strong); border: 1px solid var(--border); border-radius: 3px; cursor: pointer; font-size: 11px; color: var(--muted);">📋</button>
             <span class="badge badge-score badge-${status}">${score}/100</span>
           </div>
           <div class="meta" style="margin-bottom: 4px;">
-            <span class="dot dot-${status}"></span> ${isOffline ? '🔴 ÉTEINT' : status.toUpperCase()} · Uptime: ${uptime}
+            <span class="dot dot-${status}"></span> ${isOffline || status === 'offline' ? '🔴 ÉTEINT' : status.toUpperCase()} · Uptime: ${uptime}
           </div>
           <div class="meta">
             CPU <b>${cpu}%</b> · RAM <b>${ram}%</b> · Disk <b>${disk}%</b>
           </div>
           <div class="meta muted">
-            Dernier rapport: ${lastSeen}${isOffline ? ` · ${expiresIn}` : (expired ? ' ⚠️ EXPIRÉ' : ` (${expiresIn} restant)`)}
+            Dernier rapport: ${lastSeen}${isOffline || status === 'offline' ? ` · ${expiresIn}` : (expired ? ' ⚠️ EXPIRÉ' : ` (${expiresIn} restant)`)}
           </div>
           <button class="expand-btn" onclick="toggleDetails('${detailsId}')" style="width: 100%; padding: 6px; margin-top: 8px; background: var(--panel-strong); border: 1px solid var(--border); border-radius: 4px; cursor: pointer; font-size: 11px; color: var(--muted); transition: all 200ms;">
             ▼ Détails système
@@ -442,6 +454,7 @@
             <button class="action-btn" onclick="showActionModal('${machineId}', '${machineId}')" title="Envoyer un message ou une commande" style="flex: 1; padding: 10px 14px; background: #0ea5e9; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 200ms; box-shadow: 0 2px 8px rgba(14, 165, 233, 0.3);">
               💬 Envoyer Message
             </button>
+            ${deleteButtons}
           </div>
         `;
 
@@ -449,7 +462,7 @@
           // Update existing card (don't recreate)
           const card = existingCards[machineId];
           const oldStatus = card.className.split(' ').find(c => c.startsWith('status-'));
-          const newStatus = getStatusClass(status, entry.ts);
+          const newStatus = getStatusClass(status, entry.ts, isOffline, isDeleted);
           
           if (oldStatus !== newStatus) {
             card.className = card.className.replace(oldStatus, newStatus);
@@ -458,7 +471,7 @@
         } else {
           // Create new card
           const card = document.createElement('article');
-          card.className = `card ${getStatusClass(status, entry.ts)} fade-in`;
+          card.className = `card ${getStatusClass(status, entry.ts, isOffline, isDeleted)} fade-in`;
           card.style.animationDelay = (i * 0.07) + 's';
           card.setAttribute('aria-label', `Machine ${machineId}`);
           card.setAttribute('data-machine-id', machineId);
@@ -583,6 +596,55 @@
       document.getElementById('action-modal-title').textContent = `Actions for ${machineName}`;
       document.getElementById('action-modal').style.display = 'flex';
       updateActionForm();
+    }
+
+    // ===== DELETE / RESTORE / PURGE FUNCTIONS =====
+    function deleteMachine(machineId) {
+      if (!confirm(`Supprimer ${machineId} ? (soft delete, restaurable)`)) return;
+      const token = localStorage.getItem('auth_token') || '';
+      fetch(`/api/fleet/${encodeURIComponent(machineId)}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      }).then(r => r.json()).then(d => {
+        if (d.ok) {
+          showToast(`Machine ${machineId} supprimée (soft)`, 'success');
+          refreshFleet();
+        } else {
+          showToast(`Erreur suppression: ${d.error || 'inconnue'}`, 'error');
+        }
+      }).catch(e => showToast(`Erreur: ${e}`, 'error'));
+    }
+
+    function restoreMachine(machineId) {
+      if (!confirm(`Restaurer ${machineId} ?`)) return;
+      const token = localStorage.getItem('auth_token') || '';
+      fetch(`/api/fleet/${encodeURIComponent(machineId)}/restore`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      }).then(r => r.json()).then(d => {
+        if (d.ok) {
+          showToast(`Machine ${machineId} restaurée (${d.status})`, 'success');
+          refreshFleet();
+        } else {
+          showToast(`Erreur restauration: ${d.error || 'inconnue'}`, 'error');
+        }
+      }).catch(e => showToast(`Erreur: ${e}`, 'error'));
+    }
+
+    function purgeMachine(machineId) {
+      if (!confirm(`Supprimer définitivement ${machineId} ? Action irréversible.`)) return;
+      const token = localStorage.getItem('auth_token') || '';
+      fetch(`/api/fleet/${encodeURIComponent(machineId)}/purge`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      }).then(r => r.json()).then(d => {
+        if (d.ok) {
+          showToast(`Machine ${machineId} supprimée définitivement`, 'success');
+          refreshFleet();
+        } else {
+          showToast(`Erreur purge: ${d.error || 'inconnue'}`, 'error');
+        }
+      }).catch(e => showToast(`Erreur: ${e}`, 'error'));
     }
 
     function closeActionModal() {

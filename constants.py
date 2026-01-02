@@ -16,6 +16,9 @@ RAM_ALERT = 90
 # Fleet entry time-to-live in seconds (how long before a machine is considered offline)
 FLEET_TTL_SECONDS = 86400  # 24 hours (must match frontend FLEET_TTL)
 
+# Offline threshold (seconds without data before marking OFFLINE, but kept until TTL expiry)
+OFFLINE_THRESHOLD_SECONDS = 600  # 10 minutes
+
 # Disk space alert threshold (percentage)
 DISK_ALERT = 85
 

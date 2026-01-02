@@ -54,7 +54,8 @@ def insert_fleet_report(
         'architecture': architecture,
         'python_version': python_version,
         'hardware_id': hardware_id,
-        'status': 'ONLINE'
+        'status': 'ONLINE',
+        'deleted_at': None
     }
 
     # Persist to disk (best-effort)
@@ -68,7 +69,7 @@ def insert_fleet_report(
         # Check if machine exists
         cursor.execute('SELECT deleted_at FROM fleet WHERE id = ?', (store_key,))
         existing = cursor.fetchone()
-        
+
         # If machine was deleted, restore it
         if existing and existing[0] is not None:
             cursor.execute(

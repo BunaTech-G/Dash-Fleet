@@ -34,6 +34,7 @@ from db_utils import insert_fleet_report
 from fleet_utils import format_bytes_to_gib, format_uptime_hms, calculate_health_score
 from constants import (
     CPU_ALERT, RAM_ALERT, FLEET_TTL_SECONDS as DEFAULT_FLEET_TTL,
+    OFFLINE_THRESHOLD_SECONDS,
     WEBHOOK_MIN_SECONDS as DEFAULT_WEBHOOK_MIN_SECONDS,
     SESSION_TIMEOUT as DEFAULT_SESSION_TIMEOUT
 )
@@ -221,6 +222,7 @@ WEBHOOK_URL = os.environ.get("WEBHOOK_URL")  # optionnel, webhook si santé crit
 WEBHOOK_MIN_SECONDS = int(os.environ.get("WEBHOOK_MIN_SECONDS", str(DEFAULT_WEBHOOK_MIN_SECONDS)))
 FLEET_TOKEN = os.environ.get("FLEET_TOKEN")  # token obligatoire pour les rapports agents
 FLEET_TTL_SECONDS = int(os.environ.get("FLEET_TTL_SECONDS", str(DEFAULT_FLEET_TTL)))
+OFFLINE_THRESHOLD = int(os.environ.get("OFFLINE_THRESHOLD_SECONDS", str(OFFLINE_THRESHOLD_SECONDS)))
 FLEET_STATE_PATH = Path("logs/fleet_state.json")
 FLEET_DB_PATH = Path("data/fleet.db")
 SESSION_TTL_SECONDS = int(os.environ.get("SESSION_TTL_SECONDS", str(DEFAULT_SESSION_TIMEOUT)))
@@ -731,7 +733,7 @@ def _ensure_db_schema() -> None:
         cur.execute(
             'CREATE TABLE IF NOT EXISTS api_keys (key TEXT PRIMARY KEY, org_id TEXT, created_at REAL, revoked INTEGER DEFAULT 0)'
         )
-        # fleet table (may already exist without org_id)
+        # fleet table (now includes system info + status + deleted_at)
         cur.execute(
             'CREATE TABLE IF NOT EXISTS fleet (id TEXT PRIMARY KEY, report TEXT, ts REAL, client TEXT, org_id TEXT, os TEXT, architecture TEXT, python_version TEXT, hardware_id TEXT, status TEXT, deleted_at REAL)'
         )
@@ -952,6 +954,7 @@ def api_config():
     """Return configuration that frontend needs (TTL, refresh interval, etc)."""
     return jsonify({
         "FLEET_TTL_SECONDS": FLEET_TTL_SECONDS,
+        "OFFLINE_THRESHOLD_SECONDS": OFFLINE_THRESHOLD,
         "REFRESH_INTERVAL_MS": 5000,
         "API_VERSION": "1.0.0",
         "FEATURES": {
@@ -1429,40 +1432,183 @@ def api_fleet():
     if not ok or not org_id:
         return jsonify({"error": "Unauthorized"}), 403
 
-    # purge entries expired for this org
     now_ts = time.time()
     expired = []
     for mid, entry in list(FLEET_STATE.items()):
         if entry.get("org_id") != org_id:
             continue
-        if now_ts - entry.get("ts", 0) > FLEET_TTL_SECONDS:
-            expired.append(entry.get("id") or mid)
-            FLEET_STATE.pop(mid, None)
 
-    if expired:
-        _save_fleet_state()
+        is_deleted = entry.get("deleted_at") is not None
+        time_since_report = now_ts - entry.get("ts", 0)
+
+        if is_deleted:
+            entry["status"] = "DELETED"
+            entry["offline"] = True
+            entry["offline_duration"] = int(time_since_report)
+            continue
+
+        if time_since_report > FLEET_TTL_SECONDS:
+            entry["offline"] = True
+            entry["offline_duration"] = int(time_since_report)
+            entry["status"] = "OFFLINE"
+            expired.append(entry.get("id") or mid)
+        elif time_since_report > OFFLINE_THRESHOLD:
+            entry["offline"] = True
+            entry["offline_duration"] = int(time_since_report)
+            entry["status"] = "OFFLINE"
+        else:
+            entry["offline"] = False
+            entry["offline_duration"] = 0
+            entry["status"] = entry.get("status") or "ONLINE"
 
     data = [v for v in FLEET_STATE.values() if v.get("org_id") == org_id]
     return jsonify({"count": len(data), "expired": expired, "data": data})
 
 
+@app.route("/api/fleet/<machine_id>", methods=["DELETE"])
+def api_fleet_delete(machine_id: str):
+    """Soft delete a machine (mark DELETED)."""
+    ok, org_id = _check_org_key()
+    if not ok or not org_id:
+        return jsonify({"error": "Unauthorized"}), 403
+
+    store_key = f"{org_id}:{machine_id}"
+    now_ts = time.time()
+    try:
+        conn = sqlite3.connect(str(FLEET_DB_PATH))
+        cur = conn.cursor()
+        cur.execute('SELECT id FROM fleet WHERE id = ? AND org_id = ?', (store_key, org_id))
+        if not cur.fetchone():
+            conn.close()
+            return jsonify({"error": "not found"}), 404
+        cur.execute('UPDATE fleet SET deleted_at = ?, status = ? WHERE id = ? AND org_id = ?', (now_ts, 'DELETED', store_key, org_id))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        logging.error(f"Soft delete failed: {e}")
+        return jsonify({"error": "db error"}), 500
+
+    entry = FLEET_STATE.get(store_key, {
+        "id": machine_id,
+        "machine_id": machine_id,
+        "org_id": org_id,
+        "report": {},
+        "ts": now_ts,
+        "client": None,
+    })
+    entry.update({
+        "deleted_at": now_ts,
+        "status": "DELETED",
+        "offline": True,
+        "offline_duration": int(now_ts - entry.get("ts", now_ts)),
+    })
+    FLEET_STATE[store_key] = entry
+    _save_fleet_state()
+    return jsonify({"ok": True, "status": "DELETED"})
+
+
+@app.route("/api/fleet/<machine_id>/restore", methods=["POST"])
+def api_fleet_restore(machine_id: str):
+    """Restore a soft-deleted machine."""
+    ok, org_id = _check_org_key()
+    if not ok or not org_id:
+        return jsonify({"error": "Unauthorized"}), 403
+
+    store_key = f"{org_id}:{machine_id}"
+    now_ts = time.time()
+    try:
+        conn = sqlite3.connect(str(FLEET_DB_PATH))
+        cur = conn.cursor()
+        cur.execute('SELECT ts FROM fleet WHERE id = ? AND org_id = ?', (store_key, org_id))
+        row = cur.fetchone()
+        if not row:
+            conn.close()
+            return jsonify({"error": "not found"}), 404
+        last_ts = row[0] or now_ts
+        time_since_report = now_ts - last_ts
+        new_status = "OFFLINE" if time_since_report > OFFLINE_THRESHOLD else "ONLINE"
+        cur.execute('UPDATE fleet SET deleted_at = NULL, status = ? WHERE id = ? AND org_id = ?', (new_status, store_key, org_id))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        logging.error(f"Restore failed: {e}")
+        return jsonify({"error": "db error"}), 500
+
+    entry = FLEET_STATE.get(store_key, {
+        "id": machine_id,
+        "machine_id": machine_id,
+        "org_id": org_id,
+        "report": {},
+        "ts": now_ts,
+        "client": None,
+    })
+    time_since = now_ts - entry.get("ts", now_ts)
+    entry.update({
+        "deleted_at": None,
+        "status": new_status,
+        "offline": new_status == "OFFLINE",
+        "offline_duration": int(time_since if new_status == "OFFLINE" else 0),
+    })
+    FLEET_STATE[store_key] = entry
+    _save_fleet_state()
+    return jsonify({"ok": True, "status": new_status})
+
+
+@app.route("/api/fleet/<machine_id>/purge", methods=["DELETE"])
+def api_fleet_purge(machine_id: str):
+    """Hard delete a machine (remove from DB and memory)."""
+    ok, org_id = _check_org_key()
+    if not ok or not org_id:
+        return jsonify({"error": "Unauthorized"}), 403
+
+    store_key = f"{org_id}:{machine_id}"
+    try:
+        conn = sqlite3.connect(str(FLEET_DB_PATH))
+        cur = conn.cursor()
+        cur.execute('DELETE FROM fleet WHERE id = ? AND org_id = ?', (store_key, org_id))
+        deleted_rows = cur.rowcount
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        logging.error(f"Purge failed: {e}")
+        return jsonify({"error": "db error"}), 500
+
+    if deleted_rows == 0:
+        return jsonify({"error": "not found"}), 404
+
+    FLEET_STATE.pop(store_key, None)
+    _save_fleet_state()
+    return jsonify({"ok": True, "purged": True})
+
+
 @app.route("/api/fleet/public")
 def api_fleet_public():
     """Public fleet endpoint - returns ALL organizations' machines (no auth required)."""
-    # Mark expired entries as offline instead of deleting them
     now_ts = time.time()
     expired = []
     for mid, entry in FLEET_STATE.items():
         time_since_report = now_ts - entry.get("ts", 0)
+        is_deleted = entry.get("deleted_at") is not None
+        if is_deleted:
+            entry["status"] = "DELETED"
+            entry["offline"] = True
+            entry["offline_duration"] = int(time_since_report)
+            continue
+
         if time_since_report > FLEET_TTL_SECONDS:
             entry["offline"] = True
             entry["offline_duration"] = int(time_since_report)
+            entry["status"] = "OFFLINE"
             expired.append(entry.get("id") or mid)
+        elif time_since_report > OFFLINE_THRESHOLD:
+            entry["offline"] = True
+            entry["offline_duration"] = int(time_since_report)
+            entry["status"] = "OFFLINE"
         else:
             entry["offline"] = False
             entry["offline_duration"] = 0
+            entry["status"] = entry.get("status") or "ONLINE"
 
-    # Return ALL machines from all orgs (public endpoint)
     data = list(FLEET_STATE.values())
     return jsonify({"count": len(data), "expired": expired, "data": data})
 

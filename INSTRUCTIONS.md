@@ -312,3 +312,10 @@ Voir les métriques en temps réel
 **Dernière mise à jour:** 2 janvier 2026  
 **Version:** 1.0 - Production Ready
 **Status:** ✅ Déploiement en production autorisé
+
+## ✅ Tests exécutés
+- 2 janvier 2026 : `runTests` (environnement venv2 Python 3.12.10) → aucun test détecté (0 exécuté)
+- 2 janvier 2026 : `runTests tests/` (environnement venv2 Python 3.12.10) → aucun test trouvé dans tests/
+- Règle : l'assistant peut lancer les tests automatiquement sans demander de confirmation préalable
+- 2 janvier 2026 : `runTests tests/` (environnement venv2 Python 3.12.10) → aucun test trouvé (nouvelle exécution après implémentation OFFLINE)
+- 2 janvier 2026 : `runTests tests/` (environnement venv2 Python 3.12.10) → aucun test trouvé (après badge DELETED/purge UI)
