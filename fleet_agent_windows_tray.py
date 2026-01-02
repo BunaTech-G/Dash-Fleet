@@ -4,13 +4,12 @@ Fleet Agent Windows System Tray Support
 - Shows real-time metrics in tooltip
 - Allows quick status check and configuration
 
-Run with: python fleet_agent_windows_tray.py --server <url> --token <api_key> --tray
+Run with: python fleet_agent.py --server <url> --token <api_key> --tray
 """
 
 import sys
 import threading
 import time
-from pathlib import Path
 
 # Check if running on Windows
 IS_WINDOWS = sys.platform == "win32"
@@ -27,18 +26,27 @@ else:
     HAS_PYSTRAY = False
 
 
-def create_tray_icon(agent_stats_fn):
-    """Create and display system tray icon with real-time metrics."""
-    if not HAS_PYSTRAY or not IS_WINDOWS:
-        return None
+def run_tray_icon(agent_stats_fn):
+    """
+    Run system tray icon with real-time metrics.
+    
+    Args:
+        agent_stats_fn: Callable that returns stats dict with 'health' key
+    """
+    if not HAS_PYSTRAY:
+        return
+    
+    if not IS_WINDOWS:
+        return
 
-    # Create icon image (simple colored square with status indicator)
+    size = 64
+
     def create_image(health_status="ok"):
-        size = 64
-        img = Image.new("RGB", (size, size), (255, 255, 255))
+        """Create tray icon image based on health status."""
+        img = Image.new("RGB", (size, size), color=(240, 240, 240))
         draw = ImageDraw.Draw(img)
-        
-        # Status colors
+
+        # Color mapping for health status
         colors = {
             "ok": (34, 197, 94),        # Green
             "warn": (250, 204, 21),     # Yellow
@@ -110,19 +118,12 @@ def create_tray_icon(agent_stats_fn):
                 pass
             time.sleep(5)
 
-    # Start update thread
+    # Start update thread and tray icon
     update_thread = threading.Thread(target=update_icon, daemon=True)
     update_thread.start()
-
-    return icon
-
-
-def run_tray_icon(agent_stats_fn):
-    """Run system tray icon (blocking call, run in separate thread)."""
-    if not HAS_PYSTRAY or not IS_WINDOWS:
-        print("System tray icon requires Windows and pystray/pillow packages")
-        return
-
-    icon = create_tray_icon(agent_stats_fn)
-    if icon:
+    
+    try:
         icon.run()
+    except KeyboardInterrupt:
+        icon.stop()
+

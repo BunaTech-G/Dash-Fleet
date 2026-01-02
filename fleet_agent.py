@@ -254,6 +254,7 @@ def main() -> None:
     parser.add_argument("--machine-id", default=get_machine_id(), help="Identifiant machine")
     parser.add_argument("--config", default="config.json", help="Chemin du fichier de configuration JSON")
     parser.add_argument("--log-file", default=None, help="Fichier de log local (optionnel)")
+    parser.add_argument("--tray", action="store_true", help="Afficher une icône systray Windows avec les métriques")
     args = parser.parse_args()
 
     cfg = load_config(args.config)
@@ -279,6 +280,25 @@ def main() -> None:
                     f.write(msg + "\n")
             except Exception:
                 pass
+
+    # Import and start tray icon if requested (Windows only)
+    tray_icon = None
+    if args.tray:
+        try:
+            from fleet_agent_windows_tray import run_tray_icon
+            import threading
+            
+            # Run tray in background thread
+            tray_thread = threading.Thread(
+                target=lambda: run_tray_icon(collect_agent_stats),
+                daemon=True
+            )
+            tray_thread.start()
+            log_line("[TRAY] Icône systray démarrée (cliquez sur l'icône en bas à droite)")
+        except ImportError:
+            log_line("[TRAY] ⚠️  pystray/pillow non installés. Installez: pip install pystray pillow")
+        except Exception as e:
+            log_line(f"[TRAY] ⚠️  Erreur tray: {e}")
 
     url = server.rstrip("/") + path
     hardware_id = hex(uuid.getnode())
