@@ -21,7 +21,40 @@ if %ERRORLEVEL% neq 0 (
     pause
     exit /b 1
 )
-
+REM Verifier si Python est vraiment installe (pas l'alias Windows Store)
+echo Verification de Python...
+python --version >nul 2>&1
+if %ERRORLEVEL% neq 0 (
+    echo.
+    echo Python n'est pas installe. Installation automatique...
+    echo.
+    
+    REM Tenter d'installer via winget (Windows 10/11)
+    winget install Python.Python.3.11 --silent --accept-package-agreements --accept-source-agreements >nul 2>&1
+    
+    if %ERRORLEVEL% neq 0 (
+        echo.
+        echo ERREUR: Impossible d'installer Python automatiquement.
+        echo.
+        echo Solution manuelle:
+        echo 1. Allez sur https://www.python.org/downloads/
+        echo 2. Telechargez Python 3.11 ou superieur
+        echo 3. IMPORTANT: Cochez "Add Python to PATH" pendant l'installation
+        echo 4. Relancez ce script apres l'installation
+        echo.
+        pause
+        exit /b 1
+    )
+    
+    echo Python installe avec succes!
+    echo Redemarrage de la session pour actualiser le PATH...
+    echo.
+    
+    REM Rafraichir les variables d'environnement
+    for /f "tokens=2*" %%a in ('reg query "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Environment" /v Path') do set "SysPath=%%b"
+    for /f "tokens=2*" %%a in ('reg query "HKCU\Environment" /v Path') do set "UserPath=%%b"
+    set "PATH=%SysPath%;%UserPath%"
+)
 REM Ask for machine name
 set /p MACHINE_ID="Entrez le nom de la machine (ex: wclient3): "
 
