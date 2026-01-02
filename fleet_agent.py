@@ -6,10 +6,12 @@
 import argparse
 import json
 import os
+import platform
 import socket
 import time
 import urllib.error
 import urllib.request
+import uuid
 from pathlib import Path
 
 import psutil
@@ -39,6 +41,16 @@ def collect_agent_stats() -> dict:
         "disk_total_gib": float(format_bytes_to_gib(disk.total)),
         "uptime_seconds": float(uptime_seconds),
         "uptime_hms": format_uptime_hms(uptime_seconds),
+        
+        # System information metadata
+        "system": {
+            "os": platform.system(),
+            "os_version": platform.release(),
+            "platform": platform.platform(),
+            "architecture": platform.machine(),
+            "python_version": platform.python_version(),
+            "hardware_id": hex(uuid.getnode()),
+        }
     }
     stats["health"] = calculate_health_score(stats)
     # Validation simple des métriques
@@ -65,6 +77,26 @@ def post_report(url: str, token: str, machine_id: str, report: dict) -> tuple[bo
         return False, f"URLError {exc.reason}"
     except Exception as exc:
         return False, str(exc)
+
+
+def send_heartbeat(server: str, token: str, machine_id: str, hardware_id: str) -> bool:
+    """Send lightweight heartbeat ping (no metrics)."""
+    payload = {
+        "machine_id": machine_id,
+        "hardware_id": hardware_id,
+        "timestamp": time.time()
+    }
+    data = json.dumps(payload).encode("utf-8")
+    url_ping = server.rstrip("/") + "/api/fleet/ping"
+    headers = {"Content-Type": "application/json", "Authorization": f"Bearer {token}"}
+    req = urllib.request.Request(url_ping, data=data, headers=headers, method="POST")
+    
+    try:
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            ok = 200 <= resp.getcode() < 300
+            return ok
+    except Exception as e:
+        return False
 
 
 
@@ -116,9 +148,12 @@ def main() -> None:
                 pass
 
     url = server.rstrip("/") + path
+    hardware_id = hex(uuid.getnode())
+    
     log_line(f"Agent démarré -> {url}")
-    log_line(f"id={machine_id}, intervalle={interval}s")
+    log_line(f"id={machine_id}, intervalle={interval}s, hardware_id={hardware_id}")
 
+    cycle = 0
     while True:
         report = collect_agent_stats()
         ok, msg = post_report(url, token, machine_id, report)
@@ -128,6 +163,14 @@ def main() -> None:
             log_line(f"[{time.strftime('%H:%M:%S')}] {status} {msg} | {short} | Score {report['health']['score']}/100")
         else:
             log_line(f"[{time.strftime('%H:%M:%S')}] {status} {msg} | ERREUR d'envoi | {short}")
+        
+        # Every 5 cycles (5 × interval), send heartbeat
+        cycle += 1
+        if cycle % 5 == 0:
+            hb_ok = send_heartbeat(server, token, machine_id, hardware_id)
+            if not hb_ok:
+                log_line(f"[{time.strftime('%H:%M:%S')}] Heartbeat FAILED")
+        
         # Si le serveur est injoignable, on attend mais on ne quitte pas
         time.sleep(max(1.0, interval))
 
