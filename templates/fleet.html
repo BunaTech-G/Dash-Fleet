@@ -224,9 +224,8 @@
     }
 
     function renderFleet(data) {
-      fleetCards.innerHTML = '';
-
       if (!data || data.length === 0) {
+        fleetCards.innerHTML = '';
         emptyState.hidden = false;
         fleetMeta.textContent = '0 machines';
         return;
@@ -235,7 +234,18 @@
       emptyState.hidden = true;
       fleetMeta.textContent = `${data.length} machine${data.length !== 1 ? 's' : ''} · TTL 24h`;
 
+      // Build a map of existing cards
+      const existingCards = {};
+      document.querySelectorAll('[data-machine-id]').forEach(card => {
+        existingCards[card.dataset.machineId] = card;
+      });
+
+      // Track which machines are being rendered
+      const renderedMachines = new Set();
+
       data.forEach((entry, i) => {
+        renderedMachines.add(entry.id);
+        const machineId = entry.id || 'machine';
         const report = entry.report || {};
         const health = report.health || { score: 0, status: 'ok' };
         const now = Date.now() / 1000;
@@ -250,21 +260,15 @@
         const minutesRemaining = Math.floor((timeRemaining % 3600) / 60);
         const expiresIn = hoursRemaining > 0 ? `${hoursRemaining}h ${minutesRemaining}m` : `${minutesRemaining}m`;
 
-        const card = document.createElement('article');
-        card.className = `card ${getStatusClass(status, entry.ts)} fade-in`;
-        card.style.animationDelay = (i * 0.07) + 's';
-        card.setAttribute('aria-label', `Machine ${entry.id || 'machine'}`);
-        card.setAttribute('tabindex', 3 + i);
-
         const cpu = report.cpu_percent?.toFixed?.(1) || '--';
         const ram = report.ram_percent?.toFixed?.(1) || '--';
         const disk = report.disk_percent?.toFixed?.(1) || '--';
         const uptime = report.uptime_hms || '--';
         const score = health.score || 0;
 
-        card.innerHTML = `
+        const newHTML = `
           <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
-            <div class="label">${entry.id || 'machine'}</div>
+            <div class="label" title="${machineId}">🖥️ ${machineId}</div>
             <span class="badge badge-score badge-${status}">${score}/100</span>
           </div>
           <div class="meta" style="margin-bottom: 4px;">
@@ -277,7 +281,35 @@
             Dernier rapport: ${lastSeen}${expired ? ' ⚠️ EXPIRÉ' : ` (${expiresIn} restant)`}
           </div>
         `;
-        fleetCards.appendChild(card);
+
+        if (existingCards[machineId]) {
+          // Update existing card (don't recreate)
+          const card = existingCards[machineId];
+          const oldStatus = card.className.split(' ').find(c => c.startsWith('status-'));
+          const newStatus = getStatusClass(status, entry.ts);
+          
+          if (oldStatus !== newStatus) {
+            card.className = card.className.replace(oldStatus, newStatus);
+          }
+          card.innerHTML = newHTML;
+        } else {
+          // Create new card
+          const card = document.createElement('article');
+          card.className = `card ${getStatusClass(status, entry.ts)} fade-in`;
+          card.style.animationDelay = (i * 0.07) + 's';
+          card.setAttribute('aria-label', `Machine ${machineId}`);
+          card.setAttribute('data-machine-id', machineId);
+          card.setAttribute('tabindex', 3 + i);
+          card.innerHTML = newHTML;
+          fleetCards.appendChild(card);
+        }
+      });
+
+      // Remove machines that are no longer in the data
+      Object.keys(existingCards).forEach(machineId => {
+        if (!renderedMachines.has(machineId)) {
+          existingCards[machineId].remove();
+        }
       });
     }
 
