@@ -309,22 +309,43 @@ def _load_fleet_state() -> None:
         if FLEET_DB_PATH.exists():
             conn = sqlite3.connect(str(FLEET_DB_PATH))
             cur = conn.cursor()
-            cur.execute("SELECT id, report, ts, client, org_id FROM fleet")
+            cur.execute(
+                "SELECT id, report, ts, client, org_id, os, architecture, python_version, hardware_id, status, deleted_at FROM fleet"
+            )
             rows = cur.fetchall()
             conn.close()
             FLEET_STATE = {}
-            for rid, report_json, ts, client, org_id in rows:
+            for rid, report_json, ts, client, org_id, os_name, architecture, python_version, hardware_id, status, deleted_at in rows:
                 try:
                     report = json.loads(report_json) if report_json else {}
                 except Exception:
                     report = {}
-                # keep org_id per entry for filtering
+
+                system_info = report.get("system") or {}
+                default_os = os_name or system_info.get("os") or "Unknown"
+                system_info = {
+                    "os": default_os,
+                    "os_version": system_info.get("os_version") or "",
+                    "architecture": architecture or system_info.get("architecture") or "Unknown",
+                    "python_version": python_version or system_info.get("python_version") or "Unknown",
+                    "hardware_id": hardware_id or system_info.get("hardware_id") or "Unknown",
+                }
+                report["system"] = system_info
+
+                machine_id = str(rid).split(":", 1)[1] if ":" in str(rid) else str(rid)
                 FLEET_STATE[str(rid)] = {
-                    "id": str(rid),
+                    "id": machine_id,
+                    "machine_id": machine_id,
                     "report": report,
                     "ts": ts or 0,
                     "client": client,
                     "org_id": org_id,
+                    "os": system_info["os"],
+                    "architecture": system_info["architecture"],
+                    "python_version": system_info["python_version"],
+                    "hardware_id": system_info["hardware_id"],
+                    "status": status or "ONLINE",
+                    "deleted_at": deleted_at,
                 }
             # purge expirés
             now_ts = time.time()
@@ -376,7 +397,7 @@ def _save_fleet_state() -> None:
             conn = sqlite3.connect(str(FLEET_DB_PATH))
             cur = conn.cursor()
             cur.execute(
-                'CREATE TABLE IF NOT EXISTS fleet (id TEXT PRIMARY KEY, report TEXT, ts REAL, client TEXT, org_id TEXT)'
+                'CREATE TABLE IF NOT EXISTS fleet (id TEXT PRIMARY KEY, report TEXT, ts REAL, client TEXT, org_id TEXT, os TEXT, architecture TEXT, python_version TEXT, hardware_id TEXT, status TEXT, deleted_at REAL)'
             )
             # upsert all entries (id stored must be unique, include org if needed)
             for mid, entry in FLEET_STATE.items():
@@ -384,9 +405,16 @@ def _save_fleet_state() -> None:
                 ts = entry.get('ts', time.time())
                 client = entry.get('client')
                 org_id = entry.get('org_id')
+                system_info = entry.get('report', {}).get('system') or {}
+                os_name = entry.get('os') or system_info.get('os') or 'Unknown'
+                architecture = entry.get('architecture') or system_info.get('architecture') or 'Unknown'
+                python_version = entry.get('python_version') or system_info.get('python_version') or 'Unknown'
+                hardware_id = entry.get('hardware_id') or system_info.get('hardware_id') or 'Unknown'
+                status = entry.get('status') or 'ONLINE'
+                deleted_at = entry.get('deleted_at')
                 cur.execute(
-                    'INSERT OR REPLACE INTO fleet (id, report, ts, client, org_id) VALUES (?, ?, ?, ?, ?)',
-                    (str(mid), report_json, ts, client, org_id),
+                    'INSERT OR REPLACE INTO fleet (id, report, ts, client, org_id, os, architecture, python_version, hardware_id, status, deleted_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                    (str(mid), report_json, ts, client, org_id, os_name, architecture, python_version, hardware_id, status, deleted_at),
                 )
             conn.commit()
             conn.close()
@@ -705,8 +733,21 @@ def _ensure_db_schema() -> None:
         )
         # fleet table (may already exist without org_id)
         cur.execute(
-            'CREATE TABLE IF NOT EXISTS fleet (id TEXT PRIMARY KEY, report TEXT, ts REAL, client TEXT, org_id TEXT)'
+            'CREATE TABLE IF NOT EXISTS fleet (id TEXT PRIMARY KEY, report TEXT, ts REAL, client TEXT, org_id TEXT, os TEXT, architecture TEXT, python_version TEXT, hardware_id TEXT, status TEXT, deleted_at REAL)'
         )
+        # ensure new columns exist after schema upgrades
+        for column_def in (
+            'os TEXT',
+            'architecture TEXT',
+            'python_version TEXT',
+            'hardware_id TEXT',
+            'status TEXT',
+            'deleted_at REAL'
+        ):
+            try:
+                cur.execute(f'ALTER TABLE fleet ADD COLUMN {column_def}')
+            except Exception as e:
+                logging.info(f"Colonne déjà existante ou erreur : {e}")
         # sessions table for server-side session exchange (sid -> org_id)
         cur.execute(
             'CREATE TABLE IF NOT EXISTS sessions (id TEXT PRIMARY KEY, org_id TEXT, created_at REAL, expires_at REAL)'

@@ -405,10 +405,12 @@
 
         // Prepare system info for details panel
         const sysInfo = report.system || {};
-        const osDisplay = `${sysInfo.os || 'N/A'} ${sysInfo.os_version || ''}`.trim();
-        const pythonVersion = sysInfo.python_version || 'N/A';
-        const architecture = sysInfo.architecture || 'N/A';
-        const hardwareId = sysInfo.hardware_id || 'N/A';
+        const fallbackValue = (value) => (value && value !== 'N/A') ? value : 'Unknown';
+        const osRaw = entry.os || sysInfo.os;
+        const osDisplay = fallbackValue([osRaw, sysInfo.os_version].filter(Boolean).join(' ').trim());
+        const pythonVersion = fallbackValue(entry.python_version || sysInfo.python_version);
+        const architecture = fallbackValue(entry.architecture || sysInfo.architecture);
+        const hardwareId = fallbackValue(entry.hardware_id || sysInfo.hardware_id);
 
         const detailsId = `details-${machineId.replace(/[^a-zA-Z0-9]/g, '-')}`;
 

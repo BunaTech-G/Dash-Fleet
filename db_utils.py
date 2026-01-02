@@ -31,27 +31,56 @@ def insert_fleet_report(
         fleet_state: In-memory fleet state dictionary
         save_fn: Function to save fleet state to disk
     """
+    # Extract system info from report
+    system_info = report.get('system', {})
+    os_name = system_info.get('os', 'N/A')
+    os_version = system_info.get('os_version', '')
+    architecture = system_info.get('architecture', 'N/A')
+    python_version = system_info.get('python_version', 'N/A')
+    hardware_id = system_info.get('hardware_id', 'N/A')
+    
+    # Combine OS name and version
+    full_os = f"{os_name} {os_version}" if os_version else os_name
+    
     # Update in-memory state
     fleet_state[store_key] = {
-        'id': machine_id,  # Explicit id for frontend display
+        'id': machine_id,
         'machine_id': machine_id,
         'report': report,
         'ts': now_ts,
         'client': client_ip,
-        'org_id': org_id
+        'org_id': org_id,
+        'os': full_os,
+        'architecture': architecture,
+        'python_version': python_version,
+        'hardware_id': hardware_id,
+        'status': 'ONLINE'
     }
 
     # Persist to disk (best-effort)
     save_fn()
 
-    # Persist to SQLite
+    # Persist to SQLite with system info
     try:
         conn = sqlite3.connect('data/fleet.db')
         cursor = conn.cursor()
-        cursor.execute(
-            'INSERT OR REPLACE INTO fleet (id, report, ts, client, org_id) VALUES (?, ?, ?, ?, ?)',
-            (store_key, json.dumps(report), now_ts, client_ip, org_id)
-        )
+        
+        # Check if machine exists
+        cursor.execute('SELECT deleted_at FROM fleet WHERE id = ?', (store_key,))
+        existing = cursor.fetchone()
+        
+        # If machine was deleted, restore it
+        if existing and existing[0] is not None:
+            cursor.execute(
+                'UPDATE fleet SET report = ?, ts = ?, client = ?, os = ?, architecture = ?, python_version = ?, hardware_id = ?, status = ?, deleted_at = NULL WHERE id = ?',
+                (json.dumps(report), now_ts, client_ip, full_os, architecture, python_version, hardware_id, 'ONLINE', store_key)
+            )
+        else:
+            cursor.execute(
+                'INSERT OR REPLACE INTO fleet (id, report, ts, client, org_id, os, architecture, python_version, hardware_id, status, deleted_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)',
+                (store_key, json.dumps(report), now_ts, client_ip, org_id, full_os, architecture, python_version, hardware_id, 'ONLINE')
+            )
+        
         conn.commit()
         conn.close()
     except Exception as e:
