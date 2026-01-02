@@ -1484,6 +1484,155 @@ def api_fleet_ping():
         return jsonify({"error": str(e)}), 500
 
 
+# ============================================================================
+# ACTIONS/MESSAGING API ENDPOINTS (Phase 4)
+# ============================================================================
+
+@app.route("/api/actions/queue", methods=["POST"])
+@limiter.limit("100/minute")
+def queue_action():
+    """Queue an action to execute on a machine."""
+    ok, org_id = _check_org_key()
+    if not ok:
+        return jsonify({"error": "Unauthorized"}), 403
+    
+    try:
+        payload = request.get_json(force=True)
+        machine_id = payload.get("machine_id")
+        action_type = payload.get("action_type")  # "message", "restart", "reboot"
+        action_data = payload.get("data", {})     # Action-specific data
+        
+        if not machine_id or not action_type:
+            return jsonify({"error": "Missing machine_id or action_type"}), 400
+        
+        # Validate action_type
+        valid_types = ["message", "restart", "reboot"]
+        if action_type not in valid_types:
+            return jsonify({"error": f"Invalid action_type. Must be one of: {valid_types}"}), 400
+    
+    except Exception as e:
+        logging.error(f"Queue action parse error: {e}")
+        return jsonify({"error": "Invalid JSON"}), 400
+    
+    try:
+        action_id = f"{org_id}:{machine_id}:{int(time.time()*1000)}"
+        
+        conn = sqlite3.connect(str(FLEET_DB_PATH))
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO actions 
+            (id, org_id, machine_id, action_type, payload, status, created_by, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            action_id,
+            org_id,
+            machine_id,
+            action_type,
+            json.dumps(action_data),
+            'pending',
+            'dashboard_user',
+            time.time()
+        ))
+        conn.commit()
+        conn.close()
+        
+        logging.info(f"Action queued: {action_id} ({action_type}) for {machine_id}")
+        return jsonify({"ok": True, "action_id": action_id}), 201
+        
+    except Exception as e:
+        logging.error(f"Queue action failed: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/actions/pending")
+@limiter.limit("60/minute")
+def get_pending_actions():
+    """Agent polls for pending actions for this machine."""
+    ok, org_id = _check_org_key()
+    if not ok:
+        return jsonify({"error": "Unauthorized"}), 403
+    
+    try:
+        machine_id = request.args.get("machine_id")
+        if not machine_id:
+            return jsonify({"error": "machine_id query param required"}), 400
+        
+        conn = sqlite3.connect(str(FLEET_DB_PATH))
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT id, action_type, payload 
+            FROM actions
+            WHERE org_id = ? AND machine_id = ? AND status = 'pending'
+            ORDER BY created_at ASC
+            LIMIT 10
+        ''', (org_id, machine_id))
+        
+        actions = []
+        for row in cursor.fetchall():
+            try:
+                action_data = json.loads(row[2])
+            except:
+                action_data = {}
+            
+            actions.append({
+                "action_id": row[0],
+                "type": row[1],
+                "data": action_data
+            })
+        
+        conn.close()
+        
+        logging.debug(f"Pending actions for {machine_id}: {len(actions)}")
+        return jsonify({"actions": actions})
+        
+    except Exception as e:
+        logging.error(f"Get pending actions failed: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/actions/report", methods=["POST"])
+@limiter.limit("60/minute")
+def report_action_result():
+    """Agent reports action execution result."""
+    ok, org_id = _check_org_key()
+    if not ok:
+        return jsonify({"error": "Unauthorized"}), 403
+    
+    try:
+        payload = request.get_json(force=True)
+        action_id = payload.get("action_id")
+        status = payload.get("status")  # "done" or "error"
+        result = payload.get("result", "")
+        
+        if not action_id or not status:
+            return jsonify({"error": "Missing action_id or status"}), 400
+        
+        if status not in ["done", "error"]:
+            return jsonify({"error": "Invalid status. Must be 'done' or 'error'"}), 400
+    
+    except Exception as e:
+        logging.error(f"Report action parse error: {e}")
+        return jsonify({"error": "Invalid JSON"}), 400
+    
+    try:
+        conn = sqlite3.connect(str(FLEET_DB_PATH))
+        cursor = conn.cursor()
+        cursor.execute('''
+            UPDATE actions 
+            SET status = ?, result = ?, executed_at = ?
+            WHERE id = ? AND org_id = ?
+        ''', (status, result, time.time(), action_id, org_id))
+        conn.commit()
+        conn.close()
+        
+        logging.info(f"Action {action_id} reported as {status}: {result}")
+        return jsonify({"ok": True})
+        
+    except Exception as e:
+        logging.error(f"Report action result failed: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/api/fleet/reload", methods=["POST"])
 def api_fleet_reload():
     """Forcer le rechargement de `logs/fleet_state.json` en mémoire.
