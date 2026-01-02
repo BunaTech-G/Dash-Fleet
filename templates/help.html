@@ -7,14 +7,35 @@
   <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
   <link rel="stylesheet" href="/static/style.css">
   <script src="/static/i18n.js"></script>
+  <style>
+    .help-container { max-width: 1200px; margin: 0 auto; padding: 56px 20px 72px; }
+    .help-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin: 30px 0; }
+    .help-card { background: var(--panel); border: 1px solid var(--border); border-radius: var(--card-radius); padding: 24px; box-shadow: var(--shadow); transition: transform 0.2s, box-shadow 0.2s; }
+    .help-card:hover { transform: translateY(-2px); box-shadow: 0 24px 48px rgba(0, 0, 0, 0.4); }
+    .help-card h3 { margin: 0 0 12px 0; font-size: 18px; color: var(--text); }
+    .help-card .label { display: inline-block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--accent); margin-bottom: 8px; }
+    .help-card p { margin: 12px 0; color: var(--muted); line-height: 1.6; }
+    .help-card ul { margin: 12px 0; padding-left: 20px; }
+    .help-card li { margin: 8px 0; color: var(--muted); }
+    .code-block { background: var(--panel-strong); border-left: 3px solid var(--accent); padding: 12px 16px; border-radius: 4px; font-family: 'Monaco', 'Courier New', monospace; font-size: 12px; color: var(--text); overflow-x: auto; margin: 12px 0; }
+    .callout { background: linear-gradient(135deg, rgba(56, 189, 248, 0.1), rgba(34, 197, 94, 0.1)); border-left: 4px solid var(--success); padding: 14px 16px; border-radius: 6px; margin: 16px 0; color: var(--text); }
+    .callout.warning { border-left-color: var(--warn); background: linear-gradient(135deg, rgba(250, 204, 21, 0.1), rgba(250, 204, 21, 0.05)); }
+    .callout.critical { border-left-color: var(--critical); background: linear-gradient(135deg, rgba(244, 63, 94, 0.1), rgba(244, 63, 94, 0.05)); }
+    .metric-desc { display: grid; grid-template-columns: 150px 1fr; gap: 16px; margin: 12px 0; }
+    .metric-desc dt { font-weight: 600; color: var(--accent); }
+    .metric-desc dd { margin: 0; color: var(--muted); }
+    .breadcrumb { display: flex; gap: 8px; margin: 20px 0; font-size: 13px; color: var(--muted); }
+    .breadcrumb a { color: var(--accent); text-decoration: none; }
+    .breadcrumb a:hover { text-decoration: underline; }
+  </style>
 </head>
 <body>
-  <main class="help-wrap">
-    <header style="margin-bottom:20px;">
+  <div class="help-container">
+    <header style="margin-bottom:30px;">
       <div>
-        <p class="eyebrow">Aide</p>
-        <h1 style="margin:6px 0 4px;">Aide & Documentation</h1>
-        <p class="lede">Infos rapides pour naviguer, dépanner et sécuriser DashFleet.</p>
+        <p class="eyebrow">DOCUMENTATION</p>
+        <h1 style="margin:6px 0 4px;">Aide & Guide d'Utilisation</h1>
+        <p class="lede">Tout ce qu'il faut savoir pour gérer efficacement votre flotte avec DashFleet.</p>
       </div>
       <div class="header-actions">
         <div class="lang-switch">
@@ -37,56 +58,348 @@
       <a href="/help" class="active">Aide</a>
     </nav>
 
-    <section class="help-grid">
-      <article class="help-card">
-        <div class="label">Navigation</div>
-        <h2 style="margin:4px 0 10px;">Où trouver quoi</h2>
-        <ul class="muted-list">
-          <li><b>Temps réel</b> : Statut local + actions rapides.</li>
-          <li><b>Historique</b> : Courbes CPU/RAM/Disque.</li>
-          <li><b>Fleet</b> : Santé des postes reportés.</li>
-          <li><b>Admin</b> : Orgs, clés API, tokens.</li>
+    <!-- SECTION 1: NAVIGATION -->
+    <section style="margin-top: 40px;">
+      <h2 style="margin: 0 0 24px 0; font-size: 24px; color: var(--text);">📍 Navigation Générale</h2>
+      <div class="help-grid">
+        <article class="help-card">
+          <div class="label">Temps Réel</div>
+          <h3>Statut Local & Rapide</h3>
+          <p>Affiche les métriques système de votre machine actuelle (CPU, RAM, Disque). Permet d'accéder rapidement aux actions locales sans configurer d'agent.</p>
+          <ul>
+            <li>Graphiques temps réel</li>
+            <li>Santé système instantanée</li>
+            <li>Actions locales rapides</li>
+          </ul>
+        </article>
+
+        <article class="help-card">
+          <div class="label">Historique</div>
+          <h3>Tendances & Analyse</h3>
+          <p>Visualisez les courbes historiques de CPU, RAM et Disque avec zoom et sélection temporelle. Identifiez les goulots et les anomalies.</p>
+          <ul>
+            <li>Graphiques sur 24h/7j/30j</li>
+            <li>Export des données</li>
+            <li>Détection de pics</li>
+          </ul>
+        </article>
+
+        <article class="help-card">
+          <div class="label">Fleet</div>
+          <h3>Gérer la Flotte</h3>
+          <p>Vue centrale de tous les postes reportés par les agents. Visualisez la santé collective, filtrez par statut, et envoyez des actions à distance.</p>
+          <ul>
+            <li>Tableau des machines</li>
+            <li>Badges de santé (ok/warn/critical)</li>
+            <li>Actions distance (messages, redémarrage)</li>
+          </ul>
+        </article>
+
+        <article class="help-card">
+          <div class="label">Admin</div>
+          <h3>Gestion Organisationnelle</h3>
+          <p>Réservé aux administrateurs. Gérez les organisations, les clés API, les tokens d'action et les configurations globales.</p>
+          <ul>
+            <li>Créer/supprimer organisations</li>
+            <li>Générer clés API</li>
+            <li>Configurer secrets</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <!-- SECTION 2: MÉTRIQUES -->
+    <section style="margin-top: 40px;">
+      <h2 style="margin: 0 0 24px 0; font-size: 24px; color: var(--text);">📊 Comprendre les Métriques</h2>
+      
+      <div class="callout">
+        <strong>✓ Source fiable :</strong> Toutes les métriques proviennent directement de l'OS via les <strong>gestionnaires de tâches système</strong> (Windows Task Manager, Linux htop, macOS Activity Monitor). Les données sont collectées toutes les 10 secondes par l'agent en utilisant la bibliothèque <code style="background: var(--panel-strong); padding: 2px 6px; border-radius: 3px;">psutil</code> qui accède aux données brutes du kernel système.
+      </div>
+
+      <div class="help-grid">
+        <article class="help-card">
+          <div class="label">CPU</div>
+          <h3>Utilisation du Processeur</h3>
+          <p>Pourcentage moyen d'utilisation du CPU (0-100%). Échantillonné sur 0.3s pour une mesure précise via les interruptions système.</p>
+          <div class="code-block">Seuil santé:<br/>&lt;50%: ✅ OK<br/>50-80%: ⚠️ Avertissement<br/>&gt;80%: 🔴 Critique</div>
+        </article>
+
+        <article class="help-card">
+          <div class="label">RAM</div>
+          <h3>Mémoire Utilisée</h3>
+          <p>Pourcentage d'utilisation de la mémoire vive. Inclut les buffers du système, le cache et la mémoire active.</p>
+          <div class="code-block">Seuil santé:<br/>&lt;60%: ✅ OK<br/>60-85%: ⚠️ Avertissement<br/>&gt;85%: 🔴 Critique</div>
+        </article>
+
+        <article class="help-card">
+          <div class="label">Disque</div>
+          <h3>Espace de Stockage</h3>
+          <p>Pourcentage d'utilisation du disque système (lecteur racine). Mesure l'espace libre disponible pour le système.</p>
+          <div class="code-block">Seuil santé:<br/>&lt;70%: ✅ OK<br/>70-90%: ⚠️ Avertissement<br/>&gt;90%: 🔴 Critique</div>
+        </article>
+
+        <article class="help-card">
+          <div class="label">Santé</div>
+          <h3>Score Agrégé (0-100)</h3>
+          <p>Score pondéré combinant CPU (35%), RAM (35%) et Disque (30%). Calcul linéaire du dépassement des seuils.</p>
+          <div class="code-block">≥80: ✅ OK<br/>≥60: ⚠️ Avertissement<br/>&lt;60: 🔴 Critique</div>
+        </article>
+      </div>
+
+      <div style="background: var(--panel); border: 1px solid var(--border); border-radius: var(--card-radius); padding: 20px; margin-top: 20px;">
+        <h3 style="margin-top: 0;">Métadonnées Système</h3>
+        <p style="color: var(--muted);">Chaque machine reporte aussi (depuis le gestionnaire système):</p>
+        <div class="metric-desc">
+          <dt>🖥️ OS</dt><dd>Système d'exploitation (Windows, Linux, macOS)</dd>
+          <dt>⏱️ Uptime</dt><dd>Temps écoulé depuis le dernier redémarrage (en secondes et format lisible)</dd>
+          <dt>🐍 Python</dt><dd>Version de l'interpréteur Python de l'agent</dd>
+          <dt>📦 Architecture</dt><dd>Type de processeur (x86_64, ARM64, etc.)</dd>
+          <dt>🔑 Hardware ID</dt><dd>Identifiant physique unique de la machine (adresse MAC)</dd>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 3: ACTIONS DISTANCE -->
+    <section style="margin-top: 40px;">
+      <h2 style="margin: 0 0 24px 0; font-size: 24px; color: var(--text);">🚀 Actions Distance</h2>
+      
+      <div class="callout warning">
+        <strong>⚠️ Attention :</strong> Les actions distance sont exécutées immédiatement sur la machine cible. Utilisez-les avec prudence, surtout pour les redémarrages et arrêts.
+      </div>
+
+      <div class="help-grid">
+        <article class="help-card">
+          <div class="label">Message</div>
+          <h3>Afficher une Notification</h3>
+          <p>Envoie une fenêtre de message (MessageBox) directement sur l'écran de la machine. Utile pour communiquer rapidement avec les utilisateurs.</p>
+          <ul>
+            <li>✓ Support multi-OS (Windows, Linux, macOS)</li>
+            <li>✓ Titre et message personnalisables</li>
+            <li>✓ Exécution immédiate (toutes les 30s)</li>
+            <li>✓ Apparaît en avant-plan</li>
+          </ul>
+        </article>
+
+        <article class="help-card">
+          <div class="label">Redémarrage</div>
+          <h3>Restart la Machine</h3>
+          <p>Initie un redémarrage ordonnancé de la machine avec un délai (60s sur Windows, 1min sur Linux/macOS).</p>
+          <ul>
+            <li>✓ Délai d'attente programmé (permet sauvegarde des données)</li>
+            <li>✓ Log du redémarrage dans système</li>
+            <li>✓ Exécution avec privilèges administrateur</li>
+            <li>✓ Idéal post-maintenance ou pour appliquer des correctifs</li>
+          </ul>
+        </article>
+
+        <article class="help-card">
+          <div class="label">Arrêt</div>
+          <h3>Éteindre la Machine</h3>
+          <p>Procède à l'arrêt complet de la machine (shutdown). Utilisez avec extrême prudence en production.</p>
+          <ul>
+            <li>⚠️ Attention: perte de travail non sauvegardé</li>
+            <li>✓ Délai avant fermeture</li>
+            <li>✓ Notification préalable</li>
+            <li>✓ À éviter en heures de travail</li>
+          </ul>
+        </article>
+
+        <article class="help-card">
+          <div class="label">Flux Technique</div>
+          <h3>Comment Fonctionnent les Actions?</h3>
+          <p style="margin-bottom: 12px;"><strong>1.</strong> Vous cliquez "📨 Actions" sur une machine<br/>
+          <strong>2.</strong> Le serveur met l'action en base de données<br/>
+          <strong>3.</strong> L'agent interroge toutes les 30s<br/>
+          <strong>4.</strong> L'agent exécute localement (avec privilèges)<br/>
+          <strong>5.</strong> Résultat remonté au serveur et enregistré</p>
+        </article>
+      </div>
+    </section>
+
+    <!-- SECTION 4: INSTALLATION AGENT -->
+    <section style="margin-top: 40px;">
+      <h2 style="margin: 0 0 24px 0; font-size: 24px; color: var(--text);">🔧 Installation Agent</h2>
+      
+      <article class="help-card" style="grid-column: 1/-1;">
+        <div class="label">Prérequis</div>
+        <h3>Avant de Commencer</h3>
+        <ul>
+          <li><strong>✓ Python 3.8+</strong> installé sur la machine</li>
+          <li><strong>✓ Clé API</strong> générée depuis l'Admin</li>
+          <li><strong>✓ Accès réseau</strong> vers le serveur DashFleet (HTTPS)</li>
+          <li><strong>✓ Permissions</strong> pour installer les packages Python</li>
+          <li><strong>✓ psutil</strong> package (pour les métriques système)</li>
         </ul>
       </article>
 
-      <article class="help-card">
-        <div class="label">Actions</div>
-        <h2 style="margin:4px 0 10px;">Actions rapides</h2>
-        <ul class="muted-list">
-          <li>Nettoyage (temp, caches), flush DNS, restart spooler.</li>
-          <li>Collecte de logs en un clic.</li>
-          <li>Survol pour voir l’intitulé complet.</li>
+      <article class="help-card" style="grid-column: 1/-1;">
+        <div class="label">Configuration</div>
+        <h3>Fichier config.json</h3>
+        <p>Créez un fichier <code style="background: var(--panel-strong); padding: 2px 6px; border-radius: 3px;">config.json</code> dans le répertoire agent avec:</p>
+        <div class="code-block">{
+  "server": "https://dashfleet.example.com",
+  "token": "api_votre_cle_ici",
+  "interval": 10,
+  "machine_id": "hostname",
+  "log_file": "logs/agent.log"
+}</div>
+      </article>
+
+      <article class="help-card" style="grid-column: 1/-1;">
+        <div class="label">Lancement</div>
+        <h3>Démarrer l'Agent</h3>
+        <p>Depuis le répertoire de l'agent:</p>
+        <div class="code-block">pip install psutil requests
+python fleet_agent.py --token api_xxx --server https://dashfleet.example.com</div>
+        <p style="margin-top: 12px; color: var(--muted);">L'agent doit rester actif en continu. Utilisez un service systemd (Linux) ou une tâche planifiée (Windows) pour le démarrage automatique.</p>
+      </article>
+    </section>
+
+    <!-- SECTION 5: SÉCURITÉ -->
+    <section style="margin-top: 40px;">
+      <h2 style="margin: 0 0 24px 0; font-size: 24px; color: var(--text);">🔐 Sécurité & Bonnes Pratiques</h2>
+      
+      <div class="callout critical">
+        <strong>🔒 Important :</strong> Les clés API sont des secrets sensibles. Protégez-les comme des mots de passe!
+      </div>
+
+      <div class="help-grid">
+        <article class="help-card">
+          <div class="label">Clés API</div>
+          <h3>Gestion des Credentials</h3>
+          <ul>
+            <li>✓ Générez des clés uniques par organisation</li>
+            <li>✓ Révoquez les clés compromises immédiatement</li>
+            <li>✓ Stockez dans des variables d'env ou fichiers sécurisés (chmod 600)</li>
+            <li>✓ Ne committez jamais les clés sur Git</li>
+            <li>✓ Changez régulièrement (tous les 90 jours)</li>
+          </ul>
+        </article>
+
+        <article class="help-card">
+          <div class="label">Transport</div>
+          <h3>Communication Sécurisée</h3>
+          <ul>
+            <li>✓ Utilisez HTTPS/TLS 1.3 en production</li>
+            <li>✓ Certificats SSL valides</li>
+            <li>✓ Authentification Bearer Token sur chaque requête</li>
+            <li>✓ Rate limiting: 30 req/min max par agent</li>
+            <li>✓ Timeout: 5 secondes par requête</li>
+          </ul>
+        </article>
+
+        <article class="help-card">
+          <div class="label">Données</div>
+          <h3>Protection des Informations</h3>
+          <ul>
+            <li>✓ Les métriques ne contiennent pas d'infos sensibles</li>
+            <li>✓ Aucun mot de passe ou clé envoyé</li>
+            <li>✓ Données chiffrées en transit (HTTPS)</li>
+            <li>✓ TTL: données machines supprimées après 10 min d'inactivité</li>
+          </ul>
+        </article>
+
+        <article class="help-card">
+          <div class="label">Admin</div>
+          <h3>Contrôle d'Accès</h3>
+          <ul>
+            <li>✓ Interface Admin protégée par authentification</li>
+            <li>✓ Sessions sécurisées avec tokens</li>
+            <li>✓ Audit des actions administrateur</li>
+            <li>✓ Logs détaillés conservés 90 jours</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <!-- SECTION 6: TROUBLESHOOTING -->
+    <section style="margin-top: 40px;">
+      <h2 style="margin: 0 0 24px 0; font-size: 24px; color: var(--text);">🐛 Dépannage</h2>
+
+      <article class="help-card" style="grid-column: 1/-1;">
+        <div class="label">Agent Offline</div>
+        <h3>Pourquoi ma machine n'apparaît pas dans Fleet?</h3>
+        <ul>
+          <li>✓ Vérifiez que l'agent est lancé: <code style="background: var(--panel-strong); padding: 2px 6px; border-radius: 3px;">python fleet_agent.py</code></li>
+          <li>✓ Vérifiez la clé API: <code style="background: var(--panel-strong); padding: 2px 6px; border-radius: 3px;">--token api_xxx</code></li>
+          <li>✓ Vérifiez la connexion réseau vers le serveur (ping test)</li>
+          <li>✓ Consultez les logs: <code style="background: var(--panel-strong); padding: 2px 6px; border-radius: 3px;">logs/agent.log</code></li>
+          <li>✓ Attendez 30 secondes (délai de la première requête)</li>
         </ul>
       </article>
 
-      <article class="help-card">
-        <div class="label">Sécurité</div>
-        <h2 style="margin:4px 0 10px;">Clés & sessions</h2>
-        <div class="callout">Garde ta clé admin et tes tokens d’org secrets.</div>
-        <ul class="muted-list">
-          <li>Clés API gérées dans l’Admin.</li>
-          <li>Utilise la connexion par session serveur (bouton "Se connecter" dans Fleet) plutôt que de stocker la clé côté client.</li>
-          <li>Révoque les clés perdues ou suspectes.</li>
+      <article class="help-card" style="grid-column: 1/-1;">
+        <div class="label">Connexion Échouée</div>
+        <h3>Erreur "HTTPError 403" ou "Unauthorized"?</h3>
+        <ul>
+          <li>✓ La clé API est expirée ou invalide</li>
+          <li>✓ L'organisation associée est désactivée</li>
+          <li>✓ Le token Bearer n'est pas envoyé correctement</li>
+          <li>✓ Régénérez une nouvelle clé depuis Admin</li>
         </ul>
       </article>
 
-      <article class="help-card">
-        <div class="label">Accessibilité</div>
-        <h2 style="margin:4px 0 10px;">Clavier & contraste</h2>
-        <ul class="muted-list">
-          <li>Navigation clavier sur tous les contrôles.</li>
-          <li>Focus visibles, contraste renforcé.</li>
-          <li>Layouts responsives (mobile/desktop).</li>
+      <article class="help-card" style="grid-column: 1/-1;">
+        <div class="label">Métriques Aberrantes</div>
+        <h3>CPU/RAM affiche 0% ou 100%?</h3>
+        <ul>
+          <li>✓ Redémarrez l'agent (fermer et relancer)</li>
+          <li>✓ Vérifiez que psutil est installé: <code style="background: var(--panel-strong); padding: 2px 6px; border-radius: 3px;">pip list | grep psutil</code></li>
+          <li>✓ Vérifiez les permissions système (surtout Linux, besoin de droits lecture /proc)</li>
+          <li>✓ Les métriques peuvent avoir un délai de 10-30s avant affichage</li>
+        </ul>
+      </article>
+
+      <article class="help-card" style="grid-column: 1/-1;">
+        <div class="label">Contact Support</div>
+        <h3>Autre Problème?</h3>
+        <p>Rassemblez les informations suivantes et contactez l'administrateur:</p>
+        <ul>
+          <li>📋 Version de l'agent et du serveur</li>
+          <li>📋 Logs complets (agent + serveur)</li>
+          <li>📋 Configuration utilisée (sans clés sensibles)</li>
+          <li>📋 Description du problème et étapes pour reproduire</li>
+          <li>📋 Environnement (OS, Python version, architecture)</li>
         </ul>
       </article>
     </section>
 
-    <section class="help-card" style="margin-top:16px;">
-      <div class="label">Support</div>
-      <h2 style="margin:4px 0 10px;">Besoin d’aide ?</h2>
-      <p class="muted">Consulte la doc interne ou contacte l’administrateur. Fournis les logs en cas d’incident pour accélérer le diagnostic.</p>
+    <!-- SECTION 7: FAQ -->
+    <section style="margin-top: 40px; margin-bottom: 40px;">
+      <h2 style="margin: 0 0 24px 0; font-size: 24px; color: var(--text);">❓ Questions Fréquentes</h2>
+
+      <article class="help-card" style="grid-column: 1/-1;">
+        <h3 style="margin-top: 0;">À quelle fréquence les données sont-elles collectées?</h3>
+        <p>Toutes les 10 secondes par défaut. Configurable via le paramètre <code style="background: var(--panel-strong); padding: 2px 6px; border-radius: 3px;">--interval</code>. Les actions sont interrogées toutes les 30 secondes.</p>
+      </article>
+
+      <article class="help-card" style="grid-column: 1/-1;">
+        <h3 style="margin-top: 0;">Combien de temps les données sont conservées?</h3>
+        <p>Les données en temps réel: 10 minutes (TTL). Les données historiques sont conservées indéfiniment selon votre contrat. Archivage mensuel disponible.</p>
+      </article>
+
+      <article class="help-card" style="grid-column: 1/-1;">
+        <h3 style="margin-top: 0;">Les actions peuvent-elles être annulées?</h3>
+        <p>Non, une fois exécutée par l'agent, une action est définitive. Planifiez les redémarrages à l'avance et testez sur une machine de développement.</p>
+      </article>
+
+      <article class="help-card" style="grid-column: 1/-1;">
+        <h3 style="margin-top: 0;">Puis-je avoir plusieurs organisations?</h3>
+        <p>Oui, chaque organisation est complètement isolée avec ses propres clés API, machines et données. Les données ne sont jamais partagées entre orgs.</p>
+      </article>
+
+      <article class="help-card" style="grid-column: 1/-1;">
+        <h3 style="margin-top: 0;">Quelle est la charge CPU de l'agent?</h3>
+        <p>Très légère (~0.3s de CPU par cycle de 10s de données). L'agent est conçu pour tourner continuellement sans impacter les performances système.</p>
+      </article>
+
+      <article class="help-card" style="grid-column: 1/-1;">
+        <h3 style="margin-top: 0;">D'où proviennent exactement les métriques?</h3>
+        <p>Les métriques sont collectées directement depuis le système d'exploitation via la bibliothèque Python <code style="background: var(--panel-strong); padding: 2px 6px; border-radius: 3px;">psutil</code>, qui accède aux données du gestionnaire de tâches système. Aucune estimation ou calcul approximatif.</p>
+      </article>
     </section>
-  </main>
+  </div>
+
   <script>
     const langSelect = document.getElementById('lang-select');
     const themeToggle = document.getElementById('theme-toggle');
