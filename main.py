@@ -1412,20 +1412,22 @@ def api_fleet_public():
     if not ok or not org_id:
         return jsonify({"error": "Unauthorized"}), 403
 
-    # Purge expired entries for this org only
+    # Mark expired entries as offline instead of deleting them
     now_ts = time.time()
     expired = []
-    for mid, entry in list(FLEET_STATE.items()):
+    for mid, entry in FLEET_STATE.items():
         if entry.get("org_id") != org_id:
             continue
-        if now_ts - entry.get("ts", 0) > FLEET_TTL_SECONDS:
+        time_since_report = now_ts - entry.get("ts", 0)
+        if time_since_report > FLEET_TTL_SECONDS:
+            entry["offline"] = True
+            entry["offline_duration"] = int(time_since_report)
             expired.append(entry.get("id") or mid)
-            FLEET_STATE.pop(mid, None)
+        else:
+            entry["offline"] = False
+            entry["offline_duration"] = 0
 
-    if expired:
-        _save_fleet_state()
-
-    # Return only this org's machines
+    # Return only this org's machines (including offline ones)
     data = [v for v in FLEET_STATE.values() if v.get("org_id") == org_id]
     return jsonify({"count": len(data), "expired": expired, "data": data})
 

@@ -9,6 +9,7 @@
 .dot-ok { background:#22c55e; }
 .dot-warn { background:#facc15; }
 .dot-critical { background:#f43f5e; }
+.dot-offline { background:#9ca3af; }
 .dot-expired { background:#f59e42; }
 
 .badge-score {
@@ -25,6 +26,7 @@
 .badge-ok { background:#22c55e22; border-color:#22c55e; color:#22c55e; }
 .badge-warn { background:#facc1522; border-color:#facc15; color:#facc15; }
 .badge-critical { background:#f43f5e22; border-color:#f43f5e; color:#f43f5e; }
+.badge-offline { background:#9ca3af22; border-color:#9ca3af; color:#9ca3af; }
 .badge-expired { background:#f59e4222; border-color:#f59e42; color:#f59e42; }
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&display=swap');
 
@@ -224,6 +226,13 @@ h1 {
 .status-ok { border-color: rgba(34, 197, 94, 0.5); box-shadow: 0 15px 40px rgba(34, 197, 94, 0.12); }
 .status-warn { border-color: rgba(250, 204, 21, 0.6); box-shadow: 0 15px 40px rgba(250, 204, 21, 0.12); }
 .status-critical { border-color: rgba(244, 63, 94, 0.6); box-shadow: 0 15px 40px rgba(244, 63, 94, 0.15); }
+
+.status-offline {
+  border-color: rgba(156, 163, 175, 0.6);
+  box-shadow: 0 15px 40px rgba(156, 163, 175, 0.15);
+  background: linear-gradient(90deg, rgba(156, 163, 175, 0.15) 0%, transparent 100%);
+  opacity: 0.75;
+}
 
 .status-expired {
   border-color: #f59e42;

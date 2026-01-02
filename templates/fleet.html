@@ -381,15 +381,21 @@
         const health = report.health || { score: 0, status: 'ok' };
         const now = Date.now() / 1000;
         const ageSeconds = now - entry.ts;
-        const expired = (ageSeconds > FLEET_TTL);
-        const status = expired ? 'expired' : (health.status || 'ok');
+        const isOffline = entry.offline === true;
+        const expired = isOffline || (ageSeconds > FLEET_TTL);
+        const status = isOffline ? 'offline' : (expired ? 'expired' : (health.status || 'ok'));
         const lastSeen = new Date(entry.ts * 1000).toLocaleString();
         
-        // Calculate time remaining before expiration
+        // Calculate time remaining before expiration or show offline duration
         const timeRemaining = Math.max(0, FLEET_TTL - ageSeconds);
+        const offlineDuration = entry.offline_duration || 0;
         const hoursRemaining = Math.floor(timeRemaining / 3600);
         const minutesRemaining = Math.floor((timeRemaining % 3600) / 60);
-        const expiresIn = hoursRemaining > 0 ? `${hoursRemaining}h ${minutesRemaining}m` : `${minutesRemaining}m`;
+        const hoursOffline = Math.floor(offlineDuration / 3600);
+        const minutesOffline = Math.floor((offlineDuration % 3600) / 60);
+        const expiresIn = isOffline 
+          ? (hoursOffline > 0 ? `Éteint depuis ${hoursOffline}h ${minutesOffline}m` : `Éteint depuis ${minutesOffline}m`)
+          : (hoursRemaining > 0 ? `${hoursRemaining}h ${minutesRemaining}m` : `${minutesRemaining}m`);
 
         const cpu = report.cpu_percent?.toFixed?.(1) || '--';
         const ram = report.ram_percent?.toFixed?.(1) || '--';
@@ -413,13 +419,13 @@
             <span class="badge badge-score badge-${status}">${score}/100</span>
           </div>
           <div class="meta" style="margin-bottom: 4px;">
-            <span class="dot dot-${status}"></span> ${status.toUpperCase()} · Uptime: ${uptime}
+            <span class="dot dot-${status}"></span> ${isOffline ? '🔴 ÉTEINT' : status.toUpperCase()} · Uptime: ${uptime}
           </div>
           <div class="meta">
             CPU <b>${cpu}%</b> · RAM <b>${ram}%</b> · Disk <b>${disk}%</b>
           </div>
           <div class="meta muted">
-            Dernier rapport: ${lastSeen}${expired ? ' ⚠️ EXPIRÉ' : ` (${expiresIn} restant)`}
+            Dernier rapport: ${lastSeen}${isOffline ? ` · ${expiresIn}` : (expired ? ' ⚠️ EXPIRÉ' : ` (${expiresIn} restant)`)}
           </div>
           <button class="expand-btn" onclick="toggleDetails('${detailsId}')" style="width: 100%; padding: 6px; margin-top: 8px; background: var(--panel-strong); border: 1px solid var(--border); border-radius: 4px; cursor: pointer; font-size: 11px; color: var(--muted); transition: all 200ms;">
             ▼ Détails système
