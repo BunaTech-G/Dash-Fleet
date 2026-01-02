@@ -81,6 +81,17 @@
         <span><span class="dot dot-expired"></span> Expiré (&gt;24h)</span>
       </div>
 
+      <!-- Fleet Toolbar (Phase 6) -->
+      <div class="fleet-toolbar" style="display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; align-items: center;">
+        <button id="btn-refresh" onclick="refreshFleetManual()" title="Refresh fleet data" style="padding: 8px 12px; background: var(--accent); color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 500;">
+          🔄 Rafraîchir
+        </button>
+        <button id="btn-export" onclick="exportFleetCSV()" title="Export to CSV" style="padding: 8px 12px; background: var(--panel-strong); border: 1px solid var(--border); color: var(--text); border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 500;">
+          📥 Exporter CSV
+        </button>
+        <span id="fleet-stats" style="margin-left: auto; font-size: 12px; color: var(--muted); white-space: nowrap;">-</span>
+      </div>
+
       <!-- Error Box -->
       <div id="fleet-error" class="inline-error" role="status" aria-live="polite" style="display: none;"></div>
 
@@ -212,6 +223,78 @@
       });
     }
 
+    // Phase 6 new functions
+    function copyToClipboardFn(text) {
+      navigator.clipboard.writeText(text)
+        .then(() => showToast(`✅ Copié: ${text}`, 'success', 2000))
+        .catch(() => showToast('❌ Erreur de copie', 'error'));
+    }
+
+    function toggleDetails(detailsId) {
+      const details = document.getElementById(detailsId);
+      if (details) {
+        const isHidden = details.style.display === 'none';
+        details.style.display = isHidden ? 'block' : 'none';
+        
+        // Update button icon
+        const btn = details.previousElementSibling;
+        if (btn && btn.classList.contains('expand-btn')) {
+          btn.textContent = isHidden ? '▲ Détails système' : '▼ Détails système';
+        }
+      }
+    }
+
+    function exportFleetCSV() {
+      if (!fleetRawData || fleetRawData.length === 0) {
+        showToast('Aucune machine à exporter', 'error');
+        return;
+      }
+
+      const headers = ["Machine ID", "Health Score", "Status", "CPU%", "RAM%", "Disk%", "Uptime", "Dernier rapport"];
+      const rows = fleetRawData.map(entry => {
+        const report = entry.report || {};
+        const health = report.health || { score: 0, status: 'ok' };
+        const now = Date.now() / 1000;
+        const expired = (now - entry.ts > FLEET_TTL);
+        const status = expired ? 'EXPIRED' : (health.status || 'ok').toUpperCase();
+        
+        return [
+          entry.id || '',
+          health.score || 0,
+          status,
+          report.cpu_percent?.toFixed?.(1) || '--',
+          report.ram_percent?.toFixed?.(1) || '--',
+          report.disk_percent?.toFixed?.(1) || '--',
+          report.uptime_hms || '--',
+          new Date(entry.ts * 1000).toLocaleString()
+        ];
+      });
+
+      const csv = [
+        headers.join(','),
+        ...rows.map(r => r.map(v => `"${v}"`).join(','))
+      ].join('\n');
+
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `fleet-${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      showToast(`✅ Exported ${fleetRawData.length} machines`, 'success');
+    }
+
+    function refreshFleetManual() {
+      showToast('Rafraîchissement en cours...', 'info');
+      if (refreshTimer) clearTimeout(refreshTimer);
+      refreshFleet();
+    }
+
     function showInstallGuide() {
       const os = navigator.platform.toLowerCase().includes('win') ? 'Windows' : 'Linux';
       alert(`Installation Agent DashFleet - ${os}\n\nConsultez:\nhttps://github.com/BunaTech-G/Dash-Fleet/blob/fix/pyproject-exclude/deploy/INSTALL_QUICK_START.md\n\nOu pour Linux:\nhttps://github.com/BunaTech-G/Dash-Fleet/blob/fix/pyproject-exclude/deploy/INSTALL_QUICK_START_LINUX.md`);
@@ -314,9 +397,19 @@
         const uptime = report.uptime_hms || '--';
         const score = health.score || 0;
 
+        // Prepare system info for details panel
+        const sysInfo = report.system || {};
+        const osDisplay = `${sysInfo.os || 'N/A'} ${sysInfo.os_version || ''}`.trim();
+        const pythonVersion = sysInfo.python_version || 'N/A';
+        const architecture = sysInfo.architecture || 'N/A';
+        const hardwareId = sysInfo.hardware_id || 'N/A';
+
+        const detailsId = `details-${machineId.replace(/[^a-zA-Z0-9]/g, '-')}`;
+
         const newHTML = `
-          <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
-            <div class="label" title="${machineId}">🖥️ ${machineId}</div>
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;">
+            <div class="label" title="${machineId}" style="flex: 1; min-width: 120px;">🖥️ ${machineId}</div>
+            <button class="copy-btn" onclick="copyToClipboardFn('${machineId}')" title="Copy machine ID" style="padding: 4px 8px; background: var(--panel-strong); border: 1px solid var(--border); border-radius: 3px; cursor: pointer; font-size: 11px; color: var(--muted);">📋</button>
             <span class="badge badge-score badge-${status}">${score}/100</span>
           </div>
           <div class="meta" style="margin-bottom: 4px;">
@@ -327,6 +420,15 @@
           </div>
           <div class="meta muted">
             Dernier rapport: ${lastSeen}${expired ? ' ⚠️ EXPIRÉ' : ` (${expiresIn} restant)`}
+          </div>
+          <button class="expand-btn" onclick="toggleDetails('${detailsId}')" style="width: 100%; padding: 6px; margin-top: 8px; background: var(--panel-strong); border: 1px solid var(--border); border-radius: 4px; cursor: pointer; font-size: 11px; color: var(--muted); transition: all 200ms;">
+            ▼ Détails système
+          </button>
+          <div id="${detailsId}" class="machine-details" style="display: none; width: 100%; margin-top: 8px; padding: 10px; background: rgba(0,0,0,0.15); border-radius: 4px; border-left: 3px solid var(--accent); font-size: 11px; font-family: 'Courier New', monospace;">
+            <div style="margin: 2px 0;"><strong>OS:</strong> ${osDisplay}</div>
+            <div style="margin: 2px 0;"><strong>Architecture:</strong> ${architecture}</div>
+            <div style="margin: 2px 0;"><strong>Python:</strong> ${pythonVersion}</div>
+            <div style="margin: 2px 0; word-break: break-all;"><strong>Hardware ID:</strong> <code>${hardwareId}</code></div>
           </div>
           <div class="card-actions" style="margin-top: 12px; display: flex; gap: 8px;">
             <button class="action-btn" onclick="showActionModal('${machineId}', '${machineId}')" title="Send message or command" style="flex: 1; padding: 8px 12px; background: var(--accent, #007bff); color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">
@@ -453,6 +555,17 @@
         setTheme(theme === 'dark' ? 'light' : 'dark');
       });
     }
+
+    // Phase 6: Keyboard navigation for accessibility
+    document.addEventListener('keydown', (e) => {
+      // Escape key closes modal
+      if (e.key === 'Escape') {
+        const modal = document.getElementById('action-modal');
+        if (modal && modal.style.display === 'flex') {
+          closeActionModal();
+        }
+      }
+    });
 
     // ===== ACTION MODAL FUNCTIONS (Phase 4) =====
     let currentMachineId = null;

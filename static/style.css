@@ -43,6 +43,8 @@
   --expired: #f59e42;
   --card-radius: 14px;
   --shadow: 0 18px 42px rgba(0, 0, 0, 0.35);
+  --mobile-threshold: 768px;
+  --mobile-xs-threshold: 512px;
 }
 
 body.light {
@@ -518,4 +520,369 @@ a:focus-visible {
 .auth-error-banner.show { transform: translateX(-50%) translateY(0); opacity: 1; }
 .auth-error-banner.hide { transform: translateX(-50%) translateY(-120%); opacity: 0; }
 .auth-error-banner .message { flex: 1; font-weight: 600; }
+
+/* ============================================================================
+   RESPONSIVE MOBILE DESIGN - Phase 6A Improvements
+   ============================================================================ */
+
+/* Tablet & smaller displays (< 768px) */
+@media (max-width: 768px) {
+  /* Page layout adjustments */
+  .page {
+    padding: 40px 16px 60px;
+  }
+
+  /* Header responsive */
+  header {
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-start;
+  }
+
+  header .header-actions {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  /* Navigation links */
+  .nav-links {
+    gap: 8px;
+  }
+
+  .nav-links a {
+    font-size: 13px;
+    padding: 8px 12px;
+  }
+
+  /* Fleet controls */
+  .fleet-controls {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .fleet-controls label {
+    width: 100%;
+  }
+
+  .control-select {
+    width: 100%;
+  }
+
+  /* Fleet grid - single column */
+  .table-fleet {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  /* Card content improvements */
+  .card {
+    padding: 12px;
+  }
+
+  .card .label {
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .badge-score {
+    font-size: 16px;
+    min-width: 50px;
+    padding: 4px 10px;
+  }
+
+  .meta {
+    font-size: 12px;
+    line-height: 1.4;
+  }
+
+  .muted {
+    font-size: 11px;
+  }
+
+  /* Card actions - stack on mobile */
+  .card-actions {
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  .action-btn {
+    width: 100%;
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+
+  /* Legend status adjustments */
+  .legend-status {
+    gap: 12px;
+    font-size: 12px;
+  }
+
+  .dot {
+    width: 10px;
+    height: 10px;
+  }
+
+  /* Installation guide - collapsible on mobile */
+  .install-btn {
+    flex: 1;
+    min-width: 140px;
+    font-size: 11px !important;
+    padding: 6px 10px !important;
+  }
+}
+
+/* Mobile phones (< 512px) - extra small devices */
+@media (max-width: 512px) {
+  /* Page layout */
+  .page {
+    padding: 32px 12px 50px;
+    max-width: 100%;
+  }
+
+  /* Header - stack everything */
+  header {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  header div:first-child h1 {
+    font-size: 22px;
+    line-height: 1.2;
+  }
+
+  header div:first-child .lede {
+    font-size: 13px;
+  }
+
+  header .header-actions {
+    width: 100%;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .lang-switch,
+  .theme-toggle {
+    width: 100%;
+  }
+
+  .lang-select {
+    width: 100%;
+  }
+
+  .theme-toggle {
+    padding: 10px;
+    font-size: 13px;
+  }
+
+  /* Navigation - horizontal scroll on very small */
+  .nav-links {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    gap: 4px;
+  }
+
+  .nav-links a {
+    font-size: 12px;
+    padding: 6px 10px;
+    white-space: nowrap;
+  }
+
+  /* Table header */
+  .table-header {
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-start;
+  }
+
+  .table-header h2 {
+    font-size: 18px;
+    margin: 0;
+  }
+
+  .muted.fleet-meta {
+    font-size: 12px;
+  }
+
+  /* Fleet controls - stack all */
+  .fleet-controls {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .fleet-controls label {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 12px;
+  }
+
+  .control-select {
+    width: 100%;
+    font-size: 13px;
+    padding: 8px;
+  }
+
+  /* Fleet grid - single column */
+  .table-fleet {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  /* Card extremely compact */
+  .card {
+    padding: 10px;
+    border-radius: 8px;
+  }
+
+  .card .label {
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .card .meta {
+    font-size: 11px;
+    line-height: 1.35;
+    margin-bottom: 2px;
+  }
+
+  .badge-score {
+    font-size: 14px;
+    min-width: 45px;
+    padding: 2px 8px;
+  }
+
+  .dot {
+    width: 8px;
+    height: 8px;
+    margin-right: 3px;
+  }
+
+  /* Card actions - full width buttons */
+  .card-actions {
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 8px;
+  }
+
+  .action-btn {
+    width: 100%;
+    padding: 8px 10px;
+    font-size: 12px;
+    border-radius: 4px;
+  }
+
+  /* Legend - compact */
+  .legend-status {
+    gap: 8px;
+    font-size: 11px;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  /* Installation section - hide some content */
+  .install-btn {
+    flex: 1;
+    min-width: 120px;
+    font-size: 10px !important;
+    padding: 5px 8px !important;
+  }
+
+  /* Modal adjustments */
+  .modal {
+    padding: 12px !important;
+  }
+
+  .modal-content {
+    width: 95vw !important;
+    max-height: 85vh !important;
+    border-radius: 8px;
+  }
+
+  .modal-body {
+    padding: 12px !important;
+  }
+
+  .modal-footer {
+    flex-direction: column;
+    gap: 6px;
+    padding: 12px !important;
+  }
+
+  .form-group input,
+  .form-group textarea,
+  .form-group select {
+    font-size: 14px;
+    padding: 10px;
+  }
+
+  .btn-primary,
+  .btn-secondary {
+    width: 100%;
+    padding: 10px !important;
+    font-size: 13px;
+  }
+
+  /* Empty state text */
+  .empty {
+    padding: 32px 16px;
+    text-align: center;
+  }
+
+  .empty p {
+    font-size: 14px;
+  }
+
+  .empty .muted {
+    font-size: 12px;
+  }
+
+  /* Toast notifications - adapt for small screen */
+  .toast {
+    max-width: 90vw;
+    font-size: 12px;
+    padding: 10px 12px;
+    border-radius: 6px;
+    bottom: 12px;
+    left: 12px;
+    right: 12px;
+  }
+
+  /* Error box - responsive */
+  .inline-error {
+    font-size: 12px;
+    padding: 10px;
+    border-radius: 4px;
+    margin-bottom: 10px;
+  }
+}
+
+/* Ultra-small devices (< 380px - rare but handle it) */
+@media (max-width: 380px) {
+  header div:first-child h1 {
+    font-size: 18px;
+  }
+
+  .table-header h2 {
+    font-size: 16px;
+  }
+
+  .badge-score {
+    font-size: 12px;
+    min-width: 40px;
+    padding: 2px 6px;
+  }
+
+  .card .label {
+    font-size: 12px;
+  }
+
+  .action-btn {
+    font-size: 11px;
+    padding: 6px 8px;
+  }
+}
 .auth-error-banner .close { background: transparent; border: none; color: white; font-size: 18px; cursor: pointer; }
