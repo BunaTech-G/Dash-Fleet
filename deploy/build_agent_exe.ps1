@@ -39,12 +39,4 @@ Write-Host "EXE: $OutputDir\dashfleet-agent\dashfleet-agent.exe" -ForegroundColo
 Write-Host "" -ForegroundColor Green
 Write-Host "Verify:" -ForegroundColor Cyan
 Write-Host "  .\dist\dashfleet-agent\dashfleet-agent.exe --help" -ForegroundColor Gray
-             excludes=[])
-pyo = PYZ(a.pure, a.zipped_data, cipher=None)
-exe = EXE(pyo,
-          a.scripts,
-          [],
-          exclude_binaries=True,
-          name='$ExeName',
-          debug=False,
 
