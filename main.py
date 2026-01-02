@@ -902,6 +902,22 @@ def api_status():
     return jsonify(stats)
 
 
+@app.route("/api/config")
+@limiter.limit("100/minute")
+def api_config():
+    """Return configuration that frontend needs (TTL, refresh interval, etc)."""
+    return jsonify({
+        "FLEET_TTL_SECONDS": FLEET_TTL_SECONDS,
+        "REFRESH_INTERVAL_MS": 5000,
+        "API_VERSION": "1.0.0",
+        "FEATURES": {
+            "messaging": False,
+            "commands": False,
+            "heartbeat": False,
+        }
+    })
+
+
 def _check_action_token() -> Dict[str, object] | None:
     if not ACTION_TOKEN:
         return {"error": "Token requis (définir ACTION_TOKEN)"}
@@ -1389,10 +1405,17 @@ def api_fleet():
 
 @app.route("/api/fleet/public")
 def api_fleet_public():
-    # Public version: return all machines (no auth required)
+    """Public fleet endpoint - now requires Bearer token for multi-tenant security."""
+    ok, org_id = _check_org_key()
+    if not ok or not org_id:
+        return jsonify({"error": "Unauthorized"}), 403
+
+    # Purge expired entries for this org only
     now_ts = time.time()
     expired = []
     for mid, entry in list(FLEET_STATE.items()):
+        if entry.get("org_id") != org_id:
+            continue
         if now_ts - entry.get("ts", 0) > FLEET_TTL_SECONDS:
             expired.append(entry.get("id") or mid)
             FLEET_STATE.pop(mid, None)
@@ -1400,8 +1423,65 @@ def api_fleet_public():
     if expired:
         _save_fleet_state()
 
-    data = list(FLEET_STATE.values())
+    # Return only this org's machines
+    data = [v for v in FLEET_STATE.values() if v.get("org_id") == org_id]
     return jsonify({"count": len(data), "expired": expired, "data": data})
+
+
+@app.route("/api/fleet/ping", methods=["POST"])
+@limiter.limit("120/minute")
+def api_fleet_ping():
+    """
+    Lightweight agent heartbeat endpoint.
+    
+    Agents send lightweight ping to confirm connectivity.
+    No metrics, just confirmation that agent is alive.
+    """
+    ok, org_id = _check_org_key()
+    if not ok or not org_id:
+        logging.warning(f"Heartbeat failed: invalid org_key from {request.remote_addr}")
+        return jsonify({"error": "Unauthorized"}), 403
+
+    try:
+        payload = request.get_json(force=True)
+        machine_id = payload.get("machine_id", "unknown")
+        hardware_id = payload.get("hardware_id")
+        timestamp = payload.get("timestamp", time.time())
+    except Exception as e:
+        logging.error(f"Heartbeat parse error: {e}")
+        return jsonify({"error": "Invalid JSON"}), 400
+    
+    try:
+        store_key = f"{org_id}:{machine_id}"
+        
+        # Update heartbeat timestamp
+        if store_key in FLEET_STATE:
+            FLEET_STATE[store_key]["last_ping"] = time.time()
+            FLEET_STATE[store_key]["status"] = "online"
+        else:
+            # First time seeing this machine via heartbeat
+            FLEET_STATE[store_key] = {
+                "id": machine_id,
+                "machine_id": machine_id,
+                "org_id": org_id,
+                "last_ping": time.time(),
+                "status": "online",
+                "report": {}
+            }
+        
+        _save_fleet_state()
+        
+        logging.info(f"Heartbeat received from {machine_id} ({org_id})")
+        
+        return jsonify({
+            "ok": True,
+            "timestamp": time.time(),
+            "server_time_offset": time.time() - timestamp
+        })
+    
+    except Exception as e:
+        logging.error(f"Heartbeat processing error: {e}")
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/api/fleet/reload", methods=["POST"])
