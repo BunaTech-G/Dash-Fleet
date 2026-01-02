@@ -437,13 +437,13 @@ def collect_stats() -> Dict[str, object]:
         "timestamp": dt.datetime.now().isoformat(),
         "cpu_percent": cpu_percent,
         "ram_percent": ram.percent,
-        "ram_used_gib": _format_bytes_to_gib(ram.used),
-        "ram_total_gib": _format_bytes_to_gib(ram.total),
+        "ram_used_gib": format_bytes_to_gib(ram.used),
+        "ram_total_gib": format_bytes_to_gib(ram.total),
         "disk_percent": disk.percent,
-        "disk_used_gib": _format_bytes_to_gib(disk.used),
-        "disk_total_gib": _format_bytes_to_gib(disk.total),
+        "disk_used_gib": format_bytes_to_gib(disk.used),
+        "disk_total_gib": format_bytes_to_gib(disk.total),
         "uptime_seconds": uptime_seconds,
-        "uptime_hms": _format_uptime(uptime_seconds),
+        "uptime_hms": format_uptime_hms(uptime_seconds),
         "alerts": alerts,
         "alert_active": any(alerts.values()),
     }
@@ -897,7 +897,7 @@ def api_stats():
 @app.route("/api/status")
 def api_status():
     stats = collect_stats()
-    stats["health"] = _health_score(stats)
+    stats["health"] = calculate_health_score(stats)
     _maybe_send_webhook(stats)
     return jsonify(stats)
 
