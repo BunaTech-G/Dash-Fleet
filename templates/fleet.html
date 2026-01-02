@@ -128,35 +128,35 @@
 
     <!-- ===== ACTION MODAL (Phase 4) ===== -->
     <div id="action-modal" class="modal" style="display:none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); align-items: center; justify-content: center; z-index: 1000;">
-      <div class="modal-content" style="background: var(--bg-secondary, #fff); border-radius: 8px; max-width: 500px; width: 90%; max-height: 80vh; overflow: auto;">
+      <div class="modal-content" style="background: var(--panel, #fff); border-radius: 8px; max-width: 500px; width: 90%; max-height: 80vh; overflow: auto;">
         <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; padding: 16px; border-bottom: 1px solid var(--border, #ccc);">
-          <h3 id="action-modal-title" style="margin: 0; font-size: 18px;">Send Action</h3>
-          <button class="modal-close" onclick="closeActionModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text-secondary, #666);">×</button>
+          <h3 id="action-modal-title" style="margin: 0; font-size: 18px; color: var(--text);">Actions pour la machine</h3>
+          <button class="modal-close" onclick="closeActionModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: var(--muted);">×</button>
         </div>
         
         <div class="modal-body" style="padding: 16px;">
           <div class="form-group" style="margin-bottom: 12px;">
-            <label for="action-type" style="display: block; margin-bottom: 4px; font-weight: 600; font-size: 13px;">Action Type:</label>
-            <select id="action-type" onchange="updateActionForm()" style="width: 100%; padding: 8px; border: 1px solid var(--border, #ccc); border-radius: 4px; font-family: inherit;">
-              <option value="message">💬 Send Message</option>
-              <option value="restart">🔄 Restart Agent</option>
-              <option value="reboot">🔌 Reboot Machine</option>
+            <label for="action-type" style="display: block; margin-bottom: 8px; font-weight: 600; font-size: 13px; color: var(--text);">Type d'action:</label>
+            <select id="action-type" onchange="updateActionForm()" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel-strong); color: var(--text); font-family: inherit; cursor: pointer;">
+              <option value="message">💬 Envoyer un message</option>
+              <option value="restart">🔄 Redémarrer l'agent</option>
+              <option value="reboot">🔌 Redémarrer la machine</option>
             </select>
           </div>
           
           <div id="message-form" class="form-group" style="display:none; margin-bottom: 12px;">
-            <label for="action-message" style="display: block; margin-bottom: 4px; font-weight: 600; font-size: 13px;">Message:</label>
-            <textarea id="action-message" placeholder="Enter message..." rows="3" style="width: 100%; padding: 8px; border: 1px solid var(--border, #ccc); border-radius: 4px; font-family: inherit;"></textarea>
+            <label for="action-message" style="display: block; margin-bottom: 8px; font-weight: 600; font-size: 13px; color: var(--text);">Message:</label>
+            <textarea id="action-message" placeholder="Entrez votre message ici..." rows="4" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel-strong); color: var(--text); font-family: inherit;"></textarea>
           </div>
           
           <div id="reboot-warning" class="alert" style="display:none; padding: 12px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 4px; color: #856404; font-size: 13px;">
-            ⚠️ This will reboot the machine!
+            ⚠️ Attention: Cela va redémarrer la machine!
           </div>
         </div>
         
-        <div class="modal-footer" style="display: flex; gap: 8px; padding: 16px; border-top: 1px solid var(--border, #ccc);">
-          <button class="btn-primary" onclick="sendAction()" style="flex: 1; padding: 10px; background: var(--accent, #007bff); color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">Send</button>
-          <button class="btn-secondary" onclick="closeActionModal()" style="flex: 1; padding: 10px; background: var(--bg-tertiary, #f0f0f0); border: 1px solid var(--border, #ccc); border-radius: 4px; cursor: pointer;">Cancel</button>
+        <div class="modal-footer" style="display: flex; gap: 8px; padding: 16px; border-top: 1px solid var(--border);">
+          <button class="btn-primary" onclick="sendAction()" style="flex: 1; padding: 10px; background: #0ea5e9; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; transition: all 200ms;">✓ Envoyer</button>
+          <button class="btn-secondary" onclick="closeActionModal()" style="flex: 1; padding: 10px; background: var(--panel-strong); border: 1px solid var(--border); color: var(--text); border-radius: 6px; cursor: pointer; font-weight: 600;">Annuler</button>
         </div>
       </div>
     </div>
@@ -431,8 +431,8 @@
             <div style="margin: 2px 0; word-break: break-all;"><strong>Hardware ID:</strong> <code>${hardwareId}</code></div>
           </div>
           <div class="card-actions" style="margin-top: 12px; display: flex; gap: 8px;">
-            <button class="action-btn" onclick="showActionModal('${machineId}', '${machineId}')" title="Send message or command" style="flex: 1; padding: 8px 12px; background: var(--accent, #007bff); color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">
-              📨 Actions
+            <button class="action-btn" onclick="showActionModal('${machineId}', '${machineId}')" title="Envoyer un message ou une commande" style="flex: 1; padding: 10px 14px; background: #0ea5e9; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 200ms; box-shadow: 0 2px 8px rgba(14, 165, 233, 0.3);">
+              💬 Envoyer Message
             </button>
           </div>
         `;
