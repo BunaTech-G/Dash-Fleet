@@ -35,12 +35,16 @@ Write-Host "[2/4] Installing dependencies (psutil, requests, pyinstaller)..." -F
 $SpecPath = Join-Path $BuildRoot "agent.spec"
 $MainPath = Join-Path $RepoRoot "fleet_agent.py"
 $UtilsPath = Join-Path $RepoRoot "fleet_utils.py"
+# Escape backslashes for PyInstaller spec
+$MainEsc = $MainPath -replace "\\", "\\\\"
+$UtilsEsc = $UtilsPath -replace "\\", "\\\\"
+$RepoEsc = $RepoRoot -replace "\\", "\\\\"
 
 $spec = @"
-a = Analysis(['$MainPath'],
-             pathex=['$RepoRoot'],
+a = Analysis(['$MainEsc'],
+             pathex=['$RepoEsc'],
              binaries=[],
-             datas=[('$UtilsPath','.')],
+             datas=[('$UtilsEsc','.')],
              hiddenimports=[],
              hookspath=[],
              runtime_hooks=[],
@@ -68,7 +72,8 @@ $spec | Out-File -FilePath $SpecPath -Encoding ASCII
 
 Write-Host "[3/4] Building EXE (PyInstaller)..." -ForegroundColor Cyan
 Push-Location $BuildRoot
-& $VenvPython -m PyInstaller $SpecPath --onefile --noconfirm --distpath $OutputDir --workpath $BuildRoot\build > $null
+# Note: when a .spec file is provided, avoid --onefile/--onedir options (handled in spec)
+& $VenvPython -m PyInstaller $SpecPath --noconfirm --distpath $OutputDir --workpath $BuildRoot\build > $null
 Pop-Location
 
 Write-Host "[4/4] Build finished." -ForegroundColor Green
