@@ -79,7 +79,14 @@ echo "✅ fleet_utils.py téléchargé"
 
 # Install dependencies
 echo "Installation des dépendances Python..."
-pip3 install --quiet psutil requests
+# Handle Kali Linux PEP 668 restriction
+if pip3 install --quiet psutil requests 2>&1 | grep -q "externally-managed-environment"; then
+    echo "Kali Linux détecté - utilisation du flag --break-system-packages"
+    pip3 install --quiet --break-system-packages psutil requests
+else
+    # Already installed or no error
+    true
+fi
 echo "✅ Dépendances installées"
 
 # Create config file
