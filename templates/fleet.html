@@ -30,6 +30,11 @@
           </select>
         </div>
         <button class="theme-toggle" id="theme-toggle" aria-label="Changer le thème clair/sombre" tabindex="1">Mode sombre</button>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <span id="apiKeyStatus" style="font-size: 11px; color: var(--muted);">Non connecté</span>
+          <button id="loginApiKeyBtn" style="padding: 8px 12px; background: var(--accent); color: #04263a; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600;">🔑 Connexion</button>
+          <button id="logoutApiKeyBtn" style="display: none; padding: 8px 12px; background: #111827; border: 1px solid #4b5563; color: #e5e7eb; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600;">🚪 Déconnexion</button>
+        </div>
       </div>
     </header>
 
@@ -226,26 +231,6 @@
     }
 
     // Phase 6 new functions
-    function copyToClipboardFn(text) {
-      navigator.clipboard.writeText(text)
-        .then(() => showToast(`✅ Copié: ${text}`, 'success', 2000))
-        .catch(() => showToast('❌ Erreur de copie', 'error'));
-    }
-
-    function toggleDetails(detailsId) {
-      const details = document.getElementById(detailsId);
-      if (details) {
-        const isHidden = details.style.display === 'none';
-        details.style.display = isHidden ? 'block' : 'none';
-        
-        // Update button icon
-        const btn = details.previousElementSibling;
-        if (btn && btn.classList.contains('expand-btn')) {
-          btn.textContent = isHidden ? '▲ Détails système' : '▼ Détails système';
-        }
-      }
-    }
-
     function exportFleetCSV() {
       if (!fleetRawData || fleetRawData.length === 0) {
         showToast('Aucune machine à exporter', 'error');
@@ -528,6 +513,45 @@
       refreshTimer = setTimeout(refreshFleet, delay);
     }
 
+    function toggleDetails(detailsId) {
+      const el = document.getElementById(detailsId);
+      if (!el) return;
+      const isHidden = el.style.display === 'none';
+      el.style.display = isHidden ? 'block' : 'none';
+      const btn = el.previousElementSibling;
+      if (btn && btn.classList.contains('expand-btn')) {
+        btn.textContent = isHidden ? '▲ Masquer détails' : '▼ Détails système';
+      }
+    }
+
+    function copyToClipboardFn(text) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(() => {
+          showToast(`Copié: ${text}`, 'success', 2000);
+        }).catch(() => {
+          fallbackCopy(text);
+        });
+      } else {
+        fallbackCopy(text);
+      }
+    }
+
+    function fallbackCopy(text) {
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      try {
+        document.execCommand('copy');
+        showToast(`Copié: ${text}`, 'success', 2000);
+      } catch (err) {
+        showToast('Erreur copie', 'error');
+      }
+      document.body.removeChild(textarea);
+    }
+
     function refreshFleet() {
       if (loading) return;
       loading = true;
@@ -535,9 +559,18 @@
       fleetMeta.textContent = 'Chargement...';
       renderSkeleton();
 
-      fetch('/api/fleet/public')
+      const apiKey = sessionStorage.getItem('api_key');
+      const headers = apiKey ? { 'Authorization': `Bearer ${apiKey}` } : {};
+      
+      fetch('/api/fleet', { headers })
         .then((resp) => {
-          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+          if (!resp.ok) {
+            if (resp.status === 401 || resp.status === 403) {
+              showToast('Authentification requise. Cliquez sur "🔑 Connexion"', 'error', 5000);
+              throw new Error('Unauthorized');
+            }
+            throw new Error(`HTTP ${resp.status}`);
+          }
           return resp.json();
         })
         .then((data) => {
@@ -601,7 +634,8 @@
     // ===== DELETE / RESTORE / PURGE FUNCTIONS =====
     function deleteMachine(machineId) {
       if (!confirm(`Supprimer ${machineId} ? (soft delete, restaurable)`)) return;
-      const token = localStorage.getItem('auth_token') || '';
+      const token = sessionStorage.getItem('api_key') || '';
+      if (!token) { showToast('Authentification requise', 'error'); return; }
       fetch(`/api/fleet/${encodeURIComponent(machineId)}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
@@ -617,7 +651,8 @@
 
     function restoreMachine(machineId) {
       if (!confirm(`Restaurer ${machineId} ?`)) return;
-      const token = localStorage.getItem('auth_token') || '';
+      const token = sessionStorage.getItem('api_key') || '';
+      if (!token) { showToast('Authentification requise', 'error'); return; }
       fetch(`/api/fleet/${encodeURIComponent(machineId)}/restore`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
@@ -633,7 +668,8 @@
 
     function purgeMachine(machineId) {
       if (!confirm(`Supprimer définitivement ${machineId} ? Action irréversible.`)) return;
-      const token = localStorage.getItem('auth_token') || '';
+      const token = sessionStorage.getItem('api_key') || '';
+      if (!token) { showToast('Authentification requise', 'error'); return; }
       fetch(`/api/fleet/${encodeURIComponent(machineId)}/purge`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
@@ -680,8 +716,8 @@
       }
       
       // Get auth token
-      const authHeader = document.querySelector('script[src="/static/fleet-auth.js"]');
-      const token = localStorage.getItem('auth_token') || '';
+      const token = sessionStorage.getItem('api_key') || '';
+      if (!token) { showToast('Authentification requise', 'error'); return; }
       
       fetch('/api/actions/queue', {
         method: 'POST',

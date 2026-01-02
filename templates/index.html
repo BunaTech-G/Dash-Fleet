@@ -352,7 +352,7 @@
     }
 
     function refresh() {
-      authFetch('/api/status')
+      fetch('/api/status')
         .then((resp) => resp.json())
         .then((data) => {
           const cpuText = `${data.cpu_percent.toFixed(1)}%`;
