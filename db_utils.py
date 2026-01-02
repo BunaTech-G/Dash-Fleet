@@ -34,6 +34,7 @@ def insert_fleet_report(
     """
     # Update in-memory state
     fleet_state[store_key] = {
+        'id': machine_id,  # Explicit id for frontend display
         'machine_id': machine_id,
         'report': report,
         'ts': now_ts,
