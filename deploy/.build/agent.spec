@@ -1,0 +1,26 @@
+a = Analysis(['C:\\\\Users\\\\SIDIBE\\\\OneDrive\\\\Bureau\\\\DASH-FLEET\\\\fleet_agent.py'],
+             pathex=['C:\\\\Users\\\\SIDIBE\\\\OneDrive\\\\Bureau\\\\DASH-FLEET'],
+             binaries=[],
+             datas=[('C:\\\\Users\\\\SIDIBE\\\\OneDrive\\\\Bureau\\\\DASH-FLEET\\\\fleet_utils.py','.')],
+             hiddenimports=[],
+             hookspath=[],
+             runtime_hooks=[],
+             excludes=[])
+pyo = PYZ(a.pure, a.zipped_data, cipher=None)
+exe = EXE(pyo,
+          a.scripts,
+          [],
+          exclude_binaries=True,
+          name='dashfleet-agent.exe',
+          debug=False,
+          bootloader_ignore_signals=False,
+          strip=False,
+          upx=True,
+          console=True)
+coll = COLLECT(exe,
+               a.binaries,
+               a.zipfiles,
+               a.datas,
+               strip=False,
+               upx=True,
+               name='dashfleet-agent.exe')
