@@ -14,7 +14,7 @@ CPU_ALERT = 80
 RAM_ALERT = 90
 
 # Fleet entry time-to-live in seconds (how long before a machine is considered offline)
-FLEET_TTL_SECONDS = 600
+FLEET_TTL_SECONDS = 86400  # 24 hours (must match frontend FLEET_TTL)
 
 # Disk space alert threshold (percentage)
 DISK_ALERT = 85
