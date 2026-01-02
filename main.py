@@ -261,26 +261,11 @@ ensure_bootstrap_admin()
 
 # Force la migration de la base au démarrage
 
-def _format_bytes_to_gib(bytes_value: float) -> float:
-    """DEPRECATED: Use fleet_utils.format_bytes_to_gib instead."""
-    return format_bytes_to_gib(bytes_value)
-
-
-def _format_uptime(seconds: float) -> str:
-    """DEPRECATED: Use fleet_utils.format_uptime_hms instead."""
-    return format_uptime_hms(seconds)
-
-
 def _detect_alerts(cpu_percent: float, ram_percent: float) -> Dict[str, bool]:
     return {
         "cpu": cpu_percent >= CPU_ALERT,
         "ram": ram_percent >= RAM_ALERT,
     }
-
-
-def _health_score(stats: Dict[str, object]) -> Dict[str, object]:
-    """DEPRECATED: Use fleet_utils.calculate_health_score instead."""
-    return calculate_health_score(stats)
 
 
 _LAST_WEBHOOK_TS = 0.0

@@ -20,3 +20,12 @@ pip-wheel-metadata/
 __pycache__/
 *.pyc
 .env
+
+# Temporary files (not to be committed)
+tmp_*.html
+get_token.py
+insert_token.py
+list_tables.py
+reset_organizations.py
+test_api.py
+test_fleet_agent.py

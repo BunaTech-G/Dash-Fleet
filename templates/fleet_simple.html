@@ -70,11 +70,12 @@
                         return;
                     }
 
+                    const FLEET_TTL = 86400; // 24 hours
                     machines.innerHTML = list.map(entry => {
                         const report = entry.report || {};
                         const health = report.health || { score: 0, status: 'ok' };
                         const now = Date.now() / 1000;
-                        const expired = (now - entry.ts > 600);
+                        const expired = (now - entry.ts > FLEET_TTL);
                         const status = expired ? 'expired' : health.status;
                         const lastSeen = new Date(entry.ts * 1000).toLocaleString();
 
