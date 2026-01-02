@@ -1,0 +1,100 @@
+name: Security Scan
+
+on:
+  push:
+    branches: [ fix/pyproject-exclude, main ]
+  pull_request:
+    branches: [ fix/pyproject-exclude, main ]
+  schedule:
+    # Run weekly on Monday at 00:00 UTC
+    - cron: '0 0 * * 1'
+  workflow_dispatch:
+
+env:
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  dependency-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install safety bandit
+
+      - name: Safety check (dependencies)
+        run: |
+          safety check --json --output safety-report.json || true
+          safety check || echo "⚠️ Security issues found in dependencies"
+
+      - name: Bandit security scan
+        run: |
+          bandit -r . -f json -o bandit-report.json \
+            --exclude ./venv,./venv2,./.venv,./build,./dist,./tests \
+            --skip B101,B601 || true
+          bandit -r . --exclude ./venv,./venv2,./.venv,./build,./dist,./tests \
+            --skip B101,B601 || echo "⚠️ Security issues found in code"
+
+      - name: Upload security reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-reports
+          path: |
+            safety-report.json
+            bandit-report.json
+
+  code-quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pylint radon
+
+      - name: Pylint analysis
+        run: |
+          pylint main.py fleet_agent.py --output-format=json > pylint-report.json || true
+          pylint main.py fleet_agent.py || echo "⚠️ Code quality issues found"
+
+      - name: Cyclomatic complexity
+        run: |
+          radon cc -s -a main.py fleet_agent.py || true
+
+      - name: Upload quality reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-reports
+          path: pylint-report.json
+
+  secrets-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for better secret detection
+
+      - name: TruffleHog secrets scan
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ${{ github.event.repository.default_branch }}
+          head: HEAD
+          extra_args: --debug --only-verified

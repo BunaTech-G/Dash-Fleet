@@ -255,7 +255,7 @@
     }
 
     function updateHealth() {
-      authFetch('/api/status')
+      fetch('/api/status')
         .then((resp) => resp.json())
         .then((data) => {
           const health = data.health || { score: 0, status: 'ok' };
@@ -275,7 +275,7 @@
     }
 
     function loadHistory() {
-      authFetch('/api/history?limit=300')
+      fetch('/api/history?limit=300')
         .then((resp) => resp.json())
         .then((payload) => {
           const rows = payload.data || [];

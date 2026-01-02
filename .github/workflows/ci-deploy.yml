@@ -2,7 +2,9 @@ name: CI & Deploy
 
 on:
   push:
-    branches: [ main ]
+    branches: [ fix/pyproject-exclude ]
+  pull_request:
+    branches: [ fix/pyproject-exclude ]
   workflow_dispatch:
 
 env:

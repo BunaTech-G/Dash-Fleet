@@ -1,0 +1,125 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches: [ fix/pyproject-exclude ]
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
+      - '.github/**'
+  workflow_dispatch:
+    inputs:
+      restart_only:
+        description: 'Restart only (no git pull)'
+        required: false
+        type: boolean
+        default: false
+
+env:
+  VPS_HOST: "83.150.218.175"
+  VPS_USER: "root"
+  DEPLOY_PATH: "/opt/dashfleet"
+  SERVICE_NAME: "dashfleet"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        if: ${{ !inputs.restart_only }}
+        uses: actions/checkout@v4
+
+      - name: Setup SSH key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+
+      - name: Add VPS to known hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ env.VPS_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy to VPS
+        if: ${{ !inputs.restart_only }}
+        run: |
+          ssh ${{ env.VPS_USER }}@${{ env.VPS_HOST }} << 'ENDSSH'
+            set -e
+            cd ${{ env.DEPLOY_PATH }}
+            
+            # Backup current state
+            echo "📦 Creating backup..."
+            tar -czf /tmp/dashfleet-backup-$(date +%Y%m%d-%H%M%S).tar.gz --exclude=venv --exclude=.git --exclude=__pycache__ .
+            
+            # Pull latest changes
+            echo "⬇️ Pulling latest code..."
+            git fetch origin fix/pyproject-exclude
+            git reset --hard origin/fix/pyproject-exclude
+            
+            # Install/update dependencies
+            echo "📚 Installing dependencies..."
+            if [ ! -d "venv" ]; then
+              python3 -m venv venv
+            fi
+            source venv/bin/activate
+            pip install --upgrade pip
+            pip install -r requirements.txt
+            
+            # Run migrations if needed
+            if [ -f "scripts/migrate_db.py" ]; then
+              echo "🔄 Running database migrations..."
+              python scripts/migrate_db.py
+            fi
+            
+            # Restart service
+            echo "🔄 Restarting service..."
+            sudo systemctl restart ${{ env.SERVICE_NAME }}
+            
+            # Wait for service to be ready
+            sleep 3
+            
+            # Health check
+            echo "🏥 Health check..."
+            if curl -sSf http://localhost:5000/api/status > /dev/null; then
+              echo "✅ Deployment successful!"
+            else
+              echo "❌ Health check failed!"
+              sudo systemctl status ${{ env.SERVICE_NAME }}
+              exit 1
+            fi
+          ENDSSH
+
+      - name: Restart service only
+        if: ${{ inputs.restart_only }}
+        run: |
+          ssh ${{ env.VPS_USER }}@${{ env.VPS_HOST }} << 'ENDSSH'
+            sudo systemctl restart ${{ env.SERVICE_NAME }}
+            sleep 3
+            if curl -sSf http://localhost:5000/api/status > /dev/null; then
+              echo "✅ Service restarted successfully!"
+            else
+              echo "❌ Health check failed after restart!"
+              sudo systemctl status ${{ env.SERVICE_NAME }}
+              exit 1
+            fi
+          ENDSSH
+
+      - name: Show service status
+        if: always()
+        run: |
+          ssh ${{ env.VPS_USER }}@${{ env.VPS_HOST }} << 'ENDSSH'
+            echo "--- Service Status ---"
+            sudo systemctl status ${{ env.SERVICE_NAME }} --no-pager
+            echo ""
+            echo "--- Last 20 log lines ---"
+            sudo journalctl -u ${{ env.SERVICE_NAME }} -n 20 --no-pager
+          ENDSSH
+
+      - name: Notify deployment result
+        if: always()
+        run: |
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "✅ Deployment to VPS completed successfully"
+          else
+            echo "❌ Deployment to VPS failed"
+            exit 1
+          fi

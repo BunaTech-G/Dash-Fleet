@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main, master, fix/pyproject-exclude ]
   pull_request:
-    branches: [ main, master ]
+    branches: [ main, master, fix/pyproject-exclude ]
 
 env:
   PYTHON_VERSION: "3.11"
@@ -39,7 +39,7 @@ jobs:
           pip install flake8
 
       - name: Lint (flake8)
-        run: flake8 .
+        run: flake8 . --config=.flake8
 
   test:
     runs-on: ubuntu-latest

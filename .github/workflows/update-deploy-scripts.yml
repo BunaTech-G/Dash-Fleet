@@ -1,0 +1,71 @@
+name: Update Deployment Scripts
+
+on:
+  push:
+    branches: [ fix/pyproject-exclude ]
+    paths:
+      - 'deploy/**'
+      - 'dist/fleet_agent.exe'
+      - '.github/workflows/update-deploy-scripts.yml'
+  workflow_dispatch:
+
+env:
+  VPS_HOST: "83.150.218.175"
+  VPS_USER: "root"
+  DEPLOY_SCRIPTS_PATH: "/var/www/dashfleet-deploy"
+
+jobs:
+  sync-deploy-scripts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup SSH key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+
+      - name: Add VPS to known hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ env.VPS_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Sync deployment scripts to VPS
+        run: |
+          ssh ${{ env.VPS_USER }}@${{ env.VPS_HOST }} << 'ENDSSH'
+            mkdir -p ${{ env.DEPLOY_SCRIPTS_PATH }}
+          ENDSSH
+          
+          # Copy deployment scripts
+          scp -r deploy/* ${{ env.VPS_USER }}@${{ env.VPS_HOST }}:${{ env.DEPLOY_SCRIPTS_PATH }}/
+          
+          # Make scripts executable
+          ssh ${{ env.VPS_USER }}@${{ env.VPS_HOST }} << 'ENDSSH'
+            chmod +x ${{ env.DEPLOY_SCRIPTS_PATH }}/*.sh
+            chmod +x ${{ env.DEPLOY_SCRIPTS_PATH }}/*.ps1
+          ENDSSH
+
+      - name: Update GitHub raw URLs in scripts
+        run: |
+          ssh ${{ env.VPS_USER }}@${{ env.VPS_HOST }} << 'ENDSSH'
+            cd ${{ env.DEPLOY_SCRIPTS_PATH }}
+            # Update branch references to current production branch
+            find . -type f \( -name "*.sh" -o -name "*.ps1" \) -exec sed -i 's|/main/|/fix/pyproject-exclude/|g' {} \;
+            find . -type f \( -name "*.sh" -o -name "*.ps1" \) -exec sed -i 's|/master/|/fix/pyproject-exclude/|g' {} \;
+          ENDSSH
+
+      - name: Test script accessibility
+        run: |
+          # Test if scripts are accessible via web server
+          curl -fsSL https://dash-fleet.com/deploy/install_dashfleet_linux_oneliner.sh -o /dev/null || echo "⚠️ Linux installer not accessible"
+          curl -fsSL https://dash-fleet.com/deploy/install_dashfleet_oneliner.ps1 -o /dev/null || echo "⚠️ Windows installer not accessible"
+
+      - name: Notify update result
+        if: always()
+        run: |
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "✅ Deployment scripts synced to VPS successfully"
+          else
+            echo "❌ Failed to sync deployment scripts"
+            exit 1
+          fi

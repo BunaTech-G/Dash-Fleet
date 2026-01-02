@@ -1,0 +1,120 @@
+name: Build Agent Executables
+
+on:
+  push:
+    branches: [ fix/pyproject-exclude ]
+    paths:
+      - 'fleet_agent.py'
+      - 'fleet_agent_windows_tray.py'
+      - 'fleet_utils.py'
+      - 'fleet_agent.spec'
+      - '.github/workflows/build-agents.yml'
+  release:
+    types: [ published ]
+  workflow_dispatch:
+
+env:
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build Windows agent (console)
+        run: |
+          pyinstaller --onefile --name fleet_agent --icon icon.ico fleet_agent.py
+
+      - name: Build Windows agent (with tray)
+        run: |
+          pyinstaller --onefile --name fleet_agent_tray --windowed --icon icon.ico `
+            --hidden-import pystray --hidden-import PIL `
+            --add-data "fleet_utils.py;." `
+            fleet_agent.py
+
+      - name: Test executables
+        run: |
+          dist\fleet_agent.exe --help
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-agents
+          path: |
+            dist/fleet_agent.exe
+            dist/fleet_agent_tray.exe
+
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build Linux agent
+        run: |
+          pyinstaller --onefile --name fleet_agent fleet_agent.py
+
+      - name: Test executable
+        run: |
+          chmod +x dist/fleet_agent
+          dist/fleet_agent --help
+
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-agent
+          path: dist/fleet_agent
+
+  release-assets:
+    runs-on: ubuntu-latest
+    needs: [build-windows, build-linux]
+    if: github.event_name == 'release'
+    steps:
+      - name: Download Windows artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-agents
+          path: windows/
+
+      - name: Download Linux artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-agent
+          path: linux/
+
+      - name: Compress artifacts
+        run: |
+          cd windows && zip -r ../fleet_agent_windows.zip . && cd ..
+          cd linux && tar -czf ../fleet_agent_linux.tar.gz . && cd ..
+
+      - name: Upload to release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            fleet_agent_windows.zip
+            fleet_agent_linux.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
