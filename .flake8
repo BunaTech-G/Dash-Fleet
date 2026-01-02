@@ -10,7 +10,9 @@ exclude =
     dist,
     *.egg-info,
     tests/,
-    scripts/
+    scripts/,
+    ./deploy/bin/dashfleet-agent.exe/_internal/,
+    test_*.py
 
 # Ignorer les erreurs de dépendances
 ignore =
@@ -18,9 +20,13 @@ ignore =
     W293,
     W291,
     # Line too long (can be handled separately)
-    E501
+    E501,
+    # Binary operator line break (common in complex conditions)
+    W503,
+    # Arithmetic operator whitespace (for RGB values, dimensions, etc)
+    E226
 
 # Configuration pour être moins strict
 per-file-ignores =
     __init__.py:F401
-    tests/*:F811,F841
+    tests/*:F811,F841,F401,E302,E305

@@ -324,7 +324,7 @@ def main() -> None:
             log_line(f"[TRAY] Icône systray démarrée (cliquez sur l'icône DashFleet)")
         except ImportError as e:
             log_line(f"[TRAY] ⚠️  pystray/pillow non installés: {e}")
-            log_line(f"[TRAY] Installez: pip install pystray pillow")
+            log_line("[TRAY] Installez: pip install pystray pillow")
         except Exception as e:
             log_line(f"[TRAY] ⚠️  Erreur tray: {e}")
 
@@ -334,7 +334,7 @@ def main() -> None:
     log_line(f"Agent démarré -> {url}")
     log_line(f"id={machine_id}, intervalle={interval}s, hardware_id={hardware_id}")
     if args.tray and sys.platform == "win32":
-        log_line(f"[TRAY] 🖥️  Icône système disponible (Windows systray)")
+        log_line("[TRAY] 🖥️  Icône système disponible (Windows systray)")
 
     cycle = 0
     action_poll_counter = 0

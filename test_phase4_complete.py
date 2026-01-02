@@ -9,8 +9,8 @@ Tests the entire action flow:
 5. Verify in database that action is marked as done
 """
 
+
 import requests
-import json
 import time
 import sqlite3
 from datetime import datetime

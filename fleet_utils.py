@@ -3,6 +3,7 @@ Shared utility functions for DashFleet fleet monitoring.
 These functions are used by both the main Flask app and the fleet agents.
 """
 
+
 def calculate_health_score(stats: dict) -> dict:
     """
     Calculate a health score (0-100) and status based on system metrics.

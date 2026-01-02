@@ -3,6 +3,7 @@ from pathlib import Path
 
 DB_PATH = Path("data/fleet.db")
 
+
 def reset_organizations_table():
     if not DB_PATH.exists():
         print("Aucune base de données trouvée.")
