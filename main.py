@@ -38,6 +38,7 @@ from constants import (
     SESSION_TIMEOUT as DEFAULT_SESSION_TIMEOUT
 )
 from logging_config import setup_logging
+from schemas import report_schema, metrics_schema
 
 
 app = Flask(__name__, template_folder="templates", static_folder="static")
@@ -198,34 +199,6 @@ def login():
 def logout():
     session.clear()
     return redirect(url_for('login'))
-
-
-# Schéma Marshmallow pour la validation avancée du rapport agent
-
-
-class ReportSchema(Schema):
-    machine_id = fields.Str(required=True)
-    report = fields.Dict(required=True)
-
-
-
-class MetricsSchema(Schema):
-    cpu_percent = fields.Float(required=True)
-    ram_percent = fields.Float(required=True)
-    disk_percent = fields.Float(required=True)
-    timestamp = fields.Str(required=False)
-    ram_used_gib = fields.Float(required=False)
-    ram_total_gib = fields.Float(required=False)
-    disk_used_gib = fields.Float(required=False)
-    disk_total_gib = fields.Float(required=False)
-    uptime_seconds = fields.Float(required=False)
-    uptime_hms = fields.Str(required=False)
-    health = fields.Dict(required=False)
-
-
-
-report_schema = ReportSchema()
-metrics_schema = MetricsSchema()
 """Tableau de bord système : CPU, RAM, disque et uptime.
 Fonctionne en mode CLI ou via une petite UI web Flask.
 """
