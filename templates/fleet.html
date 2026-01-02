@@ -114,6 +114,41 @@
         <p class="muted" id="empty-hint">Déployez un agent avec les commandes ci-dessus (section Installation Agent).</p>
       </div>
     </section>
+
+    <!-- ===== ACTION MODAL (Phase 4) ===== -->
+    <div id="action-modal" class="modal" style="display:none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); align-items: center; justify-content: center; z-index: 1000;">
+      <div class="modal-content" style="background: var(--bg-secondary, #fff); border-radius: 8px; max-width: 500px; width: 90%; max-height: 80vh; overflow: auto;">
+        <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; padding: 16px; border-bottom: 1px solid var(--border, #ccc);">
+          <h3 id="action-modal-title" style="margin: 0; font-size: 18px;">Send Action</h3>
+          <button class="modal-close" onclick="closeActionModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text-secondary, #666);">×</button>
+        </div>
+        
+        <div class="modal-body" style="padding: 16px;">
+          <div class="form-group" style="margin-bottom: 12px;">
+            <label for="action-type" style="display: block; margin-bottom: 4px; font-weight: 600; font-size: 13px;">Action Type:</label>
+            <select id="action-type" onchange="updateActionForm()" style="width: 100%; padding: 8px; border: 1px solid var(--border, #ccc); border-radius: 4px; font-family: inherit;">
+              <option value="message">💬 Send Message</option>
+              <option value="restart">🔄 Restart Agent</option>
+              <option value="reboot">🔌 Reboot Machine</option>
+            </select>
+          </div>
+          
+          <div id="message-form" class="form-group" style="display:none; margin-bottom: 12px;">
+            <label for="action-message" style="display: block; margin-bottom: 4px; font-weight: 600; font-size: 13px;">Message:</label>
+            <textarea id="action-message" placeholder="Enter message..." rows="3" style="width: 100%; padding: 8px; border: 1px solid var(--border, #ccc); border-radius: 4px; font-family: inherit;"></textarea>
+          </div>
+          
+          <div id="reboot-warning" class="alert" style="display:none; padding: 12px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 4px; color: #856404; font-size: 13px;">
+            ⚠️ This will reboot the machine!
+          </div>
+        </div>
+        
+        <div class="modal-footer" style="display: flex; gap: 8px; padding: 16px; border-top: 1px solid var(--border, #ccc);">
+          <button class="btn-primary" onclick="sendAction()" style="flex: 1; padding: 10px; background: var(--accent, #007bff); color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">Send</button>
+          <button class="btn-secondary" onclick="closeActionModal()" style="flex: 1; padding: 10px; background: var(--bg-tertiary, #f0f0f0); border: 1px solid var(--border, #ccc); border-radius: 4px; cursor: pointer;">Cancel</button>
+        </div>
+      </div>
+    </div>
   </main>
 
   <script src="/static/fleet-auth.js"></script>
@@ -293,6 +328,11 @@
           <div class="meta muted">
             Dernier rapport: ${lastSeen}${expired ? ' ⚠️ EXPIRÉ' : ` (${expiresIn} restant)`}
           </div>
+          <div class="card-actions" style="margin-top: 12px; display: flex; gap: 8px;">
+            <button class="action-btn" onclick="showActionModal('${machineId}', '${machineId}')" title="Send message or command" style="flex: 1; padding: 8px 12px; background: var(--accent, #007bff); color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">
+              📨 Actions
+            </button>
+          </div>
         `;
 
         if (existingCards[machineId]) {
@@ -413,6 +453,80 @@
         setTheme(theme === 'dark' ? 'light' : 'dark');
       });
     }
+
+    // ===== ACTION MODAL FUNCTIONS (Phase 4) =====
+    let currentMachineId = null;
+
+    function showActionModal(machineId, machineName) {
+      currentMachineId = machineId;
+      document.getElementById('action-modal-title').textContent = `Actions for ${machineName}`;
+      document.getElementById('action-modal').style.display = 'flex';
+      updateActionForm();
+    }
+
+    function closeActionModal() {
+      document.getElementById('action-modal').style.display = 'none';
+      currentMachineId = null;
+    }
+
+    function updateActionForm() {
+      const actionType = document.getElementById('action-type').value;
+      document.getElementById('message-form').style.display = 
+        actionType === 'message' ? 'block' : 'none';
+      document.getElementById('reboot-warning').style.display = 
+        actionType === 'reboot' ? 'block' : 'none';
+    }
+
+    function sendAction() {
+      const machineId = currentMachineId;
+      const actionType = document.getElementById('action-type').value;
+      
+      const data = {
+        machine_id: machineId,
+        action_type: actionType,
+        data: {}
+      };
+      
+      if (actionType === 'message') {
+        data.data.message = document.getElementById('action-message').value;
+        data.data.title = 'DashFleet';
+        if (!data.data.message) {
+          showToast('Please enter a message', 'error');
+          return;
+        }
+      }
+      
+      // Get auth token
+      const authHeader = document.querySelector('script[src="/static/fleet-auth.js"]');
+      const token = localStorage.getItem('auth_token') || '';
+      
+      fetch('/api/actions/queue', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(data)
+      })
+      .then(r => r.json())
+      .then(d => {
+        if (d.ok || d.action_id) {
+          showToast(`Action sent to ${machineId}!`, 'success');
+          closeActionModal();
+        } else {
+          showToast('Error: ' + (d.error || 'Unknown error'), 'error');
+        }
+      })
+      .catch(e => showToast('Error: ' + e, 'error'));
+    }
+
+    // Close modal when clicking outside
+    document.addEventListener('click', (e) => {
+      const modal = document.getElementById('action-modal');
+      if (e.target === modal) {
+        closeActionModal();
+      }
+    });
 
     // ===== INTERNATIONALIZATION =====
     dashboardI18n.bindSelect(langSelect);
