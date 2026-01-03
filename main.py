@@ -664,9 +664,26 @@ def serve_app():
         return "Static files not found", 404
 
 
+@app.route("/assets/<path:filename>")
+def serve_assets(filename):
+    """Serve static assets (JS, CSS, etc.)."""
+    try:
+        asset_path = Path("static/app/assets") / filename
+        if asset_path.exists():
+            return send_file(str(asset_path))
+        return "Asset not found", 404
+    except Exception as e:
+        logger.error(f"Error serving asset {filename}: {e}")
+        return "Asset not found", 404
+
+
 @app.errorhandler(404)
 def serve_spa_fallback(e):
-    """Fallback to SPA for client-side routing."""
+    """Fallback to SPA for client-side routing (but not for assets)."""
+    # Don't fallback for API routes or assets
+    if request.path.startswith('/api/') or request.path.startswith('/assets/'):
+        return "Not found", 404
+    
     try:
         app_path = Path("static/app/index.html")
         if app_path.exists():
