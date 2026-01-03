@@ -12,10 +12,25 @@ $ErrorActionPreference = "Stop"
 $WarningPreference = "SilentlyContinue"
 
 # Colors for output
-function Write-Success { Write-Host "✓ $args" -ForegroundColor Green }
-function Write-Error { Write-Host "✗ $args" -ForegroundColor Red }
-function Write-Info { Write-Host "ℹ $args" -ForegroundColor Cyan }
-function Write-Header { Write-Host "`n=== $args ===" -ForegroundColor Magenta }
+function Write-Success {
+    param([string]$Message)
+    Write-Host "✓ $Message" -ForegroundColor Green
+}
+
+function Write-Error-Custom {
+    param([string]$Message)
+    Write-Host "✗ $Message" -ForegroundColor Red
+}
+
+function Write-Info {
+    param([string]$Message)
+    Write-Host "ℹ $Message" -ForegroundColor Cyan
+}
+
+function Write-Header {
+    param([string]$Message)
+    Write-Host "`n=== $Message ===" -ForegroundColor Magenta
+}
 
 Write-Header "DashFleet Agent Professional Installer"
 
@@ -27,7 +42,7 @@ function Test-Admin {
 }
 
 if (-not (Test-Admin)) {
-    Write-Error "This script must be run as Administrator!"
+    Write-Error-Custom "This script must be run as Administrator!"
     Write-Info "Please right-click PowerShell and select 'Run as administrator'"
     exit 1
 }
@@ -90,7 +105,7 @@ if (-not $pythonPath) {
     }
     
     if (-not $pythonPath) {
-        Write-Error "Python 3.10+ is required but not installed"
+        Write-Error-Custom "Python 3.10+ is required but not installed"
         Write-Info "Please download Python from https://www.python.org/"
         Write-Info "Make sure to check 'Add Python to PATH' during installation"
         exit 1
@@ -131,7 +146,7 @@ try {
     Invoke-WebRequest -Uri $repoUrl -OutFile $agentScript -UseBasicParsing -ErrorAction Stop
     Write-Success "Downloaded agent to: $agentScript"
 } catch {
-    Write-Error "Failed to download agent: $_"
+    Write-Error-Custom "Failed to download agent: $_"
     exit 1
 }
 
@@ -149,7 +164,7 @@ foreach ($package in $dependencies) {
         & $pythonPath -m pip install $package --quiet 2>$null
         Write-Success "Installed: $package"
     } catch {
-        Write-Error "Failed to install $package"
+        Write-Error-Custom "Failed to install $package"
     }
 }
 
