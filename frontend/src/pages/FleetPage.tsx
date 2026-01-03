@@ -46,41 +46,41 @@ export function FleetPage() {
     <div className="stack">
       <div className="section-header">
         <div>
-          <div className="muted" style={{ letterSpacing: '0.08em', textTransform: 'uppercase' }}>Fleet</div>
-          <h1 style={{ margin: '6px 0' }}>Fleet Health</h1>
-          <p className="muted">Central view of machines reporting metrics.</p>
+          <div className="muted" style={{ letterSpacing: '0.08em', textTransform: 'uppercase' }}>Flotte</div>
+          <h1 style={{ margin: '6px 0' }}>Santé de la flotte</h1>
+          <p className="muted">Vue centralisée des machines qui rapportent des métriques.</p>
         </div>
-        <div className="muted">{data?.length || 0} machines</div>
+        <div className="muted">{data?.length || 0} machine{(data?.length || 0) > 1 ? 's' : ''}</div>
       </div>
 
       <div className="card">
         <div className="controls" style={{ marginBottom: 10, display: 'flex', gap: '10px' }}>
           <label className="muted">
-            Status
+            Statut
             <select className="input" value={filter} onChange={(e) => setFilter(e.target.value as StatusFilter)}>
-              <option value="all">All</option>
+              <option value="all">Tout</option>
               <option value="ok">OK</option>
-              <option value="warn">Warning</option>
-              <option value="critical">Critical</option>
-              <option value="expired">Expired</option>
+              <option value="warn">Avertissement</option>
+              <option value="critical">Critique</option>
+              <option value="expired">Expiré</option>
             </select>
           </label>
           <label className="muted">
-            Sort
+            Trier
             <select className="input" value={sort} onChange={(e) => setSort(e.target.value as SortKey)}>
-              <option value="score_desc">Score (desc)</option>
-              <option value="score_asc">Score (asc)</option>
-              <option value="last_desc">Last (recent)</option>
-              <option value="last_asc">Last (oldest)</option>
+              <option value="score_desc">Score (décroissant)</option>
+              <option value="score_asc">Score (croissant)</option>
+              <option value="last_desc">Dernier (récent)</option>
+              <option value="last_asc">Dernier (ancien)</option>
             </select>
           </label>
         </div>
 
-        {isLoading && <div className="muted">Loading...</div>}
-        {error && <div className="card status-critical">Error: {error.message}</div>}
+        {isLoading && <div className="muted">Chargement...</div>}
+        {error && <div className="card status-critical">Erreur : {error.message}</div>}
         {!isLoading && !error && filtered.length === 0 && (
-          <div className="empty">No machines reporting. Deploy an agent that POSTs to /api/fleet/report.</div>
-        )}
+          <div className="empty">Aucune machine ne rapporte. Déployez un agent qui envoie des données à /api/fleet/report.</div>
+        )}}
 
         <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))' }}>
           {filtered.map((entry) => {
@@ -98,11 +98,11 @@ export function FleetPage() {
                   <span className={`badge ${status}`}>{status.toUpperCase()}</span>
                 </div>
                 <p className="card-meta">
-                  CPU {report.cpu_percent?.toFixed?.(1) ?? '--'}% · RAM {report.ram_percent?.toFixed?.(1) ?? '--'}% · Disk {report.disk_percent?.toFixed?.(1) ?? '--'}%
+                  CPU {report.cpu_percent?.toFixed?.(1) ?? '--'}% · RAM {report.ram_percent?.toFixed?.(1) ?? '--'}% · Disque {report.disk_percent?.toFixed?.(1) ?? '--'}%
                 </p>
-                <p className="card-meta">Uptime {report.uptime_hms || '--'}</p>
+                <p className="card-meta">Disponibilité {report.uptime_hms || '--'}</p>
                 <p className="card-meta muted">
-                  Last: {lastTime} · {entry.client || 'unknown'} {expired ? '⚠️' : ''}
+                  Dernier : {lastTime} · {entry.client || 'inconnu'} {expired ? '⚠️' : ''}
                 </p>
               </article>
             );

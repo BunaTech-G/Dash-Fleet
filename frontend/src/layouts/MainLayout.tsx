@@ -5,7 +5,7 @@ import { getInitialLang, getLabel, Lang } from '../i18n';
 
 export function MainLayout() {
   const [theme, setTheme] = useTheme();
-  const [lang, setLang] = useState<Lang>(() => getInitialLang());
+  const lang: Lang = 'fr'; // Force la langue française
 
   const toggleTheme = () => setTheme(theme === 'dark' ? 'light' : 'dark');
 
@@ -20,20 +20,8 @@ export function MainLayout() {
           </div>
         </div>
         <div className="controls">
-          <select 
-            className="input" 
-            value={lang} 
-            onChange={(e) => { 
-              const v = e.target.value as Lang; 
-              setLang(v); 
-              localStorage.setItem('dash_lang', v); 
-            }}
-          >
-            <option value="fr">FR</option>
-            <option value="en">EN</option>
-          </select>
           <button className="button ghost small" onClick={toggleTheme}>
-            {theme === 'dark' ? 'Light' : 'Dark'}
+            {theme === 'dark' ? getLabel('themeLight', lang) : getLabel('themeDark', lang)}
           </button>
         </div>
       </div>

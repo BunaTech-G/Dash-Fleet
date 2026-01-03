@@ -23,9 +23,14 @@ interface ChartPoint {
 }
 
 export function LivePage() {
-  const [actionMsg, setActionMsg] = useState<string>('Ready');
+  const [actionMsg, setActionMsg] = useState<string>('Prêt');
   const historyRef = useRef<ChartPoint[]>([]);
   const { data, isFetching, error } = useStats();
+
+  // Détecter le thème actuel
+  const isDark = !document.body.classList.contains('light');
+  const textColor = isDark ? '#9db1c5' : '#4a5568';
+  const gridColor = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.08)';
 
   useEffect(() => {
     if (!data) return;
@@ -60,32 +65,32 @@ export function LivePage() {
   const chartOptions = useMemo(
     () => ({
       responsive: true,
-      plugins: { legend: { labels: { color: '#9db1c5' } } },
+      plugins: { legend: { labels: { color: textColor } } },
       scales: {
-        x: { ticks: { color: '#9db1c5' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+        x: { ticks: { color: textColor }, grid: { color: gridColor } },
         y: {
-          ticks: { color: '#9db1c5' },
-          grid: { color: 'rgba(255,255,255,0.05)' },
+          ticks: { color: textColor },
+          grid: { color: gridColor },
           suggestedMin: 0,
           suggestedMax: 100,
         },
       },
     }),
-    []
+    [textColor, gridColor]
   );
 
   const healthClass = data ? `status-${data.health?.status || 'ok'}` : '';
 
   const triggerAction = async (action: string) => {
     try {
-      setActionMsg('Running...');
+      setActionMsg('En cours...');
       const resp = await runAction(action);
       setActionMsg(resp.message || 'OK');
-      setTimeout(() => setActionMsg('Ready'), 2000);
+      setTimeout(() => setActionMsg('Prêt'), 2000);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Error';
+      const msg = err instanceof Error ? err.message : 'Erreur';
       setActionMsg(msg);
-      setTimeout(() => setActionMsg('Ready'), 3000);
+      setTimeout(() => setActionMsg('Prêt'), 3000);
     }
   };
 
@@ -95,18 +100,18 @@ export function LivePage() {
     <div className="stack">
       <div className="section-header">
         <div>
-          <div className="muted" style={{ letterSpacing: '0.08em', textTransform: 'uppercase' }}>Live</div>
-          <h1 style={{ margin: '6px 0' }}>System Dashboard</h1>
-          <p className="muted">CPU, RAM, Disk and Uptime updated every 2.5s.</p>
+          <div className="muted" style={{ letterSpacing: '0.08em', textTransform: 'uppercase' }}>Temps réel</div>
+          <h1 style={{ margin: '6px 0' }}>Tableau de bord système</h1>
+          <p className="muted">CPU, RAM, Disque et Disponibilité mis à jour toutes les 2.5s.</p>
         </div>
         <div className={`badge ${data?.alert_active ? 'critical' : 'ok'}`}>
-          {data?.alert_active ? 'High Load' : 'Healthy'}
+          {data?.alert_active ? 'Charge élevée' : 'En bonne santé'}
         </div>
       </div>
 
       <div className="grid stats">
         <div className={`card ${healthClass}`}>
-          <div className="card-title">Health Score</div>
+          <div className="card-title">Score de santé</div>
           <div className="card-value">{data?.health?.score ?? placeholder}/100</div>
           <p className="card-meta">
             {data?.health?.status?.toUpperCase() ?? placeholder}
@@ -116,73 +121,73 @@ export function LivePage() {
         <div className="card">
           <div className="card-title">CPU</div>
           <div className="card-value">{data?.cpu_percent?.toFixed?.(1) ?? placeholder}%</div>
-          <p className="card-meta">CPU {data?.health?.components?.cpu ?? placeholder}</p>
+          <p className="card-meta">Score CPU {data?.health?.components?.cpu ?? placeholder}</p>
         </div>
 
         <div className="card">
-          <div className="card-title">Memory</div>
+          <div className="card-title">Mémoire</div>
           <div className="card-value">{data?.ram_percent?.toFixed?.(1) ?? placeholder}%</div>
           <p className="card-meta">
-            {data?.ram_used_gib?.toFixed?.(2) ?? placeholder}/{data?.ram_total_gib?.toFixed?.(2) ?? placeholder} GiB
+            {data?.ram_used_gib?.toFixed?.(2) ?? placeholder}/{data?.ram_total_gib?.toFixed?.(2) ?? placeholder} Gio
           </p>
         </div>
 
         <div className="card">
-          <div className="card-title">Disk</div>
+          <div className="card-title">Disque</div>
           <div className="card-value">{data?.disk_percent?.toFixed?.(1) ?? placeholder}%</div>
           <p className="card-meta">
-            {data?.disk_used_gib?.toFixed?.(2) ?? placeholder}/{data?.disk_total_gib?.toFixed?.(2) ?? placeholder} GiB
+            {data?.disk_used_gib?.toFixed?.(2) ?? placeholder}/{data?.disk_total_gib?.toFixed?.(2) ?? placeholder} Gio
           </p>
         </div>
 
         <div className="card">
-          <div className="card-title">Uptime</div>
+          <div className="card-title">Disponibilité</div>
           <div className="card-value">{data?.uptime_hms ?? placeholder}</div>
-          <p className="card-meta">{data?.hostname ?? 'Unknown'}</p>
+          <p className="card-meta">{data?.hostname ?? 'Inconnu'}</p>
         </div>
 
         <div className="card">
-          <div className="card-title">Status</div>
-          <div style={{ fontSize: '0.9em', color: '#9db1c5', lineHeight: 1.6 }}>
-            {isFetching ? '⏳ Fetching...' : '✓ Updated'}
+          <div className="card-title">Statut</div>
+          <div style={{ fontSize: '0.9em', color: 'var(--muted)', lineHeight: 1.6 }}>
+            {isFetching ? '⏳ Chargement...' : '✓ Mis à jour'}
             <br />
             <span style={{ fontSize: '0.85em' }}>{actionMsg}</span>
           </div>
         </div>
       </div>
 
-      {error && <div className="card status-critical">Error: {error.message}</div>}
+      {error && <div className="card status-critical">Erreur : {error.message}</div>}
 
       <div className="card">
-        <div className="card-title">CPU & RAM Over Time</div>
+        <div className="card-title">CPU et RAM dans le temps</div>
         <div style={{ height: '250px' }}>
           <Line data={chartData} options={chartOptions} />
         </div>
       </div>
 
       <div className="card">
-        <div className="card-title">System Actions</div>
+        <div className="card-title">Actions système</div>
         <p className="muted" style={{ marginBottom: '10px' }}>
-          Run maintenance tasks on this system.
+          Exécuter des tâches de maintenance sur ce système.
         </p>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '8px' }}>
           <button className="button" onClick={() => triggerAction('flush_dns')}>
-            Flush DNS
+            Vider DNS
           </button>
           <button className="button" onClick={() => triggerAction('restart_spooler')}>
-            Restart Spooler
+            Redémarrer Spooler
           </button>
           <button className="button" onClick={() => triggerAction('cleanup_temp')}>
-            Cleanup Temp
+            Nettoyer Temp
           </button>
           <button className="button" onClick={() => triggerAction('cleanup_teams')}>
-            Cleanup Teams
+            Nettoyer Teams
           </button>
           <button className="button" onClick={() => triggerAction('cleanup_outlook')}>
-            Cleanup Outlook
+            Nettoyer Outlook
           </button>
           <button className="button" onClick={() => triggerAction('collect_logs')}>
-            Collect Logs
+            Collecter Logs
           </button>
         </div>
       </div>

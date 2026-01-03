@@ -3,84 +3,84 @@ export function HelpPage() {
     <div className="stack">
       <div className="section-header">
         <div>
-          <div className="muted" style={{ letterSpacing: '0.08em', textTransform: 'uppercase' }}>Help</div>
-          <h1 style={{ margin: '6px 0' }}>Agent Deployment & Integration</h1>
-          <p className="muted">Quick reference for deploying agents and using the API.</p>
+          <div className="muted" style={{ letterSpacing: '0.08em', textTransform: 'uppercase' }}>Aide</div>
+          <h1 style={{ margin: '6px 0' }}>Déploiement de l'agent et intégration</h1>
+          <p className="muted">Référence rapide pour déployer des agents et utiliser l'API.</p>
         </div>
       </div>
 
       <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))' }}>
         <div className="card">
-          <h3>1. Deploy Agent</h3>
+          <h3>1. Déployer l'agent</h3>
           <ol>
-            <li>Download or build the agent (dist/fleet_agent.exe)</li>
-            <li>Run: <code>fleet_agent.exe --server http://localhost:5000</code></li>
-            <li>Machine ID defaults to hostname (visible in Fleet tab)</li>
-            <li>Agent reports to /api/fleet/report every 30 seconds</li>
+            <li>Téléchargez ou compilez l'agent (dist/fleet_agent.exe)</li>
+            <li>Exécutez : <code>fleet_agent.exe --server http://localhost:5000</code></li>
+            <li>L'ID de la machine par défaut est le nom d'hôte (visible dans l'onglet Flotte)</li>
+            <li>L'agent rapporte à /api/fleet/report toutes les 30 secondes</li>
           </ol>
         </div>
 
         <div className="card">
-          <h3>2. Main Endpoints</h3>
+          <h3>2. Endpoints principaux</h3>
           <ul>
-            <li><strong>GET /api/stats</strong> - Current system stats</li>
-            <li><strong>GET /api/status</strong> - Stats + health score</li>
-            <li><strong>GET /api/fleet</strong> - All fleet machines</li>
-            <li><strong>GET /api/history?limit=300</strong> - CSV history data</li>
-            <li><strong>POST /api/fleet/report</strong> - Agent reports metrics</li>
-            <li><strong>POST /api/action</strong> - Run system actions</li>
+            <li><strong>GET /api/stats</strong> - Statistiques système actuelles</li>
+            <li><strong>GET /api/status</strong> - Stats + score de santé</li>
+            <li><strong>GET /api/fleet</strong> - Toutes les machines de la flotte</li>
+            <li><strong>GET /api/history?limit=300</strong> - Données historiques CSV</li>
+            <li><strong>POST /api/fleet/report</strong> - L'agent rapporte les métriques</li>
+            <li><strong>POST /api/action</strong> - Exécuter des actions système</li>
           </ul>
         </div>
 
         <div className="card">
-          <h3>3. No Authentication</h3>
-          <p>This simplified version has no login, API keys, or organizations.</p>
-          <p>All endpoints are public. Use in trusted networks only.</p>
+          <h3>3. Sans authentification</h3>
+          <p>Cette version simplifiée n'a pas de connexion, de clés API ou d'organisations.</p>
+          <p>Tous les endpoints sont publics. À utiliser uniquement dans des réseaux de confiance.</p>
         </div>
 
         <div className="card">
-          <h3>4. System Actions</h3>
-          <p>Windows-only maintenance tasks:</p>
+          <h3>4. Actions système</h3>
+          <p>Tâches de maintenance Windows uniquement :</p>
           <ul>
-            <li>flush_dns - Flush DNS cache</li>
-            <li>restart_spooler - Restart print spooler</li>
-            <li>cleanup_temp - Clean temp files</li>
-            <li>cleanup_teams - Clean Teams cache</li>
-            <li>cleanup_outlook - Clean Outlook cache</li>
-            <li>collect_logs - Collect diagnostic logs</li>
+            <li>flush_dns - Vider le cache DNS</li>
+            <li>restart_spooler - Redémarrer le spooler d'impression</li>
+            <li>cleanup_temp - Nettoyer les fichiers temporaires</li>
+            <li>cleanup_teams - Nettoyer le cache Teams</li>
+            <li>cleanup_outlook - Nettoyer le cache Outlook</li>
+            <li>collect_logs - Collecter les journaux de diagnostic</li>
           </ul>
         </div>
 
         <div className="card">
-          <h3>5. Environment Variables</h3>
+          <h3>5. Variables d'environnement</h3>
           <ul>
-            <li><strong>HOST</strong> - Flask host (default: 0.0.0.0)</li>
-            <li><strong>PORT</strong> - Flask port (default: 5000)</li>
-            <li><strong>FLEET_TTL_SECONDS</strong> - Fleet entry expiration (default: 600)</li>
-            <li><strong>WEBHOOK_URL</strong> - Send alerts to webhook on critical health</li>
+            <li><strong>HOST</strong> - Hôte Flask (défaut : 0.0.0.0)</li>
+            <li><strong>PORT</strong> - Port Flask (défaut : 5000)</li>
+            <li><strong>FLEET_TTL_SECONDS</strong> - Expiration des entrées de flotte (défaut : 600)</li>
+            <li><strong>WEBHOOK_URL</strong> - Envoyer des alertes par webhook en cas de santé critique</li>
           </ul>
         </div>
 
         <div className="card">
-          <h3>6. Running the Dashboard</h3>
+          <h3>6. Exécution du tableau de bord</h3>
           <ul>
-            <li><strong>Web mode:</strong> <code>python main.py --web</code> (auto-opens browser)</li>
-            <li><strong>CLI mode:</strong> <code>python main.py</code> (terminal output)</li>
-            <li><strong>Export:</strong> <code>--export-csv ~/metrics.csv</code></li>
+            <li><strong>Mode web :</strong> <code>python main.py --web</code> (ouvre le navigateur automatiquement)</li>
+            <li><strong>Mode CLI :</strong> <code>python main.py</code> (sortie terminal)</li>
+            <li><strong>Export :</strong> <code>--export-csv ~/metrics.csv</code></li>
           </ul>
         </div>
       </div>
 
       <div className="card">
-        <h3>Dashboard Pages</h3>
-        <p><strong>Live:</strong> Real-time metrics, health score, system actions</p>
-        <p><strong>Fleet:</strong> All connected machines, status, health scores</p>
-        <p><strong>History:</strong> Historical charts from CSV logs</p>
-        <p><strong>Help:</strong> This page</p>
+        <h3>Pages du tableau de bord</h3>
+        <p><strong>Temps réel :</strong> Métriques en temps réel, score de santé, actions système</p>
+        <p><strong>Flotte :</strong> Toutes les machines connectées, statut, scores de santé</p>
+        <p><strong>Historique :</strong> Graphiques historiques à partir des journaux CSV</p>
+        <p><strong>Aide :</strong> Cette page</p>
       </div>
 
       <div className="card">
-        <h3>Agent Reporting Format</h3>
+        <h3>Format de rapport de l'agent</h3>
         <pre style={{ fontSize: '0.85em', overflow: 'auto', maxHeight: '300px' }}>
 {`POST /api/fleet/report
 {

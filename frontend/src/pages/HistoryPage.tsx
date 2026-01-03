@@ -15,6 +15,11 @@ ChartJS.register(LineElement, CategoryScale, LinearScale, PointElement, Legend, 
 export function HistoryPage() {
   const { data, isLoading, error } = useHistory(300);
 
+  // Détecter le thème actuel
+  const isDark = !document.body.classList.contains('light');
+  const textColor = isDark ? '#9db1c5' : '#4a5568';
+  const gridColor = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.08)';
+
   const chartData = {
     labels: data?.map((row) => row.timestamp.split('T')[1]?.slice(0, 5) || '') || [],
     datasets: [
@@ -44,12 +49,12 @@ export function HistoryPage() {
 
   const chartOptions = {
     responsive: true,
-    plugins: { legend: { labels: { color: '#9db1c5' } } },
+    plugins: { legend: { labels: { color: textColor } } },
     scales: {
-      x: { ticks: { color: '#9db1c5' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+      x: { ticks: { color: textColor }, grid: { color: gridColor } },
       y: {
-        ticks: { color: '#9db1c5' },
-        grid: { color: 'rgba(255,255,255,0.05)' },
+        ticks: { color: textColor },
+        grid: { color: gridColor },
         suggestedMin: 0,
         suggestedMax: 100,
       },
@@ -60,41 +65,41 @@ export function HistoryPage() {
     <div className="stack">
       <div className="section-header">
         <div>
-          <div className="muted" style={{ letterSpacing: '0.08em', textTransform: 'uppercase' }}>History</div>
-          <h1 style={{ margin: '6px 0' }}>Performance Metrics</h1>
-          <p className="muted">Historical view of system metrics over time.</p>
+          <div className="muted" style={{ letterSpacing: '0.08em', textTransform: 'uppercase' }}>Historique</div>
+          <h1 style={{ margin: '6px 0' }}>Métriques de performance</h1>
+          <p className="muted">Vue historique des métriques système au fil du temps.</p>
         </div>
-        <div className="muted">{data?.length || 0} samples</div>
+        <div className="muted">{data?.length || 0} échantillon{(data?.length || 0) > 1 ? 's' : ''}</div>
       </div>
 
-      {error && <div className="card status-critical">Error: {error.message}</div>}
+      {error && <div className="card status-critical">Erreur : {error.message}</div>}
 
       {isLoading ? (
         <div className="card">
-          <div className="muted">Loading history...</div>
+          <div className="muted">Chargement de l'historique...</div>
         </div>
       ) : (
         <>
           <div className="card">
-            <div className="card-title">CPU, RAM & Disk Over Time</div>
+            <div className="card-title">CPU, RAM et Disque dans le temps</div>
             <div style={{ height: '350px' }}>
               <Line data={chartData} options={chartOptions} />
             </div>
           </div>
 
           <div className="card">
-            <div className="card-title">Latest Samples</div>
+            <div className="card-title">Derniers échantillons</div>
             {data && data.length > 0 ? (
               <div style={{ overflowX: 'auto' }}>
                 <table className="table">
                   <thead>
                     <tr>
-                      <th>Timestamp</th>
-                      <th>Hostname</th>
+                      <th>Horodatage</th>
+                      <th>Nom d'hôte</th>
                       <th>CPU</th>
                       <th>RAM</th>
-                      <th>Disk</th>
-                      <th>Uptime</th>
+                      <th>Disque</th>
+                      <th>Disponibilité</th>
                     </tr>
                   </thead>
                   <tbody>
