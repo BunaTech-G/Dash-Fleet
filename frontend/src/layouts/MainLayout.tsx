@@ -13,10 +13,10 @@ export function MainLayout() {
     <div className="app-shell">
       <div className="topbar">
         <div className="brand">
-          <div className="brand-mark">DF</div>
+          <img src="/logo.svg" alt="DashFleet" className="brand-logo" style={{width: '40px', height: '40px'}}/>
           <div>
-            <div className="muted" style={{ fontSize: 12, letterSpacing: '0.08em' }}>DashFleet</div>
-            <strong>Dashboard</strong>
+            <div className="muted" style={{ fontSize: 12, letterSpacing: '0.08em' }}>DASHFLEET</div>
+            <strong style={{fontSize: '16px'}}>Dashboard</strong>
           </div>
         </div>
         <div className="controls">

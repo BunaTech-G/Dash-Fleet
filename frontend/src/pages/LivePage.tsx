@@ -29,7 +29,7 @@ export function LivePage() {
 
   // Détecter le thème actuel
   const isDark = !document.body.classList.contains('light');
-  const textColor = isDark ? '#9db1c5' : '#4a5568';
+  const textColor = isDark ? '#8b98aa' : '#4a5568';
   const gridColor = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.08)';
 
   useEffect(() => {
@@ -48,15 +48,15 @@ export function LivePage() {
       {
         label: 'CPU %',
         data: historyRef.current.map((p) => p.cpu),
-        borderColor: '#4cd4ff',
-        backgroundColor: 'rgba(76, 212, 255, 0.14)',
+        borderColor: '#3b82f6',
+        backgroundColor: 'rgba(59, 130, 246, 0.1)',
         tension: 0.25,
       },
       {
         label: 'RAM %',
         data: historyRef.current.map((p) => p.ram),
-        borderColor: '#ff7a9e',
-        backgroundColor: 'rgba(255, 122, 158, 0.14)',
+        borderColor: '#8b5cf6',
+        backgroundColor: 'rgba(139, 92, 246, 0.1)',
         tension: 0.25,
       },
     ],

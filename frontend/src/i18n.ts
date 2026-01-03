@@ -72,6 +72,7 @@ const dictionaries: Record<Lang, Record<string, string>> = {
     themeLight: 'Clair',
     themeDark: 'Sombre',
     unknown: 'Inconnu',
+    noHistory: 'Aucune donnée d\'historique disponible.',
   },
   en: {
     live: 'Live',
@@ -94,6 +95,7 @@ const dictionaries: Record<Lang, Record<string, string>> = {
     byRecent: 'Recent',
     adminTokens: 'Download tokens',
     helpTitle: 'Help & onboarding',
+    noHistory: 'No history data available.',
   },
 };
 

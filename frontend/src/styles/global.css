@@ -2,20 +2,20 @@
 
 :root {
   color-scheme: dark;
-  --bg: #050910;
-  --panel: #0c1424;
-  --panel-strong: #0f1a2e;
-  --border: #1f2b3f;
-  --text: #e9edf5;
-  --muted: #9db1c5;
-  --accent: #4cd4ff;
-  --accent-2: #ff7a9e;
-  --warn: #f4c430;
-  --critical: #ff5d6c;
-  --ok: #3fd1a4;
-  --expired: #ff9f47;
-  --radius: 16px;
-  --shadow: 0 18px 60px rgba(0, 0, 0, 0.35);
+  --bg: #0f1419;
+  --panel: #151b26;
+  --panel-strong: #1a2332;
+  --border: #2a3847;
+  --text: #d4dce8;
+  --muted: #8b98aa;
+  --accent: #3b82f6;
+  --accent-2: #8b5cf6;
+  --warn: #f59e0b;
+  --critical: #ef4444;
+  --ok: #10b981;
+  --expired: #f97316;
+  --radius: 12px;
+  --shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
   --font: 'Space Grotesk', 'Sora', 'Inter', system-ui, -apple-system, sans-serif;
 }
 
@@ -24,9 +24,7 @@
 body {
   margin: 0;
   min-height: 100vh;
-  background: radial-gradient(circle at 18% 24%, rgba(76, 212, 255, 0.16), transparent 25%),
-    radial-gradient(circle at 80% 10%, rgba(255, 122, 158, 0.2), transparent 30%),
-    linear-gradient(135deg, #050910, #0a1221);
+  background: linear-gradient(135deg, #0f1419 0%, #1a1f2e 100%);
   color: var(--text);
   font-family: var(--font);
   letter-spacing: -0.01em;
@@ -106,59 +104,84 @@ nav.main-nav {
 }
 
 nav.main-nav a {
-  padding: 10px 14px;
-  border-radius: 12px;
-  border: 1px solid var(--border);
+  padding: 10px 16px;
+  border-radius: 8px;
+  border: 1px solid transparent;
   color: var(--muted);
   text-decoration: none;
-  background: rgba(255, 255, 255, 0.02);
-  transition: border 120ms ease, transform 120ms ease, color 120ms ease, background 120ms ease;
+  background: transparent;
+  transition: all 150ms ease;
+}
+
+nav.main-nav a:hover {
+  color: var(--text);
+  background: rgba(59, 130, 246, 0.08);
 }
 
 nav.main-nav a.active {
-  color: var(--text);
-  border-color: var(--accent);
-  background: rgba(76, 212, 255, 0.12);
-  transform: translateY(-1px);
+  color: var(--accent);
+  background: rgba(59, 130, 246, 0.12);
+  border-color: rgba(59, 130, 246, 0.3);
+  font-weight: 600;
 }
 
 .light nav.main-nav a {
-  background: var(--panel);
+  background: transparent;
+}
+
+.light nav.main-nav a:hover {
+  background: rgba(59, 130, 246, 0.08);
 }
 
 .light nav.main-nav a.active {
-  background: rgba(0, 102, 204, 0.1);
-  border-color: var(--accent);
+  background: rgba(59, 130, 246, 0.1);
+  border-color: rgba(59, 130, 246, 0.3);
   font-weight: 600;
 }
 
 .button {
   border: 1px solid var(--border);
-  background: linear-gradient(135deg, rgba(76, 212, 255, 0.14), rgba(76, 212, 255, 0.04));
+  background: rgba(59, 130, 246, 0.08);
   color: var(--text);
   padding: 10px 14px;
-  border-radius: 12px;
-  font-weight: 700;
+  border-radius: 10px;
+  font-weight: 600;
   cursor: pointer;
-  transition: transform 100ms ease, border 120ms ease, background 120ms ease;
+  transition: all 120ms ease;
+}
+
+.button:hover {
+  background: rgba(59, 130, 246, 0.15);
+  border-color: var(--accent);
 }
 
 .button.ghost {
-  background: rgba(255, 255, 255, 0.04);
+  background: transparent;
+  border-color: var(--border);
+}
+
+.button.ghost:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--muted);
 }
 
 .light .button {
   background: var(--panel);
-  border: 1.5px solid var(--border);
+  border: 1px solid var(--border);
 }
 
 .light .button:hover {
-  background: var(--panel-strong);
+  background: rgba(59, 130, 246, 0.1);
   border-color: var(--accent);
 }
 
 .light .button.ghost {
-  background: var(--panel-strong);
+  background: transparent;
+  border-color: var(--border);
+}
+
+.light .button.ghost:hover {
+  background: rgba(59, 130, 246, 0.08);
 }
 
 .button.small { padding: 8px 12px; border-radius: 10px; font-weight: 600; }
@@ -174,14 +197,15 @@ nav.main-nav a.active {
 .card {
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 16px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01));
-  box-shadow: var(--shadow);
+  padding: 18px;
+  background: var(--panel);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  transition: all 200ms ease;
 }
 
 .light .card {
   background: var(--panel);
-  border: 1.5px solid var(--border);
+  border: 1px solid var(--border);
 }
 
 .card.tight { padding: 14px; }
@@ -225,22 +249,23 @@ nav.main-nav a.active {
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
-  border-radius: 999px;
+  border-radius: 6px;
   border: 1px solid var(--border);
   color: var(--text);
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(59, 130, 246, 0.08);
   font-weight: 600;
+  font-size: 13px;
 }
 
-.badge.ok { border-color: rgba(63, 209, 164, 0.6); color: var(--ok); }
-.badge.warn { border-color: rgba(244, 196, 48, 0.7); color: var(--warn); }
-.badge.critical { border-color: rgba(255, 93, 108, 0.7); color: var(--critical); }
-.badge.expired { border-color: rgba(255, 159, 71, 0.9); color: var(--expired); }
+.badge.ok { background: rgba(16, 185, 129, 0.12); border-color: rgba(16, 185, 129, 0.3); color: #10b981; }
+.badge.warn { background: rgba(245, 158, 11, 0.12); border-color: rgba(245, 158, 11, 0.3); color: #f59e0b; }
+.badge.critical { background: rgba(239, 68, 68, 0.12); border-color: rgba(239, 68, 68, 0.3); color: #ef4444; }
+.badge.expired { background: rgba(249, 115, 22, 0.12); border-color: rgba(249, 115, 22, 0.3); color: #f97316; }
 
-.light .badge.ok { border-color: var(--ok); background: rgba(5, 150, 105, 0.1); }
-.light .badge.warn { border-color: var(--warn); background: rgba(217, 119, 6, 0.1); }
-.light .badge.critical { border-color: var(--critical); background: rgba(220, 38, 38, 0.1); }
-.light .badge.expired { border-color: var(--expired); background: rgba(234, 88, 12, 0.1); }
+.light .badge.ok { border-color: var(--ok); background: rgba(5, 150, 105, 0.1); color: var(--ok); }
+.light .badge.warn { border-color: var(--warn); background: rgba(217, 119, 6, 0.1); color: var(--warn); }
+.light .badge.critical { border-color: var(--critical); background: rgba(220, 38, 38, 0.1); color: var(--critical); }
+.light .badge.expired { border-color: var(--expired); background: rgba(234, 88, 12, 0.1); color: var(--expired); }
 
 .flex { display: flex; gap: 10px; align-items: center; }
 
