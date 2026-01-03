@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import Dict, Iterable
 
 import psutil
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, render_template, request, send_file
 import sqlite3
 import secrets
 
@@ -668,6 +668,17 @@ APPROVED_ACTIONS: Dict[str, object] = {
 }
 
 
+def _serve_frontend() -> object:
+    """Return the bundled React SPA if present, fallback to legacy template."""
+    index_path = Path("static/app/index.html")
+    if index_path.exists():
+        try:
+            return send_file(str(index_path))
+        except Exception:
+            pass
+    return render_template("index.html")
+
+
 def print_stats(stats: Dict[str, object]) -> None:
     """Affiche joliment les stats dans le terminal."""
     cpu_flag = " !!" if stats["alerts"]["cpu"] else ""
@@ -683,28 +694,27 @@ def print_stats(stats: Dict[str, object]) -> None:
 
 @app.route("/")
 def dashboard() -> str:
-    # If PUBLIC_READ is enabled, show dashboard without session.
-    public_read = os.environ.get("PUBLIC_READ", "false").lower() in ("1", "true", "yes")
-    if public_read:
-        return render_template("index.html")
-
-    # Si l'utilisateur a une session serveur (cookie `dashfleet_sid`) valide,
-    # afficher le tableau de bord. Sinon afficher la page de connexion.
-    sid = request.cookies.get('dashfleet_sid')
-    if sid and _get_org_for_session(sid):
-        return render_template("index.html")
-    return render_template("login.html")
+    return _serve_frontend()
 
 
 @app.route("/history")
 def history_page() -> str:
-    return render_template("history.html")
+    return _serve_frontend()
 
 
 @app.route("/fleet")
 def fleet_page() -> str:
-    # expose le TTL côté client pour cohérence (secondes)
-    return render_template("fleet.html", fleet_ttl_seconds=FLEET_TTL_SECONDS)
+    return _serve_frontend()
+
+
+@app.route("/help")
+def help_page() -> str:
+    return _serve_frontend()
+
+
+@app.route("/login")
+def login_page() -> str:
+    return _serve_frontend()
 
 
 @app.route("/api/stats")
@@ -937,7 +947,7 @@ def admin_orgs():
 @app.route("/admin/tokens")
 def admin_tokens():
     """Admin UI to manage agent download tokens."""
-    return render_template("admin_tokens.html")
+    return _serve_frontend()
 
 
 @app.route('/api/tokens', methods=['GET'])
