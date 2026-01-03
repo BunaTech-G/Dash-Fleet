@@ -1,0 +1,6 @@
+[MASTER]
+disable=
+    no-name-in-module,
+    import-error,
+    unused-import,
+    line-too-long,
