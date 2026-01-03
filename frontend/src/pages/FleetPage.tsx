@@ -80,7 +80,7 @@ export function FleetPage() {
         {error && <div className="card status-critical">Erreur : {error.message}</div>}
         {!isLoading && !error && filtered.length === 0 && (
           <div className="empty">Aucune machine ne rapporte. Déployez un agent qui envoie des données à /api/fleet/report.</div>
-        )}}
+        )}
 
         <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))' }}>
           {filtered.map((entry) => {
