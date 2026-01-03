@@ -58,12 +58,4 @@ export function MainLayout() {
       </main>
     </div>
   );
-}      <main className="main-content">
-        <Outlet context={{ lang }} />
-      </main>
-    </div>
-  );
-}      <Outlet context={{ lang }} />
-    </div>
-  );
 }
